@@ -8,6 +8,8 @@
     ../../modules/desktop
     ../../modules/dev
     ../../modules/media
+    ../../modules/games
+    ../../modules/modelling
     ../../modules/machines/orr.nix
   ];
 
