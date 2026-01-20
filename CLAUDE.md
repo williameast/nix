@@ -34,21 +34,25 @@ home-manager switch --flake .#weast@orr --show-trace
 - **Old config:** `~/.config/home-manager/` (legacy, being migrated from)
 
 ## Current Status
-**Last updated:** 2026-01-18
+**Last updated:** 2026-01-20
 
 ### Completed
 - [x] Phase 1: Bootstrap - flake.nix with inputs (nixpkgs, home-manager, nixgl, nur)
 - [x] Module structure created (core, desktop, dev, media, machines)
-- [x] Initial build successful (result symlink exists)
+- [x] Initial build successful
+- [x] Switched to new flake-based config (generation 15)
+- [x] Shell (zsh) working with XDG-compliant paths (~/.config/zsh/)
+- [x] Core packages available (firefox, emacs, bat, fzf, etc.)
 
 ### In Progress
+- [ ] Run GPU setup for nixGL/WebGL: `sudo /nix/store/0336984d983pkkrh38r9ld73ains7za5-non-nixos-gpu/bin/non-nixos-gpu-setup`
+- [ ] Test Firefox WebGL at https://webglreport.com/
 - [ ] Verify all packages from old config are migrated
-- [ ] Test Firefox WebGL with nixGL wrapper
-- [ ] XDG cleanup of home directory dotfiles
 
 ### Not Started
 - [ ] Phase 5: Full XDG audit and cleanup
 - [ ] Document any programs that can't be XDG-compliant
+- [ ] Remove old config at ~/.config/home-manager/ once verified
 
 ## Session Start Checklist
 1. Run `git log --oneline -5` to see recent changes
