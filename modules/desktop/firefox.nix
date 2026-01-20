@@ -167,4 +167,36 @@ in {
 
   # Keep nixGL available for wrapping other apps
   home.packages = [ nixgl.nixGLIntel ];
+
+  # Desktop entry that uses the nixGL wrapper (overrides the nix-profile one)
+  xdg.desktopEntries.firefox = {
+    name = "Firefox";
+    genericName = "Web Browser";
+    exec = "${config.home.homeDirectory}/.local/bin/firefox %U";
+    icon = "firefox";
+    terminal = false;
+    categories = [ "Network" "WebBrowser" ];
+    mimeType = [
+      "text/html"
+      "text/xml"
+      "application/xhtml+xml"
+      "application/vnd.mozilla.xul+xml"
+      "x-scheme-handler/http"
+      "x-scheme-handler/https"
+    ];
+    startupNotify = true;
+    settings = {
+      StartupWMClass = "firefox";
+    };
+    actions = {
+      new-window = {
+        name = "New Window";
+        exec = "${config.home.homeDirectory}/.local/bin/firefox --new-window %U";
+      };
+      new-private-window = {
+        name = "New Private Window";
+        exec = "${config.home.homeDirectory}/.local/bin/firefox --private-window %U";
+      };
+    };
+  };
 }
