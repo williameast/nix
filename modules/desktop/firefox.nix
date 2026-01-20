@@ -24,6 +24,12 @@ in {
         ];
 
       settings = {
+        # === Extensions ===
+        # Allow extensions installed by home-manager to be enabled automatically
+        # 0 = don't auto-disable any scopes, 15 = disable all foreign installs (default)
+        "extensions.autoDisableScopes" = 0;
+        "extensions.enabledScopes" = 15;
+
         # === Hardware Acceleration (AMD radeonsi) ===
         "gfx.webrender.all" = true;
         "gfx.webrender.enabled" = true;
