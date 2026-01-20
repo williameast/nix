@@ -38,5 +38,16 @@
           ./hosts/orr/default.nix
         ];
       };
+
+      homeConfigurations."weast@yossarian" = home-manager.lib.homeManagerConfiguration {
+        inherit pkgs;
+
+        # Pass inputs to all modules
+        extraSpecialArgs = { inherit inputs; };
+
+        modules = [
+          ./hosts/yossarian/default.nix
+        ];
+      };
     };
 }
