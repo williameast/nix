@@ -16,6 +16,11 @@
       MAIL = "weast@student.42berlin.de";
     };
 
+    # Prepend ~/.local/bin to PATH (for nixGL wrappers to take precedence)
+    initExtra = ''
+      export PATH="$HOME/.local/bin:$PATH"
+    '';
+
     shellAliases = {
       # Emacs
       e = "emacsclient -c";

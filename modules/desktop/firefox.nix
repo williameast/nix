@@ -4,12 +4,6 @@
 
 let
   nixgl = inputs.nixgl.packages.${pkgs.system};
-
-  # Firefox wrapped with nixGL for proper OpenGL/WebGL support
-  # nixGLIntel works for all Mesa-based drivers (including AMD radeonsi)
-  firefoxWithGL = pkgs.writeShellScriptBin "firefox" ''
-    exec ${nixgl.nixGLIntel}/bin/nixGLIntel ${pkgs.firefox}/bin/firefox "$@"
-  '';
 in {
   programs.firefox = {
     enable = true;
@@ -162,9 +156,15 @@ in {
     };
   };
 
-  # Add the nixGL-wrapped Firefox to PATH (takes precedence over programs.firefox)
-  home.packages = [
-    firefoxWithGL
-    nixgl.nixGLIntel # Also install nixGL itself for other apps if needed
-  ];
+  # nixGL wrapper in ~/.local/bin takes precedence over ~/.nix-profile/bin
+  # This wraps the FINAL firefox (with all home-manager config) through nixGL
+  home.file.".local/bin/firefox" = {
+    executable = true;
+    source = pkgs.writeShellScript "firefox-nixgl" ''
+      exec ${nixgl.nixGLIntel}/bin/nixGLIntel ${config.programs.firefox.finalPackage}/bin/firefox "$@"
+    '';
+  };
+
+  # Keep nixGL available for wrapping other apps
+  home.packages = [ nixgl.nixGLIntel ];
 }
