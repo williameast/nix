@@ -49,5 +49,16 @@
           ./hosts/yossarian/default.nix
         ];
       };
+
+      homeConfigurations."weast@milo" = home-manager.lib.homeManagerConfiguration {
+        inherit pkgs;
+
+        # Pass inputs to all modules
+        extraSpecialArgs = { inherit inputs; };
+
+        modules = [
+          ./hosts/milo/default.nix
+        ];
+      };
     };
 }
