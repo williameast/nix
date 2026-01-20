@@ -39,15 +39,14 @@ home-manager switch --flake .#weast@orr --show-trace
 ### Completed
 - [x] Phase 1: Bootstrap - flake.nix with inputs (nixpkgs, home-manager, nixgl, nur)
 - [x] Module structure created (core, desktop, dev, media, machines)
-- [x] Initial build successful
-- [x] Switched to new flake-based config (generation 15)
+- [x] Switched to new flake-based config
 - [x] Shell (zsh) working with XDG-compliant paths (~/.config/zsh/)
 - [x] Core packages available (firefox, emacs, bat, fzf, etc.)
+- [x] Firefox WebGL 1 & 2 working via nixGL wrapper (~/.local/bin/firefox)
 
 ### In Progress
-- [ ] Run GPU setup for nixGL/WebGL: `sudo /nix/store/0336984d983pkkrh38r9ld73ains7za5-non-nixos-gpu/bin/non-nixos-gpu-setup`
-- [ ] Test Firefox WebGL at https://webglreport.com/
 - [ ] Verify all packages from old config are migrated
+- [ ] Test other apps that may need nixGL wrapping
 
 ### Not Started
 - [ ] Phase 5: Full XDG audit and cleanup
