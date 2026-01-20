@@ -18,5 +18,9 @@
 
     # System
     tmux
+
+    # Containers
+    docker
+    docker-compose
   ];
 }

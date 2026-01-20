@@ -7,6 +7,7 @@
     ../../modules/core/shell.nix
     ../../modules/core/git.nix
     ../../modules/core/cli-tools.nix
+    ../../modules/secrets.nix
     ../../modules/machines/milo.nix
   ];
 
