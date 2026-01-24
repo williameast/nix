@@ -28,4 +28,30 @@
     # Force EGL for better WebGL support
     MOZ_X11_EGL = "1";
   };
+
+  # Syncthing configuration for orr (desktop workstation)
+  services.syncthing.settings = {
+    # Define other devices to sync with
+    devices = {
+      "yossarian" = {
+        # Get device ID from: syncthing --device-id
+        # Run on yossarian, then paste ID here
+        id = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
+      };
+    };
+
+    # Define folders to sync
+    folders = {
+      "org" = {
+        path = "${config.home.homeDirectory}/org";
+        devices = [ "yossarian" ];
+        ignorePerms = false; # Preserve permissions
+      };
+      "music" = {
+        path = "${config.home.homeDirectory}/Music";
+        devices = [ "yossarian" ];
+        ignorePerms = false;
+      };
+    };
+  };
 }

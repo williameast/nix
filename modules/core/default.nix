@@ -7,5 +7,6 @@
     ./shell.nix
     ./git.nix
     ./cli-tools.nix
+    ./syncthing.nix
   ];
 }
