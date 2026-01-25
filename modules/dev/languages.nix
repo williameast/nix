@@ -1,5 +1,10 @@
 # Language servers, formatters, and development tools
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
   home.packages = with pkgs; [
@@ -21,7 +26,7 @@
     black
 
     # Nix
-    nixfmt
+    # nixfmt TODO not working?
 
     # LaTeX
     texlive.combined.scheme-full

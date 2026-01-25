@@ -1,60 +1,69 @@
 # 3D Modelling and CAD applications
-{ config, pkgs, lib, inputs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  inputs,
+  ...
+}:
 
 let
   nixgl = inputs.nixgl.packages.${pkgs.system};
 
   # Wrapper for OpenGL apps
-  wrapWithGL = name: pkg: pkgs.writeShellScript "${name}-nixgl" ''
-    exec ${nixgl.nixGLIntel}/bin/nixGLIntel ${pkg}/bin/${name} "$@"
-  '';
-in {
-  home.packages = with pkgs; [
-    # freecad  # TODO: broken in nixpkgs (openturns dependency fails to build)
-    openscad
-    bambu-studio
+  wrapWithGL =
+    name: pkg:
+    pkgs.writeShellScript "${name}-nixgl" ''
+      exec ${nixgl.nixGLIntel}/bin/nixGLIntel ${pkg}/bin/${name} "$@"
+    '';
+in
+{
+  imports = [
+    inputs.nix-flatpak.homeManagerModules.nix-flatpak
   ];
 
-  # nixGL wrappers for 3D apps (they need GPU access)
+  # Flatpak configuration
+  services.flatpak = {
+    enable = true;
+    remotes = [
+      { name = "flathub"; location = "https://dl.flathub.org/repo/flathub.flatpakrepo"; }
+    ];
+    packages = [
+      "org.freecadweb.FreeCAD"
+      "com.bambulab.BambuStudio"
+    ];
+    update.auto = {
+      enable = true;
+      onCalendar = "weekly";
+    };
+  };
+
+  # Nix packages (OpenSCAD still works from nixpkgs)
+  home.packages = with pkgs; [
+    openscad
+  ];
+
+  # nixGL wrapper for OpenSCAD (needs GPU access)
   home.file = {
-    # ".local/bin/freecad" = {
-    #   executable = true;
-    #   source = wrapWithGL "FreeCAD" pkgs.freecad;
-    # };
     ".local/bin/openscad" = {
       executable = true;
       source = wrapWithGL "openscad" pkgs.openscad;
     };
-    ".local/bin/bambu-studio" = {
-      executable = true;
-      source = wrapWithGL "bambu-studio" pkgs.bambu-studio;
-    };
   };
 
-  # Desktop entries with nixGL wrappers
+  # Desktop entry for OpenSCAD with nixGL wrapper
   xdg.desktopEntries = {
-    # freecad = {
-    #   name = "FreeCAD";
-    #   exec = "${config.home.homeDirectory}/.local/bin/freecad %F";
-    #   icon = "freecad";
-    #   terminal = false;
-    #   categories = [ "Graphics" "Science" "Engineering" ];
-    #   mimeType = [ "application/x-extension-fcstd" ];
-    # };
     openscad = {
       name = "OpenSCAD";
       exec = "${config.home.homeDirectory}/.local/bin/openscad %f";
       icon = "openscad";
       terminal = false;
-      categories = [ "Graphics" "3DGraphics" "Engineering" ];
+      categories = [
+        "Graphics"
+        "3DGraphics"
+        "Engineering"
+      ];
       mimeType = [ "application/x-openscad" ];
-    };
-    bambu-studio = {
-      name = "Bambu Studio";
-      exec = "${config.home.homeDirectory}/.local/bin/bambu-studio %F";
-      icon = "bambu-studio";
-      terminal = false;
-      categories = [ "Graphics" "3DGraphics" "Engineering" ];
     };
   };
 }

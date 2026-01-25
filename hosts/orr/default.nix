@@ -1,5 +1,11 @@
 # Configuration for orr (Pop!_OS workstation with AMD R9 290)
-{ config, pkgs, lib, inputs, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  inputs,
+  ...
+}:
 
 {
   imports = [
@@ -10,6 +16,7 @@
     ../../modules/media
     ../../modules/games
     ../../modules/modelling
+    ../../modules/work
     ../../modules/machines/orr.nix
   ];
 
@@ -54,4 +61,6 @@
       };
     };
   };
+  # Machine-specific files
+  home.file.".config/emacs/.local/etc/bookmarks".source = ./files/emacs/bookmarks;
 }

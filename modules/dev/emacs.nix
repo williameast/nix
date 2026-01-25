@@ -36,7 +36,7 @@ in {
 
     # For LSP and other features
     shellcheck
-    nixfmt-classic
+    nixfmt
   ];
 
   # Add Doom's bin to PATH

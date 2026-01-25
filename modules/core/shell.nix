@@ -1,5 +1,10 @@
 # Zsh configuration with Oh-My-Zsh
-{ config, pkgs, lib, ... }:
+{
+  config,
+  pkgs,
+  lib,
+  ...
+}:
 
 {
   programs.zsh = {
@@ -17,7 +22,7 @@
     };
 
     # Prepend ~/.local/bin to PATH (for nixGL wrappers to take precedence)
-    initExtra = ''
+    initContent = ''
       export PATH="$HOME/.local/bin:$PATH"
     '';
 

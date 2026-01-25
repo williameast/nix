@@ -1,0 +1,29 @@
+;;;; Emacs Bookmark Format Version 1;;;; -*- coding: utf-8-emacs; mode: lisp-data -*-
+;;; This format is meant to be slightly human-readable;
+;;; nevertheless, you probably don't want to edit it.
+;;; -*- End Of Bookmark File Format Version Stamp -*-
+(("nix"
+ (filename . "~/.config/nix-config/")
+ (front-context-string . "hosts\n  drwxrwxr")
+ (rear-context-string . "0K Jan 20 12:22 ")
+ (position . 81)
+ (last-modified 26991 37122 413690 132000))
+("zzukunft"
+ (filename . "~/org/zzukunft/")
+ (front-context-string . "admin\n  drwxrwxr")
+ (rear-context-string . "0K Feb 26 15:33 ")
+ (position . 75)
+ (last-modified 26623 29863 442537 285000))
+("org"
+ (filename . "~/org/")
+ (front-context-string . "projects\n  drwxr")
+ (rear-context-string . "0K Feb 26 15:52 ")
+ (position . 1126)
+ (last-modified 26560 21068 450440 918000))
+("home"
+ (filename . "~/")
+ (front-context-string . ".zshrc -> /nix/s")
+ (rear-context-string . "69 Feb 26 14:59 ")
+ (position . 1999)
+ (last-modified 26560 21063 320128 783000))
+)

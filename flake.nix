@@ -18,6 +18,9 @@
 
     # NUR for Firefox extensions
     nur.url = "github:nix-community/NUR";
+
+    # Declarative Flatpak management
+    nix-flatpak.url = "github:gmodena/nix-flatpak";
   };
 
   outputs = { self, nixpkgs, home-manager, nixgl, nur, ... }@inputs:
