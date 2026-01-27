@@ -11,8 +11,8 @@
     ../../modules/nixos/users.nix
 
     # Services - comment out what you don't want yet
-    # ../../modules/nixos/services/jellyfin.nix
-    # ../../modules/nixos/services/navidrome.nix
+    ../../modules/nixos/services/jellyfin.nix
+    ../../modules/nixos/services/navidrome.nix
     # ../../modules/nixos/services/syncthing.nix
     # ../../modules/nixos/services/docker.nix
 
