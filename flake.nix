@@ -31,6 +31,7 @@
         config.allowUnfree = true;
       };
     in {
+      # Home Manager configurations (for non-NixOS systems: orr, yossarian)
       homeConfigurations."weast@orr" = home-manager.lib.homeManagerConfiguration {
         inherit pkgs;
 
@@ -53,14 +54,12 @@
         ];
       };
 
-      homeConfigurations."weast@milo" = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-
-        # Pass inputs to all modules
-        extraSpecialArgs = { inherit inputs; };
+      # NixOS system configuration (milo server)
+      nixosConfigurations.milo = nixpkgs.lib.nixosSystem {
+        inherit system;
 
         modules = [
-          ./hosts/milo/default.nix
+          ./hosts/milo/configuration.nix
         ];
       };
     };

@@ -1,16 +1,10 @@
-# Configuration for orr (Pop!_OS workstation with AMD R9 290)
-{
-  config,
-  pkgs,
-  lib,
-  inputs,
-  ...
-}:
+# Configuration for milo (server - minimal headless setup)
+{ config, pkgs, lib, inputs, ... }:
 
 let
   # Import syncthing topology configuration
   topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
-  hostname = "orr";
+  hostname = "milo";
 
   # Get list of devices this host should know about
   knownDevices = topology.getDevicesForHost hostname;
@@ -35,36 +29,22 @@ let
 in {
   imports = [
     ../common.nix
-    ../../modules/home/core
-    ../../modules/home/desktop
-    ../../modules/home/dev
-    ../../modules/home/media
-    ../../modules/home/games
-    ../../modules/home/modelling
-    ../../modules/home/work
-    ../../modules/home/machines/orr.nix
+    ../../modules/home/core/shell.nix
+    ../../modules/home/core/git.nix
+    ../../modules/home/core/cli-tools.nix
+    ../../modules/home/core/syncthing.nix
+    ../../modules/home/secrets.nix
+    ../../modules/home/machines/milo.nix
   ];
 
-  # Required for non-NixOS systems (Pop!_OS)
+  # Required for non-NixOS systems
   targets.genericLinux.enable = true;
 
-  # XDG data dirs for nix-installed apps to show in launcher
-  xdg.systemDirs.data = [
-    "${config.home.homeDirectory}/.nix-profile/share"
-  ];
-
-  # AMD R9 290 specific settings
-  home.sessionVariables = {
-    # VA-API driver for hardware video acceleration
-    LIBVA_DRIVER_NAME = "radeonsi";
-    # Force EGL for better WebGL support
-    MOZ_X11_EGL = "1";
-  };
+  # No desktop, no GPU - server only
 
   # Syncthing configuration (topology defined in modules/syncthing-topology.nix)
+  # In hub-and-spoke mode, milo is the hub and syncs with all spokes
   services.syncthing.settings = {
     inherit devices folders;
   };
-  # Machine-specific files
-  home.file.".config/emacs/.local/etc/bookmarks".source = ./files/emacs/bookmarks;
 }

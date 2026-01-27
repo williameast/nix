@@ -1,16 +1,41 @@
 # Configuration for yossarian (laptop with Intel CometLake-U GT2)
 { config, pkgs, lib, inputs, ... }:
 
-{
+let
+  # Import syncthing topology configuration
+  topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
+  hostname = "yossarian";
+
+  # Get list of devices this host should know about
+  knownDevices = topology.getDevicesForHost hostname;
+
+  # Build device configuration (all devices we might sync with)
+  devices = lib.listToAttrs (map (name: {
+    name = name;
+    value = { id = topology.machines.${name}.deviceId; };
+  }) knownDevices);
+
+  # Build folder configuration (per-folder device lists)
+  folders = lib.mapAttrs (folderName: folderConfig: {
+    path = "${config.home.homeDirectory}/${folderConfig.path}";
+    devices = topology.getDevicesForFolder hostname folderName;
+    ignorePerms = folderConfig.ignorePerms;
+    type = folderConfig.type or "sendreceive";  # Default to sendreceive
+  } // lib.optionalAttrs (folderConfig ? patterns) {
+    # Add ignore patterns if specified (for file filtering like .torrent only)
+    ignorePatterns = folderConfig.patterns;
+  }) topology.sharedFolders;
+
+in {
   imports = [
     ../common.nix
-    ../../modules/core
-    ../../modules/desktop
-    ../../modules/dev
-    ../../modules/media
-    # ../../modules/games       # Uncomment if you want games on laptop
-    # ../../modules/modelling   # Uncomment if you want CAD on laptop
-    ../../modules/machines/yossarian.nix
+    ../../modules/home/core
+    ../../modules/home/desktop
+    ../../modules/home/dev
+    ../../modules/home/media
+    # ../../modules/home/games       # Uncomment if you want games on laptop
+    # ../../modules/home/modelling   # Uncomment if you want CAD on laptop
+    ../../modules/home/machines/yossarian.nix
   ];
 
   # Required for non-NixOS systems
@@ -29,29 +54,8 @@
     MOZ_X11_EGL = "1";
   };
 
-  # Syncthing configuration for yossarian (laptop)
+  # Syncthing configuration (topology defined in modules/syncthing-topology.nix)
   services.syncthing.settings = {
-    # Define other devices to sync with
-    devices = {
-      "orr" = {
-        # Get device ID from: syncthing --device-id
-        # Run on orr, then paste ID here
-        id = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
-      };
-    };
-
-    # Define folders to sync
-    folders = {
-      "org" = {
-        path = "${config.home.homeDirectory}/org";
-        devices = [ "orr" ];
-        ignorePerms = false; # Preserve permissions
-      };
-      "music" = {
-        path = "${config.home.homeDirectory}/Music";
-        devices = [ "orr" ];
-        ignorePerms = false;
-      };
-    };
+    inherit devices folders;
   };
 }
