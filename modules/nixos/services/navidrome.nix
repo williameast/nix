@@ -8,8 +8,8 @@
       # Port for web interface
       Port = 4533;
 
-      # Music folder - adjust to your setup
-      MusicFolder = "/var/lib/navidrome/music";
+      # Music folder on ZFS vault (redundant storage)
+      MusicFolder = "/mnt/vault/music";
 
       # Data folder for cache, DB, etc.
       DataFolder = "/var/lib/navidrome";

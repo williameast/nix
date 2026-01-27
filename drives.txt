@@ -1,0 +1,6 @@
+size	capacity	brand	connection	type
+2.5"	1TiB		WD elem	USB	HDD
+2.5"	4TiB		WD elem	USB	HDD
+2.5"	1TiB		noname		SATA	SSD
+3.5"	2TiB		Samsung	SATA	HDD
+m2		500GiB		noname		m2		SSD (boot)

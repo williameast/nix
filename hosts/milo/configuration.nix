@@ -10,10 +10,15 @@
     ../../modules/nixos/common.nix
     ../../modules/nixos/users.nix
 
+    # Storage
+    ../../modules/nixos/storage/btrfs-vault.nix
+    ../../modules/nixos/storage/usb-mounts.nix
+    ../../modules/nixos/storage/backups.nix
+
     # Services - comment out what you don't want yet
-    ../../modules/nixos/services/jellyfin.nix
-    ../../modules/nixos/services/navidrome.nix
-    # ../../modules/nixos/services/syncthing.nix
+    # ../../modules/nixos/services/jellyfin.nix  # Uncomment after storage is set up
+    # ../../modules/nixos/services/navidrome.nix  # Uncomment after storage is set up
+    ../../modules/nixos/services/syncthing.nix
     # ../../modules/nixos/services/docker.nix
 
     # Networking
@@ -35,24 +40,30 @@
   system.stateVersion = "25.11";
 
   # Syncthing topology configuration
-  # Uncomment and configure when you're ready to set up syncthing
-  # services.syncthing.settings = let
-  #   topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
-  #   hostname = "milo";
-  #   knownDevices = topology.getDevicesForHost hostname;
-  #   devices = lib.listToAttrs (map (name: {
-  #     name = name;
-  #     value = { id = topology.machines.${name}.deviceId; };
-  #   }) knownDevices);
-  #   folders = lib.mapAttrs (folderName: folderConfig: {
-  #     path = "/home/weast/${folderConfig.path}";
-  #     devices = topology.getDevicesForFolder hostname folderName;
-  #     ignorePerms = folderConfig.ignorePerms;
-  #     type = folderConfig.type or "sendreceive";
-  #   } // lib.optionalAttrs (folderConfig ? patterns) {
-  #     ignorePatterns = folderConfig.patterns;
-  #   }) topology.sharedFolders;
-  # in {
-  #   inherit devices folders;
-  # };
+  services.syncthing.settings = let
+    topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
+    hostname = "milo";
+    knownDevices = topology.getDevicesForHost hostname;
+    devices = lib.listToAttrs (map (name: {
+      name = name;
+      value = { id = topology.machines.${name}.deviceId; };
+    }) knownDevices);
+
+    # Custom folder mapping for milo:
+    # - org: lives in home directory (fast m.2)
+    # - music: lives on Btrfs vault (redundant RAID1 storage)
+    folders = lib.mapAttrs (folderName: folderConfig: {
+      path =
+        if folderName == "music" then "/mnt/vault/music"
+        else if folderName == "org" then "/home/weast/org"
+        else "/home/weast/${folderConfig.path}";
+      devices = topology.getDevicesForFolder hostname folderName;
+      ignorePerms = folderConfig.ignorePerms;
+      type = folderConfig.type or "sendreceive";
+    } // lib.optionalAttrs (folderConfig ? patterns) {
+      ignorePatterns = folderConfig.patterns;
+    }) topology.sharedFolders;
+  in {
+    inherit devices folders;
+  };
 }
