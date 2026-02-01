@@ -23,7 +23,7 @@ let
       managed = true;
     };
     milo = {
-      deviceId = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
+      deviceId = "D4PDFYN-5WQJA3W-W7E2XPG-KMBY4LZ-YACVJ2X-NHFUOWV-JZTOROP-YH7HMAD";
       managed = true;
     };
 
@@ -49,12 +49,12 @@ let
       devices = [ "orr" "yossarian" "milo"];
       # Syncs to all devices (default behavior)
     };
-    music = {
-      path = "Music";
-      ignorePerms = false;
-      # Only sync to computers and milo (archive), not phone/ultracc
-      devices = [ "orr" "yossarian" "milo" ];
-    };
+    # music = {
+    #   path = "Music";
+    #   ignorePerms = false;
+    #   # Only sync to computers and milo (archive), not phone/ultracc
+    #   devices = [ "orr" "yossarian" "milo" ];
+    # };
 
     # Torrent metainfo files (.torrent) - sync TO ultracc for downloading
     torrent-metainfo = {
