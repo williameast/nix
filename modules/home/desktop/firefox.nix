@@ -18,7 +18,7 @@ in {
         with inputs.nur.legacyPackages.${pkgs.system}.repos.rycee.firefox-addons; [
           ublock-origin
           keepassxc-browser
-          darkreader
+          # darkreader
           sidebery
           clearurls
         ];
