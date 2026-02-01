@@ -39,31 +39,24 @@
   # State version - NEVER change this after initial install
   system.stateVersion = "25.11";
 
-  # Syncthing topology configuration
+  # Syncthing configuration (using topology as single source of truth)
   services.syncthing.settings = let
     topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
-    hostname = "milo";
-    knownDevices = topology.getDevicesForHost hostname;
-    devices = lib.listToAttrs (map (name: {
-      name = name;
-      value = { id = topology.machines.${name}.deviceId; };
-    }) knownDevices);
-
-    # Custom folder mapping for milo:
-    # - org: lives in home directory (fast m.2)
-    # - music: lives on Btrfs vault (redundant RAID1 storage)
-    folders = lib.mapAttrs (folderName: folderConfig: {
-      path =
-        if folderName == "music" then "/mnt/vault/music"
-        else if folderName == "org" then "/home/weast/org"
-        else "/home/weast/${folderConfig.path}";
-      devices = topology.getDevicesForFolder hostname folderName;
-      ignorePerms = folderConfig.ignorePerms;
-      type = folderConfig.type or "sendreceive";
-    } // lib.optionalAttrs (folderConfig ? patterns) {
-      ignorePatterns = folderConfig.patterns;
-    }) topology.sharedFolders;
+    syncConfig = topology.buildSyncthingConfig {
+      hostname = "milo";
+      homeDir = "/home/weast";
+    };
   in {
-    inherit devices folders;
+    inherit (syncConfig) devices folders;
   };
+
+  # Auto-create syncthing folders
+  systemd.tmpfiles.rules = let
+    topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
+    syncConfig = topology.buildSyncthingConfig {
+      hostname = "milo";
+      homeDir = "/home/weast";
+    };
+  in
+    syncConfig.tmpfiles;
 }

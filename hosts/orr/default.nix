@@ -8,29 +8,12 @@
 }:
 
 let
-  # Import syncthing topology configuration
+  # Syncthing configuration (using topology as single source of truth)
   topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
-  hostname = "orr";
-
-  # Get list of devices this host should know about
-  knownDevices = topology.getDevicesForHost hostname;
-
-  # Build device configuration (all devices we might sync with)
-  devices = lib.listToAttrs (map (name: {
-    name = name;
-    value = { id = topology.machines.${name}.deviceId; };
-  }) knownDevices);
-
-  # Build folder configuration (per-folder device lists)
-  folders = lib.mapAttrs (folderName: folderConfig: {
-    path = "${config.home.homeDirectory}/${folderConfig.path}";
-    devices = topology.getDevicesForFolder hostname folderName;
-    ignorePerms = folderConfig.ignorePerms;
-    type = folderConfig.type or "sendreceive";  # Default to sendreceive
-  } // lib.optionalAttrs (folderConfig ? patterns) {
-    # Add ignore patterns if specified (for file filtering like .torrent only)
-    ignorePatterns = folderConfig.patterns;
-  }) topology.sharedFolders;
+  syncConfig = topology.buildSyncthingConfig {
+    hostname = "orr";
+    homeDir = config.home.homeDirectory;
+  };
 
 in {
   imports = [
@@ -61,10 +44,14 @@ in {
     MOZ_X11_EGL = "1";
   };
 
-  # Syncthing configuration (topology defined in modules/syncthing-topology.nix)
+  # Syncthing configuration (topology defined in modules/home/syncthing-topology.nix)
   services.syncthing.settings = {
-    inherit devices folders;
+    inherit (syncConfig) devices folders;
   };
+
+  # Auto-create syncthing folders
+  systemd.user.tmpfiles.rules = syncConfig.tmpfiles;
+
   # Machine-specific files
   home.file.".config/emacs/.local/etc/bookmarks".source = ./files/emacs/bookmarks;
 }

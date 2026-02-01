@@ -42,25 +42,29 @@ let
 
   # Define folders that should be synced across all machines
   # Use 'devices' to override which devices get this folder (optional)
+  # Use 'pathOverrides' to specify absolute paths for specific machines
   sharedFolders = {
     org = {
-      path = "org";  # Relative to home directory
+      path = "org";  # Default: relative to home directory
       ignorePerms = false;
       devices = [ "orr" "yossarian" "milo"];
-      # Syncs to all devices (default behavior)
+      pathOverrides = {};  # All machines use default ~/org
     };
-    # music = {
-    #   path = "Music";
-    #   ignorePerms = false;
-    #   # Only sync to computers and milo (archive), not phone/ultracc
-    #   devices = [ "orr" "yossarian" "milo" ];
-    # };
+    music = {
+      path = "Music";  # Default: relative to home directory
+      ignorePerms = false;
+      devices = [ "orr" "yossarian" "milo" ];
+      pathOverrides = {
+        milo = "/mnt/vault/music";  # Milo uses Btrfs RAID1 storage
+      };
+    };
 
     # Torrent metainfo files (.torrent) - sync TO ultracc for downloading
     torrent-metainfo = {
       path = "torrentfiles";
       ignorePerms = false;
       devices = [ "orr" "yossarian" "milo" "ultracc" ];
+      pathOverrides = {};  # All use default ~/torrentfiles
 
       # Only sync .torrent files (Syncthing ignore patterns)
       # Lines starting with ! are includes (whitelist mode)
@@ -84,6 +88,7 @@ let
       path = "Downloads/torrents";
       ignorePerms = false;
       devices = [ "ultracc" "milo" ];
+      pathOverrides = {};  # All use default ~/Downloads/torrents
 
       # Ultracc sends completed downloads, milo receives and archives
       # On ultracc: set this folder to "Send Only"
@@ -139,6 +144,46 @@ let
       else
         otherMachines;  # Full-mesh: everyone knows everyone
 
+  # Helper function: Build complete syncthing configuration for a host
+  # Returns { devices, folders, tmpfiles } ready to use
+  buildSyncthingConfig = { hostname, homeDir }:
+    let
+      # Get devices this host should know about
+      knownDevices = getDevicesForHost hostname;
+
+      # Build device configuration
+      devices = lib.listToAttrs (map (name: {
+        name = name;
+        value = { id = machines.${name}.deviceId; };
+      }) knownDevices);
+
+      # Build folder configuration with path resolution
+      folders = lib.mapAttrs (folderName: folderConfig: {
+        # Use override if exists, otherwise default to homeDir/path
+        path = folderConfig.pathOverrides.${hostname} or "${homeDir}/${folderConfig.path}";
+        devices = getDevicesForFolder hostname folderName;
+        ignorePerms = folderConfig.ignorePerms;
+        type = folderConfig.type or "sendreceive";
+      } // lib.optionalAttrs (folderConfig ? patterns) {
+        ignorePatterns = folderConfig.patterns;
+      }) sharedFolders;
+
+      # Build tmpfiles rules for folder creation
+      tmpfiles = lib.mapAttrsToList (folderName: folderConfig:
+        let
+          folderPath = folderConfig.pathOverrides.${hostname} or "${homeDir}/${folderConfig.path}";
+        in
+          "d ${folderPath} 0755 - - -"
+      ) (lib.filterAttrs (name: cfg:
+        # Only include folders this host syncs
+        builtins.elem hostname (getDevicesForFolder hostname name)
+      ) sharedFolders);
+    in {
+      inherit devices folders tmpfiles;
+    };
+
 in {
-  inherit hubAndSpoke hub machines sharedFolders getDevicesForHost getDevicesForFolder;
+  inherit hubAndSpoke hub machines sharedFolders
+          getDevicesForHost getDevicesForFolder
+          buildSyncthingConfig;
 }
