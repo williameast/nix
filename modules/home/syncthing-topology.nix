@@ -173,7 +173,7 @@ let
         let
           folderPath = folderConfig.pathOverrides.${hostname} or "${homeDir}/${folderConfig.path}";
         in
-          "d ${folderPath} 0755 - - -"
+          "d ${folderPath} 0755 weast users -"
       ) (lib.filterAttrs (name: cfg:
         # Only include folders this host syncs
         builtins.elem hostname (getDevicesForFolder hostname name)
