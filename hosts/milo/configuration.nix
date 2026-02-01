@@ -39,24 +39,6 @@
   # State version - NEVER change this after initial install
   system.stateVersion = "25.11";
 
-  # Syncthing configuration (using topology as single source of truth)
-  services.syncthing.settings = let
-    topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
-    syncConfig = topology.buildSyncthingConfig {
-      hostname = "milo";
-      homeDir = "/home/weast";
-    };
-  in {
-    inherit (syncConfig) devices folders;
-  };
-
-  # Auto-create syncthing folders
-  systemd.tmpfiles.rules = let
-    topology = import ../../modules/home/syncthing-topology.nix { inherit lib; };
-    syncConfig = topology.buildSyncthingConfig {
-      hostname = "milo";
-      homeDir = "/home/weast";
-    };
-  in
-    syncConfig.tmpfiles;
+  # Syncthing is configured in modules/nixos/services/syncthing.nix
+  # All settings come from modules/home/syncthing-topology.nix
 }
