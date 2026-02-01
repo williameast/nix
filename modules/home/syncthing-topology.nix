@@ -14,10 +14,10 @@ let
   # Define all machines in the sync network
   machines = {
     # Nix-managed hosts
-    orr = {
-      deviceId = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
-      managed = true;  # Managed by this Nix config
-    };
+    # orr = {
+    #   deviceId = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
+    #   managed = true;  # TODO: Get real device ID from orr
+    # };
     yossarian = {
       deviceId = "KYPSGOI-6NG3XBG-ASF7CGR-AQAYK3B-JWVUGBU-2G7WQUL-GZKHB4X-RIIDDQK";
       managed = true;
@@ -28,11 +28,11 @@ let
     };
 
     # External devices (NOT managed by Nix - configure manually on device)
-    phone = {
-      # Get device ID from Syncthing app on phone: Settings -> Show device ID
-      deviceId = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
-      managed = false;  # Manually configured on Android
-    };
+    # phone = {
+    #   # Get device ID from Syncthing app on phone: Settings -> Show device ID
+    #   deviceId = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
+    #   managed = false;  # TODO: Get real device ID from phone
+    # };
     ultracc = {
       # Get device ID from ultra
       deviceId = "SJ5NHJ6-B277L5B-UYSFSOF-VQO3N4E-6OG2NK4-VAPWPMF-OGZJFIR-DZEVFAP";
@@ -47,13 +47,13 @@ let
     org = {
       path = "org";  # Default: relative to home directory
       ignorePerms = false;
-      devices = [ "orr" "yossarian" "milo"];
+      devices = [ "yossarian" "milo"];  # TODO: Add orr when we have its device ID
       pathOverrides = {};  # All machines use default ~/org
     };
     music = {
       path = "Music";  # Default: relative to home directory
       ignorePerms = false;
-      devices = [ "orr" "yossarian" "milo" ];
+      devices = [ "yossarian" "milo" ];  # TODO: Add orr when we have its device ID
       pathOverrides = {
         milo = "/mnt/vault/music";  # Milo uses Btrfs RAID1 storage
       };
@@ -63,7 +63,7 @@ let
     torrent-metainfo = {
       path = "torrentfiles";
       ignorePerms = false;
-      devices = [ "orr" "yossarian" "milo" "ultracc" ];
+      devices = [ "yossarian" "milo" "ultracc" ];  # TODO: Add orr when we have its device ID
       pathOverrides = {};  # All use default ~/torrentfiles
 
       # Only sync .torrent files (Syncthing ignore patterns)
