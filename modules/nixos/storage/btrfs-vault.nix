@@ -63,14 +63,13 @@
     "d /mnt/vault 0755 root root -"
   ];
 
-  # # Mount vault filesystem
-  # # You need to replace this with actual device after creating the filesystem
-  # fileSystems."/mnt/vault" = {
-  #   device = "/dev/disk/by-label/vault";
-  #   fsType = "btrfs";
-  #   options = [
-  #     "compress=zstd"  # Automatic compression (better than lz4)
-  #     "noatime"        # Don't update access times (faster)
-  #   ];
-  # };
+  # Mount vault filesystem
+  fileSystems."/mnt/vault" = {
+    device = "/dev/disk/by-label/vault";
+    fsType = "btrfs";
+    options = [
+      "compress=zstd"  # Automatic compression (better than lz4)
+      "noatime"        # Don't update access times (faster)
+    ];
+  };
 }
