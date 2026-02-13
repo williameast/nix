@@ -21,6 +21,9 @@
 
     # Declarative Flatpak management
     nix-flatpak.url = "github:gmodena/nix-flatpak";
+
+    # Claude Code CLI
+    claude-code.url = "github:sadjow/claude-code-nix";
   };
 
   outputs = { self, nixpkgs, home-manager, nixgl, nur, ... }@inputs:
@@ -54,9 +57,22 @@
         ];
       };
 
+      homeConfigurations."weast@milo" = home-manager.lib.homeManagerConfiguration {
+        inherit pkgs;
+
+        # Pass inputs to all modules
+        extraSpecialArgs = { inherit inputs; };
+
+        modules = [
+          ./hosts/milo/home.nix
+        ];
+      };
+
       # NixOS system configuration (milo server)
       nixosConfigurations.milo = nixpkgs.lib.nixosSystem {
         inherit system;
+
+        specialArgs = { inherit inputs; };
 
         modules = [
           ./hosts/milo/configuration.nix

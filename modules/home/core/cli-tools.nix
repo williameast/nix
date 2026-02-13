@@ -1,5 +1,5 @@
 # Common CLI tools
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, inputs, ... }:
 
 {
   # Enhanced CLI tools
@@ -24,5 +24,8 @@
 
     # Secrets
     rage
+
+    # AI assistant
+    inputs.claude-code.packages.${pkgs.system}.default
   ];
 }
