@@ -135,14 +135,30 @@ let
     let
       allMachines = builtins.attrNames machines;
       otherMachines = lib.filter (m: m != hostname) allMachines;
-    in
-      if hubAndSpoke then
-        if hostname == hub then
-          otherMachines  # Hub knows about everyone
+
+      # Collect all devices mentioned in folder device lists
+      # This ensures spokes know about non-hub devices when folders require it
+      foldersDevices = lib.unique (lib.flatten (
+        lib.mapAttrsToList (name: cfg:
+          cfg.devices or []
+        ) sharedFolders
+      ));
+
+      # Base topology devices
+      baseDevices =
+        if hubAndSpoke then
+          if hostname == hub then
+            otherMachines  # Hub knows about everyone
+          else
+            [ hub ]  # Spokes know about hub
         else
-          [ hub ]  # Spokes only know about hub
-      else
-        otherMachines;  # Full-mesh: everyone knows everyone
+          otherMachines;  # Full-mesh: everyone knows everyone
+
+      # Combine base topology with folder-specific devices, excluding self
+      allNeededDevices = lib.unique (baseDevices ++ foldersDevices);
+      validDevices = lib.filter (d: d != hostname && builtins.hasAttr d machines) allNeededDevices;
+    in
+      validDevices;
 
   # Helper function: Build complete syncthing configuration for a host
   # Returns { devices, folders, tmpfiles } ready to use

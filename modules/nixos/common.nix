@@ -33,6 +33,7 @@
     curl
     wget
     tmux
+    smartcl
   ];
 
   # Enable SSH
