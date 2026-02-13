@@ -57,18 +57,8 @@
         ];
       };
 
-      homeConfigurations."weast@milo" = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-
-        # Pass inputs to all modules
-        extraSpecialArgs = { inherit inputs; };
-
-        modules = [
-          ./hosts/milo/home.nix
-        ];
-      };
-
       # NixOS system configuration (milo server)
+      # Note: milo uses home-manager as a NixOS module (config in hosts/milo/home.nix)
       nixosConfigurations.milo = nixpkgs.lib.nixosSystem {
         inherit system;
 
