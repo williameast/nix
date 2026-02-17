@@ -10,6 +10,9 @@
 
     # Brightness control (if needed)
     # brightnessctl
+
+    # Network
+    tailscale
   ];
 
   # Laptop-specific settings can go here

@@ -28,14 +28,13 @@ let
     };
 
     # External devices (NOT managed by Nix - configure manually on device)
-    # phone = {
-    #   # Get device ID from Syncthing app on phone: Settings -> Show device ID
-    #   deviceId = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
-    #   managed = false;  # TODO: Get real device ID from phone
-    # };
+    phone = {
+      deviceId = "4P2OO2I-P2GZBL3-LDXC743-DEYLFU5-GQPKE4H-MORB7DG-2T237QG-3SHP4QZ";
+      managed = false;
+    };
     ultracc = {
-      # Get device ID from ultra
       deviceId = "SJ5NHJ6-B277L5B-UYSFSOF-VQO3N4E-6OG2NK4-VAPWPMF-OGZJFIR-DZEVFAP";
+      addresses = [ "tcp://apoc-direct.usbx.me:18918" ];
       managed = false;  # Manually configured on website
     };
   };
@@ -47,18 +46,9 @@ let
     org = {
       path = "org";  # Default: relative to home directory
       ignorePerms = false;
-      devices = [ "yossarian" "milo"];  # TODO: Add orr when we have its device ID
+      devices = [ "yossarian" "milo" "phone" ];
       pathOverrides = {};  # All machines use default ~/org
     };
-    music = {
-      path = "Music";  # Default: relative to home directory
-      ignorePerms = false;
-      devices = [ "yossarian" "milo" ];  # TODO: Add orr when we have its device ID
-      pathOverrides = {
-        milo = "/mnt/vault/music";  # Milo uses Btrfs RAID1 storage
-      };
-    };
-
     # Torrent metainfo files (.torrent) - sync TO ultracc for downloading
     torrent-metainfo = {
       path = "torrentfiles";
@@ -83,21 +73,49 @@ let
       # - File Versioning: Optional, to keep removed .torrents
     };
 
-    # Completed downloads FROM ultracc (media files)
-    downloads = {
-      path = "Downloads/torrents";
+    # Staging folders - send/receive between ultracc and milo
+    # Media arrives from ultracc, gets sorted/archived on milo
+    music-staging = {
+      path = "staging/music";
       ignorePerms = false;
       devices = [ "ultracc" "milo" ];
-      pathOverrides = {};  # All use default ~/Downloads/torrents
-
-      # Ultracc sends completed downloads, milo receives and archives
-      # On ultracc: set this folder to "Send Only"
-      # On milo: receives everything for archival
-
-      # NOTE: On ultracc, configure this folder to:
-      # - Folder ID: "downloads" (MUST match this key)
-      # - Path: Your completed downloads folder
-      # - Type: "Send Only" (ultracc only sends, doesn't receive)
+      pathOverrides = {
+        milo = "/mnt/vault-new/staging/music";
+      };
+    };
+    tv-shows = {
+      path = "tv-shows";
+      ignorePerms = false;
+      devices = [ "ultracc" "milo" ];
+      pathOverrides = {
+        milo = "/mnt/vault-new/tv-shows";
+      };
+      # NOTE: On ultracc, manually set path to ~/media/TV Shows
+    };
+    movies = {
+      path = "movies";
+      ignorePerms = false;
+      devices = [ "ultracc" "milo" ];
+      pathOverrides = {
+        milo = "/mnt/vault-new/movies";
+      };
+      # NOTE: On ultracc, manually set path to ~/media/Movies
+    };
+    program-staging = {
+      path = "staging/programs";
+      ignorePerms = false;
+      devices = [ "ultracc" "milo" ];
+      pathOverrides = {
+        milo = "/mnt/vault-new/staging/programs";
+      };
+    };
+    misc = {
+      path = "misc";
+      ignorePerms = false;
+      devices = [ "ultracc" "milo" ];
+      pathOverrides = {
+        milo = "/mnt/vault-new/misc";
+      };
     };
   };
 
@@ -170,7 +188,10 @@ let
       # Build device configuration
       devices = lib.listToAttrs (map (name: {
         name = name;
-        value = { id = machines.${name}.deviceId; };
+        value = { id = machines.${name}.deviceId; }
+          // lib.optionalAttrs (machines.${name} ? addresses) {
+            addresses = machines.${name}.addresses;
+          };
       }) knownDevices);
 
       # Build folder configuration with path resolution

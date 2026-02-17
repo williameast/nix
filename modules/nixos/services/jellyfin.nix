@@ -7,10 +7,9 @@
     openFirewall = true;  # Opens port 8096
   };
 
-  # Jellyfin user needs read access to media directory
-  # Films are stored at: /mnt/media/films (4TB USB drive)
   # After first boot, configure libraries in web UI at: http://milo:8096
+  # Media is stored on /mnt/vault-new/ (tv-shows, movies, music)
 
-  # Ensure jellyfin can read the media directory
-  systemd.services.jellyfin.serviceConfig.ReadOnlyPaths = [ "/mnt/media" ];
+  # Ensure jellyfin can read the media directories
+  systemd.services.jellyfin.serviceConfig.ReadOnlyPaths = [ "/mnt/vault-new" ];
 }

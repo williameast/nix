@@ -19,13 +19,15 @@
     ../../modules/nixos/storage/backups.nix
 
     # Services - comment out what you don't want yet
-    # ../../modules/nixos/services/jellyfin.nix  # Uncomment after storage is set up
-    # ../../modules/nixos/services/navidrome.nix  # Uncomment after storage is set up
+    ../../modules/nixos/services/jellyfin.nix
+    ../../modules/nixos/services/navidrome.nix
+    ../../modules/nixos/services/immich.nix
     ../../modules/nixos/services/syncthing.nix
     # ../../modules/nixos/services/docker.nix
 
     # Networking
-    # ../../modules/nixos/networking/tailscale.nix
+    ../../modules/nixos/networking/tailscale.nix
+    ../../modules/nixos/networking/avahi.nix
     # ../../modules/nixos/networking/caddy.nix  # Uncomment when you're ready to set up reverse proxy
   ];
 
@@ -50,6 +52,11 @@
 
     users.weast = import ./home.nix;
   };
+
+  # Server-specific packages
+  environment.systemPackages = with pkgs; [
+    beets
+  ];
 
   # Syncthing is configured in modules/nixos/services/syncthing.nix
   # All settings come from modules/home/syncthing-topology.nix
