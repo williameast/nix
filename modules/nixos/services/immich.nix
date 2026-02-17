@@ -9,4 +9,9 @@
     mediaLocation = "/mnt/vault-new/immich";
     openFirewall = true;
   };
+
+  # Ensure the media directory exists with correct ownership
+  systemd.tmpfiles.rules = [
+    "d /mnt/vault-new/immich 0750 immich immich -"
+  ];
 }

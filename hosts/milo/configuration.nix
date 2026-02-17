@@ -23,6 +23,7 @@
     ../../modules/nixos/services/navidrome.nix
     ../../modules/nixos/services/immich.nix
     ../../modules/nixos/services/syncthing.nix
+    ../../modules/nixos/services/homepage.nix
     # ../../modules/nixos/services/docker.nix
 
     # Networking
