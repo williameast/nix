@@ -14,16 +14,19 @@ let
   # Define all machines in the sync network
   machines = {
     # Nix-managed hosts
-    # orr = {
-    #   deviceId = "XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX";
-    #   managed = true;  # TODO: Get real device ID from orr
-    # };
+    orr = {
+      deviceId = "6CAAUBX-ZWSS2NP-UB24GXN-376QXI3-XLGYUEU-X6MP2TQ-GBZRKDJ-EKAOIAT";
+      addresses = [ "tcp://orr:22000" "dynamic" ];
+      managed = true;
+    };
     yossarian = {
       deviceId = "KYPSGOI-6NG3XBG-ASF7CGR-AQAYK3B-JWVUGBU-2G7WQUL-GZKHB4X-RIIDDQK";
+      addresses = [ "tcp://yossarian:22000" "dynamic" ];
       managed = true;
     };
     milo = {
       deviceId = "D4PDFYN-5WQJA3W-W7E2XPG-KMBY4LZ-YACVJ2X-NHFUOWV-JZTOROP-YH7HMAD";
+      addresses = [ "tcp://milo:22000" "dynamic" ];
       managed = true;
     };
 
@@ -46,14 +49,14 @@ let
     org = {
       path = "org";  # Default: relative to home directory
       ignorePerms = false;
-      devices = [ "yossarian" "milo" "phone" ];
+      devices = [ "orr" "yossarian" "milo" "phone" ];
       pathOverrides = {};  # All machines use default ~/org
     };
     # Torrent metainfo files (.torrent) - sync TO ultracc for downloading
     torrent-metainfo = {
       path = "torrentfiles";
       ignorePerms = false;
-      devices = [ "yossarian" "milo" "ultracc" ];  # TODO: Add orr when we have its device ID
+      devices = [ "orr" "yossarian" "milo" "ultracc" ];
       pathOverrides = {};  # All use default ~/torrentfiles
 
       # Only sync .torrent files (Syncthing ignore patterns)
@@ -142,10 +145,13 @@ let
       # If folder has explicit device list, use it; otherwise use topology default
       allowedDevices = folder.devices or topologyDevices;
 
+      # If folder has explicit device list and this host isn't in it, return empty
+      hostBelongs = !(folder ? devices) || builtins.elem hostname folder.devices;
+
       # Filter to only include allowed devices AND exclude self
       validDevices = lib.filter (d: d != hostname && builtins.elem d allowedDevices) topologyDevices;
     in
-      validDevices;
+      if hostBelongs then validDevices else [];
 
   # Helper function: get list of ALL devices this host should know about
   # (Used for device configuration)
@@ -194,6 +200,11 @@ let
           };
       }) knownDevices);
 
+      # Only include folders where this host has devices to sync with
+      relevantFolders = lib.filterAttrs (folderName: _:
+        (getDevicesForFolder hostname folderName) != []
+      ) sharedFolders;
+
       # Build folder configuration with path resolution
       folders = lib.mapAttrs (folderName: folderConfig: {
         # Use override if exists, otherwise default to homeDir/path
@@ -203,7 +214,7 @@ let
         type = folderConfig.type or "sendreceive";
       } // lib.optionalAttrs (folderConfig ? patterns) {
         ignorePatterns = folderConfig.patterns;
-      }) sharedFolders;
+      }) relevantFolders;
 
       # Build tmpfiles rules for folder creation
       tmpfiles = lib.mapAttrsToList (folderName: folderConfig:

@@ -10,6 +10,6 @@
   # After first boot, configure libraries in web UI at: http://milo:8096
   # Media is stored on /mnt/vault-new/ (tv-shows, movies, music)
 
-  # Ensure jellyfin can read the media directories
-  systemd.services.jellyfin.serviceConfig.ReadOnlyPaths = [ "/mnt/vault-new" ];
+  # Allow jellyfin to read media files owned by weast:users
+  users.users.jellyfin.extraGroups = [ "users" ];
 }

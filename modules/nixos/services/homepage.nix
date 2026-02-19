@@ -5,7 +5,7 @@
     enable = true;
     listenPort = 8082;
     openFirewall = true;
-    allowedHosts = "milo,milo.local,milo.tail*.ts.net,localhost:8082,127.0.0.1:8082";
+    allowedHosts = "*";
 
     settings = {
       title = "milo";
