@@ -145,8 +145,10 @@ let
         ignorePatterns = folderConfig.patterns;
       }) relevantFolders;
 
+      # Use "-" for user/group: systemd-tmpfiles --user runs as the current user
+      # and cannot chown; the directory will be owned by whoever creates it.
       tmpfiles = lib.mapAttrsToList (_: folderConfig:
-        "d ${folderConfig.pathOverrides.${hostname} or "${homeDir}/${folderConfig.path}"} 0755 weast users -"
+        "d ${folderConfig.pathOverrides.${hostname} or "${homeDir}/${folderConfig.path}"} 0755 - - -"
       ) relevantFolders;
 
     in {
