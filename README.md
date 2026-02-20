@@ -10,7 +10,7 @@ Machine names from Catch-22: **orr** (workstation), **yossarian** (laptop), **mi
 |---------|------|-----|-----|-------------|
 | **orr** | Workstation | Pop!_OS | AMD R9 290 | Full desktop with games, 3D modelling, dev tools |
 | **yossarian** | Laptop | Pop!_OS | Intel CometLake | Portable desktop setup |
-| **milo** | Server | Proxmox/Linux | None | Minimal headless, Docker, secrets |
+| **milo** | Server | NixOS | None | Headless server, Jellyfin/Navidrome, Syncthing hub |
 
 ## Quick Start
 
@@ -225,6 +225,32 @@ nix repl
    ```bash
    home-manager switch --flake .#weast@newmachine
    ```
+
+## Syncthing
+
+Hub-and-spoke topology. Milo is the central hub and the only ingress point for external data.
+
+```
+  [trusted internal network]
+  ┌──────────────────────────────────┐
+  │  orr ───────┐                    │
+  │             ├──── milo           │
+  │  yossarian ─┘      │             │
+  │                    │             │
+  │  phone ────────────┘             │
+  └───────────────────────┬──────────┘
+                          │ (controlled ingress)
+                     ultracc (seedbox)
+```
+
+**Security model:**
+- Spokes (orr, yossarian, phone) only know milo — ultracc is invisible to them
+- ultracc connects to milo only — cannot reach any internal device
+- All external data enters via milo and is served internally (Jellyfin, Navidrome)
+
+**Configuration:** `modules/home/syncthing-topology.nix` — edit device IDs and folder lists there. Everything else is computed automatically.
+
+**Torrent workflow:** Drop `.torrent` into `~/torrentfiles/` → syncs to milo → milo forwards to ultracc → completed download syncs back to `/mnt/vault-new/`.
 
 ## Secrets Management
 

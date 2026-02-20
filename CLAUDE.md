@@ -48,236 +48,114 @@ home-manager switch --flake .#weast@orr --show-trace
 
 ## Syncthing Configuration
 
-Syncthing uses a **centralized topology configuration** that lets you toggle between hub-and-spoke and full-mesh with a single boolean.
+**Single source of truth:** `modules/home/syncthing-topology.nix`
 
-### Architecture
+### Network Diagram
 
-**Base module** (`modules/core/syncthing.nix`):
-- Enables syncthing service on all machines
-- Uses declarative config (`overrideDevices` and `overrideFolders` set to `true`)
-
-**Topology config** (`modules/syncthing-topology.nix`):
-- **Single source of truth** for sync topology
-- Define all machines and their device IDs
-- Define shared folders (what to sync)
-- **Toggle between hub-and-spoke and full-mesh** with `hubAndSpoke` boolean
-
-**Host configs** automatically configure themselves based on topology mode.
-
-### Topology Modes
-
-**Hub-and-Spoke** (`hubAndSpoke = true`):
 ```
-orr ←→ milo ←→ yossarian
+  [trusted internal network]
+  ┌─────────────────────────────────┐
+  │  orr ──────┐                    │
+  │            ├──── milo           │
+  │  yossarian─┘      │             │
+  │                   │             │
+  │  phone ───────────┘             │
+  └──────────────────────┬──────────┘
+                         │ (controlled ingress only)
+                    ultracc (seedbox)
 ```
-- Milo is the central hub (always on server)
-- orr and yossarian only sync with milo
-- Simpler, cleaner, milo is single source of truth
 
-**Full-Mesh** (`hubAndSpoke = false`):
+- **Spokes** (orr, yossarian, phone) only know about milo — they have no knowledge of ultracc
+- **ultracc** only connects to milo — it cannot reach orr, yossarian, or phone
+- **milo** is the security boundary: all external data enters here and never propagates outward as raw files
+
+### Folders
+
+| Folder | Participants | Notes |
+|--------|-------------|-------|
+| `org` | orr, yossarian, milo, phone | Personal notes/org files |
+| `torrent-metainfo` | orr, yossarian, milo, ultracc | `.torrent` files only; spokes → milo → ultracc |
+| `music-staging` | ultracc, milo | Incoming music; milo path: `/mnt/vault-new/staging/music` |
+| `tv-shows` | ultracc, milo | Incoming TV; milo path: `/mnt/vault-new/tv-shows` |
+| `movies` | ultracc, milo | Incoming movies; milo path: `/mnt/vault-new/movies` |
+| `program-staging` | ultracc, milo | Incoming software; milo path: `/mnt/vault-new/staging/programs` |
+| `misc` | ultracc, milo | Other files; milo path: `/mnt/vault-new/misc` |
+
+### Torrent Workflow
+
+1. Drop `.torrent` file into `~/torrentfiles/` on orr or yossarian
+2. Syncs to milo (hub routing)
+3. Milo forwards to ultracc — torrent client picks it up
+4. Completed download syncs back: ultracc → milo (`/mnt/vault-new/`)
+5. Jellyfin / Navidrome serve the media from milo
+
+### How It Works
+
+`buildSyncthingConfig { hostname, homeDir }` computes per-host config:
+- **Spokes**: Syncthing device config contains only milo. Folders list milo as sole peer.
+- **Hub (milo)**: Device config contains all direct peers. Folders list all their participants.
+
+This means orr's Syncthing config is completely unaware ultracc exists — it cannot be reached.
+
+### Setup
+
+```bash
+# Get device ID on any machine
+syncthing --device-id
+
+# Rebuild after editing topology
+home-manager switch --flake .#weast@orr       # or yossarian
+sudo nixos-rebuild switch --flake .#milo      # for milo (NixOS)
+
+# Access web UI
+http://localhost:8384
 ```
-orr ←→ milo ←→ yossarian
-     ↖_______↗
-```
-- All machines sync with all other machines
-- More resilient but more complex
 
-### Setup Process
+### Ultracc Manual Setup (not managed by Nix)
 
-1. **Get device IDs** from each machine:
-   ```bash
-   syncthing --device-id
-   ```
+In the Syncthing web UI on ultracc, add milo as the only device, then:
 
-2. **Update topology config** (`modules/syncthing-topology.nix`):
-   - Paste device IDs into the `machines` section
-   - Set `hubAndSpoke = true` or `false` to choose topology mode
+| Folder | Type | Path |
+|--------|------|------|
+| `torrent-metainfo` | Receive Only | torrent client watch folder |
+| `tv-shows` | Send Only | `~/media/TV Shows` |
+| `movies` | Send Only | `~/media/Movies` |
+| `music-staging` | Send Only | `~/media/Music` |
+| `program-staging` | Send Only | `~/media/Programs` |
+| `misc` | Send Only | `~/media/Misc` |
 
-3. **Rebuild on all machines**:
-   ```bash
-   # On orr
-   home-manager switch --flake .#weast@orr
+Do **not** add orr or yossarian as devices on ultracc.
 
-   # On yossarian
-   home-manager switch --flake .#weast@yossarian
+### Adding a New Folder
 
-   # On milo
-   home-manager switch --flake .#weast@milo
-   ```
-
-4. **Access UI** at `http://localhost:8384`
-
-### Adding/Removing Folders
-
-Edit `sharedFolders` in `modules/syncthing-topology.nix`:
+Edit `sharedFolders` in `modules/home/syncthing-topology.nix`:
 
 ```nix
-sharedFolders = {
-  org = {
-    path = "org";  # Relative to home directory
-    ignorePerms = false;
-  };
-  # Add new folder
-  documents = {
-    path = "Documents";
-    ignorePerms = false;
-  };
+documents = {
+  path = "Documents";
+  devices = [ "orr" "yossarian" "milo" ];
+  # pathOverrides.milo = "/some/absolute/path";  # optional
 };
 ```
 
-All machines automatically sync the folders based on topology mode. No need to edit individual host configs!
+Rebuild on all participating machines. No other files need editing.
 
-### Switching Topologies
+### Adding a New Machine
 
-To switch between hub-and-spoke and full-mesh, just change one line in `modules/syncthing-topology.nix`:
+1. Add its device ID to `machines` in `modules/home/syncthing-topology.nix`
+2. Add its name to `devices` lists in any folders it should sync
+3. Create a host config that calls `buildSyncthingConfig`
+4. Rebuild
 
-```nix
-hubAndSpoke = true;  # Change to false for full-mesh
-```
+### Phone Setup (GrapheneOS/Android)
 
-Then rebuild on all machines. The sync topology updates automatically!
+Phone connects to milo only — same security model as other spokes.
 
-### Adding External Devices (Phone, Tablet, etc.)
-
-**Important**: Nix can only manage Nix-based systems. External devices (Android, iOS, Windows) need manual Syncthing setup, but we can still add them to the topology config.
-
-#### On the Nix Side (One-Time Setup)
-
-1. **Add device to topology** (`modules/syncthing-topology.nix`):
-   ```nix
-   machines = {
-     # ... existing machines ...
-     phone = {
-       deviceId = "XXX...";  # Get from phone (see below)
-       managed = false;  # Not managed by Nix
-     };
-   };
-   ```
-
-2. **Configure which folders sync to phone**:
-   ```nix
-   sharedFolders = {
-     org = {
-       path = "org";
-       ignorePerms = false;
-       # Syncs to all devices (default)
-     };
-     music = {
-       path = "Music";
-       ignorePerms = false;
-       # Don't sync huge music library to phone
-       devices = [ "orr" "yossarian" "milo" ];
-     };
-   };
-   ```
-
-3. **Rebuild on all Nix machines** - they'll now know about the phone and be ready to sync.
-
-#### On the Phone Side (GrapheneOS/Android)
-
-1. **Install Syncthing**:
-   - From F-Droid (recommended for GrapheneOS)
-   - Or from Play Store/Aurora Store
-
-2. **Get phone's device ID**:
-   - Open Syncthing app
-   - Go to: Menu → Show device ID
-   - Copy and paste into topology config above
-
-3. **Add computers as devices on phone**:
-   - In Syncthing app: Devices tab → (+) button
-   - For each computer (orr, yossarian, milo):
-     - Tap the computer when it appears in "Nearby devices"
-     - OR manually enter the device ID from topology config
-   - Accept the connection
-
-4. **Add folders on phone**:
-   - Folders tab → (+) button
-   - For `org` folder:
-     - Folder path: `/storage/emulated/0/Syncthing/org` (or wherever you want)
-     - Folder ID: `org` (MUST match the ID in topology config)
-     - Share with devices: select the computers you want to sync with
-   - The folder will appear as "Unshared" on computers until you accept it in the UI
-
-5. **Accept folder sharing on computers**:
-   - On each computer, open `http://localhost:8384`
-   - Accept the folder share from phone
-   - Folders will start syncing!
-
-#### Per-Folder Device Control
-
-You can control which devices get which folders:
-
-```nix
-sharedFolders = {
-  # Syncs to everyone (including phone)
-  org = {
-    path = "org";
-    ignorePerms = false;
-  };
-
-  # Only computers (no phone)
-  music = {
-    path = "Music";
-    ignorePerms = false;
-    devices = [ "orr" "yossarian" "milo" ];
-  };
-
-  # Only phone and one computer
-  photos = {
-    path = "Photos";
-    ignorePerms = false;
-    devices = [ "phone" "milo" ];
-  };
-};
-```
-
-All Nix-managed machines automatically configure themselves based on these rules!
-
-### Advanced: File Filtering and Seedbox Integration
-
-You can filter which files sync using Syncthing's ignore patterns. Example use case: torrent workflow with a seedbox.
-
-#### Torrent Workflow Setup
-
-```nix
-sharedFolders = {
-  # 1. Watch folder - only .torrent files go TO seedbox
-  torrent-metainfo = {
-    path = "torrentfiles";
-    devices = [ "orr" "yossarian" "milo" "ultracc" ];
-    patterns = [
-      "!*.torrent"  # Include .torrent files
-      "*"           # Exclude everything else
-    ];
-    # On ultracc (seedbox): set folder type to "Receive Only"
-  };
-
-  # 2. Completed downloads come FROM seedbox
-  downloads = {
-    path = "Downloads/torrents";
-    devices = [ "ultracc" "milo" ];
-    # On ultracc: set folder type to "Send Only"
-    # On milo: receives and archives completed downloads
-  };
-};
-```
-
-**Workflow:**
-1. Drop .torrent file into `~/torrentfiles/` on any machine (orr/yossarian/milo)
-2. Syncthing syncs it to ultracc seedbox
-3. Ultracc's torrent client watches that folder and downloads
-4. Completed download syncs from ultracc → milo
-5. Milo archives the media
-
-**Pattern Syntax:**
-- `!pattern` - Include (whitelist)
-- `pattern` - Exclude
-- `*` - Match everything
-- `*.ext` - Match file extension
-- `**/` - Match any directory
-
-When the first line starts with `!`, it's whitelist mode (only matched files sync).
+1. Install Syncthing from F-Droid
+2. Get device ID: Menu → Show device ID → add to `machines.phone.deviceId` in topology
+3. In Syncthing app: add milo as a device (enter milo's device ID)
+4. Add folders (e.g. `org`): Folder ID must match the key in `sharedFolders` exactly
+5. Accept the folder share on milo at `http://milo:8384`
 
 ## Workflow
 - **Changelog:** Use `git log --oneline` to see what changed
@@ -285,7 +163,7 @@ When the first line starts with `!`, it's whitelist mode (only matched files syn
 - **Old config:** `~/.config/home-manager/` (legacy, being migrated from)
 
 ## Current Status
-**Last updated:** 2026-01-24
+**Last updated:** 2026-02-20
 
 ### Completed
 - [x] Phase 1: Bootstrap - flake.nix with inputs (nixpkgs, home-manager, nixgl, nur)
@@ -294,7 +172,7 @@ When the first line starts with `!`, it's whitelist mode (only matched files syn
 - [x] Shell (zsh) working with XDG-compliant paths (~/.config/zsh/)
 - [x] Core packages available (firefox, emacs, bat, fzf, etc.)
 - [x] Firefox WebGL 1 & 2 working via nixGL wrapper (~/.local/bin/firefox)
-- [x] Syncthing with declarative config (base module + machine-specific folders/devices)
+- [x] Syncthing with declarative hub-and-spoke config (security-isolated, milo as ingress)
 
 ### In Progress
 - [ ] Verify all packages from old config are migrated

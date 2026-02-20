@@ -1,237 +1,158 @@
-# Syncthing topology configuration - central source of truth
-# Toggle between hub-and-spoke and full-mesh by changing hubAndSpoke boolean
+# Syncthing topology - single source of truth
+#
+# Architecture: hub-and-spoke with milo as hub
+#
+# Security model:
+#   - Spokes (orr, yossarian, phone) only connect to milo
+#   - ultracc only connects to milo (untrusted external seedbox)
+#   - ultracc cannot reach orr, yossarian, or phone
+#   - milo is the security boundary and ingress point for all external data
+#
 { lib }:
 
 let
-  # ========== CONFIGURATION ==========
-  # Set to true for hub-and-spoke (milo as central hub)
-  # Set to false for full-mesh (all devices sync with each other)
-  hubAndSpoke = true;
-
-  # Define the hub (only used in hub-and-spoke mode)
   hub = "milo";
 
-  # Define all machines in the sync network
   machines = {
-    # Nix-managed hosts
     orr = {
       deviceId = "6CAAUBX-ZWSS2NP-UB24GXN-376QXI3-XLGYUEU-X6MP2TQ-GBZRKDJ-EKAOIAT";
       addresses = [ "tcp://orr:22000" "dynamic" ];
-      managed = true;
     };
     yossarian = {
       deviceId = "KYPSGOI-6NG3XBG-ASF7CGR-AQAYK3B-JWVUGBU-2G7WQUL-GZKHB4X-RIIDDQK";
       addresses = [ "tcp://yossarian:22000" "dynamic" ];
-      managed = true;
     };
     milo = {
-      deviceId = "D4PDFYN-5WQJA3W-W7E2XPG-KMBY4LZ-YACVJ2X-NHFUOWV-JZTOROP-YH7HMAD";
+      deviceId = "KIX2RRT-YL2HLDC-AOSS2IZ-HC3ZGA6-7LYME6W-MIOLC27-ZLGYIQ2-UKUETQA";
       addresses = [ "tcp://milo:22000" "dynamic" ];
-      managed = true;
     };
-
-    # External devices (NOT managed by Nix - configure manually on device)
     phone = {
       deviceId = "4P2OO2I-P2GZBL3-LDXC743-DEYLFU5-GQPKE4H-MORB7DG-2T237QG-3SHP4QZ";
-      managed = false;
+      # No fixed address - discovers milo via relay
     };
     ultracc = {
       deviceId = "SJ5NHJ6-B277L5B-UYSFSOF-VQO3N4E-6OG2NK4-VAPWPMF-OGZJFIR-DZEVFAP";
       addresses = [ "tcp://apoc-direct.usbx.me:18918" ];
-      managed = false;  # Manually configured on website
+      # External seedbox: only ever connects to milo, never to spokes
     };
   };
 
-  # Define folders that should be synced across all machines
-  # Use 'devices' to override which devices get this folder (optional)
-  # Use 'pathOverrides' to specify absolute paths for specific machines
+  # Shared folders.
+  # Each folder declares which machines participate.
+  # Security constraint: any folder including ultracc must also include milo.
+  # Spokes reach ultracc indirectly via milo - they never know ultracc exists.
   sharedFolders = {
+
+    # Personal notes and org files - all trusted devices
     org = {
-      path = "org";  # Default: relative to home directory
-      ignorePerms = false;
+      path = "org";
       devices = [ "orr" "yossarian" "milo" "phone" ];
-      pathOverrides = {};  # All machines use default ~/org
     };
-    # Torrent metainfo files (.torrent) - sync TO ultracc for downloading
+
+    # Torrent watch folder: drop a .torrent on any machine, milo forwards to ultracc.
+    # On ultracc: configure as Receive Only, path = torrent client watch folder.
     torrent-metainfo = {
       path = "torrentfiles";
-      ignorePerms = false;
       devices = [ "orr" "yossarian" "milo" "ultracc" ];
-      pathOverrides = {};  # All use default ~/torrentfiles
-
-      # Only sync .torrent files (Syncthing ignore patterns)
-      # Lines starting with ! are includes (whitelist mode)
       patterns = [
-        "!*.torrent"  # Include .torrent files
+        "!*.torrent"  # Whitelist: only sync .torrent files
         "*"           # Exclude everything else
       ];
-
-      # Type for Nix-managed machines (ultracc you configure manually)
-      type = "sendreceive";
-
-      # NOTE: On ultracc (not managed by Nix), manually configure this folder:
-      # - Folder ID: "torrent-metainfo" (MUST match this key exactly)
-      # - Path: Set to your ultracc torrent watch folder (e.g., /home/user/watch/)
-      # - Type: "Receive Only" (so ultracc only receives, doesn't send back)
-      # - File Versioning: Optional, to keep removed .torrents
     };
 
-    # Staging folders - send/receive between ultracc and milo
-    # Media arrives from ultracc, gets sorted/archived on milo
+    # Media ingress from ultracc → milo. Spokes access media via Jellyfin/Navidrome.
+    # On ultracc: configure as Send Only.
     music-staging = {
       path = "staging/music";
-      ignorePerms = false;
       devices = [ "ultracc" "milo" ];
-      pathOverrides = {
-        milo = "/mnt/vault-new/staging/music";
-      };
+      pathOverrides.milo = "/mnt/vault-new/staging/music";
     };
     tv-shows = {
       path = "tv-shows";
-      ignorePerms = false;
       devices = [ "ultracc" "milo" ];
-      pathOverrides = {
-        milo = "/mnt/vault-new/tv-shows";
-      };
-      # NOTE: On ultracc, manually set path to ~/media/TV Shows
+      pathOverrides.milo = "/mnt/vault-new/tv-shows";
+      # On ultracc: path = ~/media/TV Shows
     };
     movies = {
       path = "movies";
-      ignorePerms = false;
       devices = [ "ultracc" "milo" ];
-      pathOverrides = {
-        milo = "/mnt/vault-new/movies";
-      };
-      # NOTE: On ultracc, manually set path to ~/media/Movies
+      pathOverrides.milo = "/mnt/vault-new/movies";
+      # On ultracc: path = ~/media/Movies
     };
     program-staging = {
       path = "staging/programs";
-      ignorePerms = false;
       devices = [ "ultracc" "milo" ];
-      pathOverrides = {
-        milo = "/mnt/vault-new/staging/programs";
-      };
+      pathOverrides.milo = "/mnt/vault-new/staging/programs";
     };
     misc = {
       path = "misc";
-      ignorePerms = false;
       devices = [ "ultracc" "milo" ];
-      pathOverrides = {
-        milo = "/mnt/vault-new/misc";
-      };
+      pathOverrides.milo = "/mnt/vault-new/misc";
     };
   };
 
-  # ========== COMPUTED VALUES (don't edit below) ==========
-  # Helper function: get list of devices to sync with for a given host and folder
-  getDevicesForFolder = hostname: folderName:
+  # Returns the direct sync peers for a given hostname and folder.
+  # Hub: connects directly to all other participants.
+  # Spokes: connect only to hub, routing all traffic through it.
+  # This enforces the security boundary - spokes never see ultracc.
+  getFolderPeers = hostname: folderName:
     let
-      folder = sharedFolders.${folderName};
-      allMachines = builtins.attrNames machines;
-      otherMachines = lib.filter (m: m != hostname) allMachines;
-
-      # Default topology-based device list
-      topologyDevices =
-        if hubAndSpoke then
-          # Hub-and-spoke: only sync with hub (or all spokes if you ARE the hub)
-          if hostname == hub then
-            otherMachines  # Hub syncs with everyone
-          else
-            [ hub ]  # Spokes only sync with hub
-        else
-          # Full-mesh: sync with everyone
-          otherMachines;
-
-      # If folder has explicit device list, use it; otherwise use topology default
-      allowedDevices = folder.devices or topologyDevices;
-
-      # If folder has explicit device list and this host isn't in it, return empty
-      hostBelongs = !(folder ? devices) || builtins.elem hostname folder.devices;
-
-      # Filter to only include allowed devices AND exclude self
-      validDevices = lib.filter (d: d != hostname && builtins.elem d allowedDevices) topologyDevices;
+      participants = (sharedFolders.${folderName}).devices or [];
     in
-      if hostBelongs then validDevices else [];
+      if !(builtins.elem hostname participants) then
+        []
+      else if hostname == hub then
+        lib.filter (d: d != hub) participants
+      else if builtins.elem hub participants then
+        [ hub ]
+      else
+        [];
 
-  # Helper function: get list of ALL devices this host should know about
-  # (Used for device configuration)
-  getDevicesForHost = hostname:
-    let
-      allMachines = builtins.attrNames machines;
-      otherMachines = lib.filter (m: m != hostname) allMachines;
-
-      # Collect all devices mentioned in folder device lists
-      # This ensures spokes know about non-hub devices when folders require it
-      foldersDevices = lib.unique (lib.flatten (
-        lib.mapAttrsToList (name: cfg:
-          cfg.devices or []
+  # Returns all devices a host needs in its Syncthing device config.
+  # Spokes only need to know about the hub.
+  # Hub needs all its direct peers across every folder.
+  getKnownDevices = hostname:
+    if hostname == hub then
+      lib.unique (lib.flatten (
+        lib.mapAttrsToList (folderName: _:
+          getFolderPeers hub folderName
         ) sharedFolders
-      ));
+      ))
+    else
+      [ hub ];
 
-      # Base topology devices
-      baseDevices =
-        if hubAndSpoke then
-          if hostname == hub then
-            otherMachines  # Hub knows about everyone
-          else
-            [ hub ]  # Spokes know about hub
-        else
-          otherMachines;  # Full-mesh: everyone knows everyone
-
-      # Combine base topology with folder-specific devices, excluding self
-      allNeededDevices = lib.unique (baseDevices ++ foldersDevices);
-      validDevices = lib.filter (d: d != hostname && builtins.hasAttr d machines) allNeededDevices;
-    in
-      validDevices;
-
-  # Helper function: Build complete syncthing configuration for a host
-  # Returns { devices, folders, tmpfiles } ready to use
+  # Build complete Syncthing config for a host: devices, folders, tmpfiles.
   buildSyncthingConfig = { hostname, homeDir }:
     let
-      # Get devices this host should know about
-      knownDevices = getDevicesForHost hostname;
-
-      # Build device configuration
       devices = lib.listToAttrs (map (name: {
         name = name;
         value = { id = machines.${name}.deviceId; }
           // lib.optionalAttrs (machines.${name} ? addresses) {
             addresses = machines.${name}.addresses;
           };
-      }) knownDevices);
+      }) (getKnownDevices hostname));
 
-      # Only include folders where this host has devices to sync with
       relevantFolders = lib.filterAttrs (folderName: _:
-        (getDevicesForFolder hostname folderName) != []
+        getFolderPeers hostname folderName != []
       ) sharedFolders;
 
-      # Build folder configuration with path resolution
       folders = lib.mapAttrs (folderName: folderConfig: {
-        # Use override if exists, otherwise default to homeDir/path
         path = folderConfig.pathOverrides.${hostname} or "${homeDir}/${folderConfig.path}";
-        devices = getDevicesForFolder hostname folderName;
-        ignorePerms = folderConfig.ignorePerms;
+        devices = getFolderPeers hostname folderName;
+        ignorePerms = folderConfig.ignorePerms or false;
         type = folderConfig.type or "sendreceive";
       } // lib.optionalAttrs (folderConfig ? patterns) {
         ignorePatterns = folderConfig.patterns;
       }) relevantFolders;
 
-      # Build tmpfiles rules for folder creation
-      tmpfiles = lib.mapAttrsToList (folderName: folderConfig:
-        let
-          folderPath = folderConfig.pathOverrides.${hostname} or "${homeDir}/${folderConfig.path}";
-        in
-          "d ${folderPath} 0755 weast users -"
-      ) (lib.filterAttrs (name: cfg:
-        # Only include folders this host syncs
-        builtins.elem hostname (getDevicesForFolder hostname name)
-      ) sharedFolders);
+      tmpfiles = lib.mapAttrsToList (_: folderConfig:
+        "d ${folderConfig.pathOverrides.${hostname} or "${homeDir}/${folderConfig.path}"} 0755 weast users -"
+      ) relevantFolders;
+
     in {
       inherit devices folders tmpfiles;
     };
 
 in {
-  inherit hubAndSpoke hub machines sharedFolders
-          getDevicesForHost getDevicesForFolder
-          buildSyncthingConfig;
+  inherit hub machines sharedFolders buildSyncthingConfig;
 }
