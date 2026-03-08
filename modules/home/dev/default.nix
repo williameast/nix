@@ -6,5 +6,6 @@
     ./emacs.nix
     ./direnv.nix
     ./languages.nix
+    ./virtualization.nix
   ];
 }

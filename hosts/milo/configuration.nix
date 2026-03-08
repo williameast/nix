@@ -26,6 +26,9 @@
     ../../modules/nixos/services/homepage.nix
     # ../../modules/nixos/services/docker.nix
 
+    # I/O devices (printers, monitors, etc.)
+    ../../modules/nixos/io/cups-printing.nix
+
     # Networking
     ../../modules/nixos/networking/tailscale.nix
     ../../modules/nixos/networking/avahi.nix
