@@ -36,8 +36,8 @@ home-manager switch --flake .#weast@orr
 # Build and switch (yossarian)
 home-manager switch --flake .#weast@yossarian
 
-# Build and switch (milo)
-home-manager switch --flake .#weast@milo
+# Build and switch (milo - NixOS)
+sudo nixos-rebuild switch --flake .#milo
 
 # Test build without switching
 home-manager build --flake .#weast@orr

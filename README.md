@@ -55,39 +55,56 @@ home-manager switch --flake .#weast@milo       # server
 │   └── milo/default.nix      # Server config
 │
 ├── modules/
-│   ├── core/                 # Always included on desktop machines
-│   │   ├── default.nix
-│   │   ├── shell.nix         # Zsh + Oh-My-Zsh
-│   │   ├── git.nix
-│   │   ├── cli-tools.nix     # bat, fzf, ripgrep, etc.
-│   │   └── xdg.nix           # XDG directories
+│   ├── home/                 # Home Manager modules (all systems)
+│   │   ├── core/             # Always included on desktop machines
+│   │   │   ├── default.nix
+│   │   │   ├── shell.nix     # Zsh + Oh-My-Zsh
+│   │   │   ├── git.nix
+│   │   │   ├── cli-tools.nix # bat, fzf, ripgrep, etc.
+│   │   │   └── xdg.nix       # XDG directories
+│   │   │
+│   │   ├── desktop/
+│   │   │   ├── default.nix
+│   │   │   └── firefox.nix   # Firefox + WebGL + extensions via nixGL
+│   │   │
+│   │   ├── dev/
+│   │   │   ├── default.nix
+│   │   │   ├── emacs.nix
+│   │   │   ├── direnv.nix
+│   │   │   └── languages.nix
+│   │   │
+│   │   ├── media/
+│   │   │   ├── default.nix
+│   │   │   └── audio-video.nix   # VLC, ffmpeg, etc.
+│   │   │
+│   │   ├── games/
+│   │   │   └── default.nix       # Steam with nixGL
+│   │   │
+│   │   ├── modelling/
+│   │   │   └── default.nix       # OpenSCAD, Bambu Studio (FreeCAD TODO)
+│   │   │
+│   │   ├── io/               # I/O devices (printers, monitors, etc.)
+│   │   │   └── receipt-printer.nix  # Network receipt printing client
+│   │   │
+│   │   ├── machines/         # Machine-specific overrides
+│   │   │   ├── orr.nix
+│   │   │   ├── yossarian.nix
+│   │   │   └── milo.nix
+│   │   │
+│   │   └── secrets.nix       # KeePassXC integration
 │   │
-│   ├── desktop/
-│   │   ├── default.nix
-│   │   └── firefox.nix       # Firefox + WebGL + extensions via nixGL
-│   │
-│   ├── dev/
-│   │   ├── default.nix
-│   │   ├── emacs.nix
-│   │   ├── direnv.nix
-│   │   └── languages.nix
-│   │
-│   ├── media/
-│   │   ├── default.nix
-│   │   └── audio-video.nix   # VLC, ffmpeg, etc.
-│   │
-│   ├── games/
-│   │   └── default.nix       # Steam with nixGL
-│   │
-│   ├── modelling/
-│   │   └── default.nix       # OpenSCAD, Bambu Studio (FreeCAD TODO)
-│   │
-│   ├── machines/             # Machine-specific overrides
-│   │   ├── orr.nix
-│   │   ├── yossarian.nix
-│   │   └── milo.nix
-│   │
-│   └── secrets.nix           # KeePassXC integration
+│   └── nixos/                # NixOS system modules (milo only)
+│       ├── services/
+│       │   ├── syncthing.nix
+│       │   ├── jellyfin.nix
+│       │   ├── navidrome.nix
+│       │   └── docker.nix
+│       ├── storage/
+│       │   ├── btrfs-vault.nix
+│       │   ├── usb-mounts.nix
+│       │   └── backups.nix
+│       └── io/               # I/O devices
+│           └── cups-printing.nix  # CUPS print server for network printers
 │
 └── overlays/
     └── default.nix
@@ -122,6 +139,12 @@ home-manager switch --flake .#weast@milo       # server
   - `kxp <db> <entry>` - Get password
   - `kxu <db> <entry>` - Get username
   - `kxa <db> <entry> <attr>` - Get custom attribute
+
+### I/O Devices
+- **Receipt Printer** - Network printing to Epson TM-T88V via milo
+  - Server: CUPS on milo with raw queue for ESC/POS
+  - Client: `print-receipt-network` and `mietzahlungsquittung-network` commands
+  - See "Receipt Printer Setup" section below
 
 ## nixGL (Non-NixOS GPU Support)
 
@@ -226,6 +249,7 @@ nix repl
    home-manager switch --flake .#weast@newmachine
    ```
 
+<<<<<<< Updated upstream
 ## Syncthing
 
 Hub-and-spoke topology. Milo is the central hub and the only ingress point for external data.
@@ -251,6 +275,87 @@ Hub-and-spoke topology. Milo is the central hub and the only ingress point for e
 **Configuration:** `modules/home/syncthing-topology.nix` — edit device IDs and folder lists there. Everything else is computed automatically.
 
 **Torrent workflow:** Drop `.torrent` into `~/torrentfiles/` → syncs to milo → milo forwards to ultracc → completed download syncs back to `/mnt/vault-new/`.
+=======
+## Receipt Printer Setup
+
+Network printing to Epson TM-T88V thermal receipt printer connected to milo server.
+
+### Server Setup (milo)
+
+The printer is connected via USB to milo and shared over the network using CUPS.
+
+**Initial setup:**
+```bash
+# On milo, rebuild to enable CUPS
+cd ~/.config/nix-config
+sudo nixos-rebuild switch --flake .#milo
+
+# Connect printer via USB, then configure
+sudo setup-tm-t88v
+```
+
+The `setup-tm-t88v` script auto-detects the USB printer and configures it as a raw queue (no driver needed - scripts generate ESC/POS commands directly).
+
+**Web interface:** `http://milo.local:631`
+
+### Client Setup (orr, yossarian)
+
+Add the receipt printer module to your host config:
+
+```nix
+# In hosts/orr/default.nix or hosts/yossarian/default.nix
+imports = [
+  # ... other imports ...
+  ../../modules/home/io/receipt-printer.nix
+];
+```
+
+Then rebuild:
+```bash
+home-manager switch --flake .#weast@orr
+```
+
+### Usage
+
+**Print a pre-generated .prn file:**
+```bash
+print-receipt-network receipt.prn
+```
+
+**Generate and print Mietzahlungsquittung:**
+```bash
+mietzahlungsquittung-network \
+  --date 2025-01-15 \
+  --amount 850.00 \
+  --name "Your Name" \
+  --number 001
+```
+
+**Manual network printing:**
+```bash
+# From any machine with CUPS
+lp -h milo.local:631 -d EPSON_TM-T88V receipt.prn
+```
+
+### Troubleshooting
+
+**Check printer status on milo:**
+```bash
+lpstat -p EPSON_TM-T88V
+```
+
+**Re-configure printer:**
+```bash
+lpadmin -x EPSON_TM-T88V  # Remove
+sudo setup-tm-t88v        # Re-add
+```
+
+**Test connectivity:**
+```bash
+ping milo.local
+curl http://milo.local:631
+```
+>>>>>>> Stashed changes
 
 ## Secrets Management
 
