@@ -21,6 +21,7 @@
       host = "0.0.0.0";
       outputDirectory = "/home/weast/org/scans";
     };
+    extraConfig = "config.ssl = false;";
   };
 
   # Output dir owned by weast:scanner (scanservjs user is in scanner group)
