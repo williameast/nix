@@ -107,6 +107,7 @@
               icon = "syncthing";
             };
           }
+          { "Scanner" = { href = "http://milo:8080"; description = "Document scanner"; }; }
         ];
       }
     ];

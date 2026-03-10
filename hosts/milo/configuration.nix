@@ -25,6 +25,7 @@
     ../../modules/nixos/services/syncthing.nix
     ../../modules/nixos/services/homepage.nix
     ../../modules/nixos/services/gitea.nix
+    ../../modules/nixos/services/scanning.nix
     # ../../modules/nixos/services/docker.nix
 
     # I/O devices (printers, monitors, etc.)
