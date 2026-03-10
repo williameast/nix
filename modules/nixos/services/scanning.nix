@@ -1,32 +1,43 @@
 # Scanning service for Brother DCP-L2520DW
-# Uses scanservjs (web UI) + SANE brscan4 driver
-# Scans are saved to ~/org/scans/ → synced to all machines via Syncthing
-# Web UI accessible at http://milo:8080
+# Uses scanservjs OCI container (nixpkgs package lacks built frontend)
+# Web UI at http://milo:8080 — scan, preview, and download from any browser
+# Scans also land in ~/org/scans/ and sync to all machines via Syncthing
 { config, pkgs, lib, ... }:
 
-{
-  hardware.sane.brscan4 = {
+let
+  scanOutputDir = "/home/weast/org/scans";
+in {
+  # Generate brscan4 network device config — volume-mounted into the container
+  hardware.sane = {
     enable = true;
-    netDevices = {
-      "Brother-L2520DW" = {
+    brscan4 = {
+      enable = true;
+      netDevices."Brother-L2520DW" = {
         model = "DCP-L2520DW";
         ip = "192.168.178.39";
       };
     };
   };
 
-  services.scanservjs = {
-    enable = true;
-    settings = {
-      host = "0.0.0.0";
-      outputDirectory = "/home/weast/org/scans";
+  # scanservjs via OCI container — the nixpkgs package is broken (no built frontend)
+  virtualisation.podman.enable = true;
+
+  virtualisation.oci-containers = {
+    backend = "podman";
+    containers.scanservjs = {
+      image = "sbs20/scanservjs:release";
+      extraOptions = [
+        "--network=host"  # reach the Brother scanner on the LAN
+      ];
+      volumes = [
+        "${scanOutputDir}:/app/data/output"
+        "/etc/opt/brother/scanner/brscan4:/etc/opt/brother/scanner/brscan4:ro"
+      ];
     };
-    extraConfig = "config.ssl = false;";
   };
 
-  # Output dir owned by weast:scanner (scanservjs user is in scanner group)
   systemd.tmpfiles.rules = [
-    "d /home/weast/org/scans 0775 weast scanner -"
+    "d ${scanOutputDir} 0775 weast users -"
   ];
 
   networking.firewall.allowedTCPPorts = [ 8080 ];
