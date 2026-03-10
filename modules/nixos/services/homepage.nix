@@ -107,7 +107,7 @@
               icon = "syncthing";
             };
           }
-          { "Scanner" = { href = "http://milo:8080"; description = "Document scanner"; }; }
+          { "Scanner" = { description = "Brother DCP-L2520DW — use simple-scan on desktop"; }; }
         ];
       }
     ];

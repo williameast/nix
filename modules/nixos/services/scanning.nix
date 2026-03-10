@@ -1,13 +1,10 @@
 # Scanning service for Brother DCP-L2520DW
-# Uses scanservjs OCI container (nixpkgs package lacks built frontend)
-# Web UI at http://milo:8080 — scan, preview, and download from any browser
-# Scans also land in ~/org/scans/ and sync to all machines via Syncthing
+# Exposes the scanner over the network via saned (SANE daemon)
+# Desktop machines connect via SANE net backend and scan with simple-scan
+# Scans land in ~/org/scans/ on the desktop and sync everywhere via Syncthing
 { config, pkgs, lib, ... }:
 
-let
-  scanOutputDir = "/home/weast/org/scans";
-in {
-  # Generate brscan4 network device config — volume-mounted into the container
+{
   hardware.sane = {
     enable = true;
     brscan4 = {
@@ -19,26 +16,11 @@ in {
     };
   };
 
-  # scanservjs via OCI container — the nixpkgs package is broken (no built frontend)
-  virtualisation.podman.enable = true;
-
-  virtualisation.oci-containers = {
-    backend = "podman";
-    containers.scanservjs = {
-      image = "sbs20/scanservjs:release";
-      extraOptions = [
-        "--network=host"  # reach the Brother scanner on the LAN
-      ];
-      volumes = [
-        "${scanOutputDir}:/app/data/output"
-        "/etc/opt/brother/scanner/brscan4:/etc/opt/brother/scanner/brscan4:ro"
-      ];
-    };
+  # Expose scanner over the network
+  services.saned = {
+    enable = true;
+    extraConfig = "192.168.178.0/24";  # allow LAN access
   };
 
-  systemd.tmpfiles.rules = [
-    "d ${scanOutputDir} 0775 weast users -"
-  ];
-
-  networking.firewall.allowedTCPPorts = [ 8080 ];
+  networking.firewall.allowedTCPPorts = [ 6566 ];
 }

@@ -4,5 +4,6 @@
 {
   imports = [
     ./firefox.nix
+    ./scanning.nix
   ];
 }
