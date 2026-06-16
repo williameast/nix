@@ -40,7 +40,7 @@ in {
 
     environment = {
       BUERO_DATA_DIR = dataDir;
-      BUERO_HOST     = "127.0.0.1";
+      BUERO_HOST     = "0.0.0.0";
       BUERO_PORT     = "5055";
     };
 
