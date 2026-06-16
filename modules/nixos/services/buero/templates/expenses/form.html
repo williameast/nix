@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Neue Ausgabe{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Neue Ausgabe</h1>
+  <a href="{{ url_for('expenses_list') }}" class="btn btn-outline">Abbrechen</a>
+</div>
+
+<form method="POST" enctype="multipart/form-data">
+  <div class="form-grid-2">
+    <div>
+      <div class="form-group">
+        <label>Beschreibung *</label>
+        <input type="text" name="description" value="{{ expense.description or '' }}" required>
+      </div>
+      <div class="form-group">
+        <label>Betrag (€) *</label>
+        <input type="number" name="amount" value="{{ expense.amount or '' }}" step="0.01" min="0" required>
+      </div>
+      <div class="form-group">
+        <label>Datum *</label>
+        <input type="date" name="date" value="{{ expense.date }}" required>
+      </div>
+      <div class="form-group">
+        <label>Kategorie</label>
+        <select name="category">
+          {% for cat in categories %}
+          <option value="{{ cat }}" {% if expense.category == cat %}selected{% endif %}>{{ cat }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div>
+      <div class="form-group">
+        <label>Lieferant / Auftragnehmer</label>
+        <input type="text" name="vendor" value="{{ expense.vendor or '' }}">
+      </div>
+      <div class="form-group">
+        <label>MwSt. im Beleg (%)</label>
+        <input type="number" name="vat_rate" value="{{ expense.vat_rate or '' }}" step="1" min="0" placeholder="19">
+        <div class="field-hint">Für Vorsteuerabzug (nur bei Regelbesteuerung relevant)</div>
+      </div>
+      <div class="form-group">
+        <label>Beleg hochladen</label>
+        <input type="file" name="receipt" accept=".pdf,.jpg,.jpeg,.png">
+      </div>
+      <div class="form-group">
+        <label>Notizen</label>
+        <textarea name="notes" rows="3">{{ expense.notes or '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Speichern</button>
+    <a href="{{ url_for('expenses_list') }}" class="btn btn-outline">Abbrechen</a>
+  </div>
+</form>
+{% endblock %}

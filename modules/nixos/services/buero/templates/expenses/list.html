@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Ausgaben{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Ausgaben</h1>
+  <a href="{{ url_for('expense_new') }}" class="btn btn-primary">+ Ausgabe</a>
+</div>
+
+{% if expenses %}
+{% set total = namespace(v=0) %}
+{% for e in expenses %}{% set total.v = total.v + (e.amount | float) %}{% endfor %}
+
+<div class="stat-grid" style="margin-bottom:1.5rem">
+  <div class="stat-card">
+    <div class="stat-label">Gesamt</div>
+    <div class="stat-value">{{ total.v | eur }}</div>
+  </div>
+</div>
+
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Datum</th>
+      <th>Beschreibung</th>
+      <th>Kategorie</th>
+      <th class="num">Betrag</th>
+      <th>Beleg</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in expenses %}
+    <tr>
+      <td>{{ e.date | date_de }}</td>
+      <td>
+        {{ e.description or '—' }}
+        {% if e.paperless_url %}
+        <a href="{{ e.paperless_url }}" target="_blank" class="icon-link" title="In Paperless öffnen">↗</a>
+        {% endif %}
+      </td>
+      <td>{{ e.category or '—' }}</td>
+      <td class="num">{{ e.amount | eur }}</td>
+      <td>{% if e.receipt_file %}<span class="tag">📎</span>{% else %}—{% endif %}</td>
+      <td>
+        <form method="POST" action="{{ url_for('expense_delete', eid=e.id) }}"
+              onsubmit="return confirm('Ausgabe löschen?')" style="display:inline">
+          <button type="submit" class="btn btn-xs btn-danger">✕</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <p>Noch keine Ausgaben erfasst.</p>
+  <a href="{{ url_for('expense_new') }}" class="btn btn-primary">Erste Ausgabe erfassen</a>
+</div>
+{% endif %}
+{% endblock %}

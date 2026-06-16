@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% block title %}Einstellungen{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Einstellungen</h1>
+</div>
+
+<form method="POST" enctype="multipart/form-data">
+  <!-- Business -->
+  <div class="settings-section">
+    <h2>Unternehmen</h2>
+    <div class="form-grid-2">
+      <div>
+        <div class="form-group">
+          <label>Name (auf Rechnungen)</label>
+          <input type="text" name="b_name" value="{{ cfg.business.name }}">
+        </div>
+        <div class="form-group">
+          <label>Vollständiger Firmen-/Eigenname</label>
+          <input type="text" name="b_legal_name" value="{{ cfg.business.legal_name }}">
+        </div>
+        <div class="form-group">
+          <label>Tätigkeit / Beruf</label>
+          <input type="text" name="b_profession" value="{{ cfg.business.profession }}">
+        </div>
+        <div class="form-group">
+          <label>E-Mail</label>
+          <input type="email" name="b_email" value="{{ cfg.business.email }}">
+        </div>
+        <div class="form-group">
+          <label>Telefon</label>
+          <input type="text" name="b_phone" value="{{ cfg.business.phone }}">
+        </div>
+        <div class="form-group">
+          <label>Website</label>
+          <input type="text" name="b_website" value="{{ cfg.business.website }}" placeholder="https://...">
+        </div>
+      </div>
+      <div>
+        <div class="form-group">
+          <label>Straße + Hausnummer</label>
+          <input type="text" name="b_addr1" value="{{ cfg.business.address_line1 }}">
+        </div>
+        <div class="form-group">
+          <label>PLZ + Ort</label>
+          <input type="text" name="b_addr2" value="{{ cfg.business.address_line2 }}">
+        </div>
+        <div class="form-group">
+          <label>Land</label>
+          <input type="text" name="b_country" value="{{ cfg.business.country }}">
+        </div>
+        <div class="form-group">
+          <label>Logo</label>
+          <input type="file" name="logo_file" accept=".png,.jpg,.jpeg,.svg">
+          {% if cfg.design.logo_path %}
+          <div class="field-hint">Aktuell: {{ cfg.design.logo_path }}</div>
+          <img src="{{ url_for('uploaded_file', filename=cfg.design.logo_path) }}"
+               alt="Logo" style="max-height:60px;margin-top:.5rem">
+          {% endif %}
+          <input type="hidden" name="d_logo_existing" value="{{ cfg.design.logo_path }}">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tax -->
+  <div class="settings-section">
+    <h2>Steuer</h2>
+    <div class="form-grid-2">
+      <div>
+        <div class="form-group">
+          <label>Besteuerungsart</label>
+          <select name="t_mode" onchange="toggleVAT(this.value)">
+            <option value="kleinunternehmer" {% if cfg.tax.mode == 'kleinunternehmer' %}selected{% endif %}>
+              Kleinunternehmer (§ 19 UStG)
+            </option>
+            <option value="regelbesteuerung" {% if cfg.tax.mode == 'regelbesteuerung' %}selected{% endif %}>
+              Regelbesteuerung (MwSt.-pflichtig)
+            </option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Steuernummer</label>
+          <input type="text" name="t_steuernr" value="{{ cfg.tax.steuernummer }}" placeholder="12/345/67890">
+          <div class="field-hint">Format variiert je nach Finanzamt</div>
+        </div>
+        <div class="form-group" id="vat-id-group" {% if cfg.tax.mode == 'kleinunternehmer' %}style="display:none"{% endif %}>
+          <label>USt-IdNr.</label>
+          <input type="text" name="t_ust_idnr" value="{{ cfg.tax.ust_idnr }}" placeholder="DE123456789">
+        </div>
+      </div>
+      <div id="vat-rates" {% if cfg.tax.mode == 'kleinunternehmer' %}style="display:none"{% endif %}>
+        <div class="form-group">
+          <label>Standard-MwSt.-Satz (%)</label>
+          <input type="number" name="t_mwst" value="{{ cfg.tax.mwst_rate }}" min="0" max="30" step="1">
+        </div>
+        <div class="form-group">
+          <label>Ermäßigter MwSt.-Satz (%)</label>
+          <input type="number" name="t_mwst7" value="{{ cfg.tax.mwst_rate_reduced }}" min="0" max="30" step="1">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Invoice -->
+  <div class="settings-section">
+    <h2>Rechnungen & Zahlung</h2>
+    <div class="form-grid-2">
+      <div>
+        <div class="form-group">
+          <label>Rechnungsnummer-Format</label>
+          <input type="text" name="i_numfmt" value="{{ cfg.invoice.number_format }}">
+          <div class="field-hint">Variablen: {YEAR}, {SEQ} — z.B. RE-{YEAR}-{SEQ:04d}</div>
+        </div>
+        <div class="form-group">
+          <label>Zahlungsziel (Tage)</label>
+          <input type="number" name="i_terms" value="{{ cfg.invoice.payment_terms_days }}" min="0" step="1">
+        </div>
+        <div class="form-group">
+          <label>Währung</label>
+          <input type="text" name="i_currency" value="{{ cfg.invoice.currency }}" placeholder="EUR">
+        </div>
+        <div class="form-group">
+          <label>Währungssymbol</label>
+          <input type="text" name="i_symbol" value="{{ cfg.invoice.currency_symbol }}" placeholder="€">
+        </div>
+      </div>
+      <div>
+        <div class="form-group">
+          <label>Bank</label>
+          <input type="text" name="i_bank" value="{{ cfg.invoice.bank_name }}">
+        </div>
+        <div class="form-group">
+          <label>IBAN</label>
+          <input type="text" name="i_iban" value="{{ cfg.invoice.iban }}" placeholder="DE00 0000 …">
+        </div>
+        <div class="form-group">
+          <label>BIC</label>
+          <input type="text" name="i_bic" value="{{ cfg.invoice.bic }}">
+        </div>
+        <div class="form-group">
+          <label>Standard-Anmerkung</label>
+          <textarea name="i_notes" rows="3">{{ cfg.invoice.default_notes }}</textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Design -->
+  <div class="settings-section">
+    <h2>Design</h2>
+    <div class="form-group" style="max-width:300px">
+      <label>Akzentfarbe</label>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input type="color" name="d_color" value="{{ cfg.design.accent_color }}" style="width:3rem;height:2.5rem;padding:.1rem">
+        <input type="text" id="color-text" value="{{ cfg.design.accent_color }}" style="flex:1"
+               oninput="document.querySelector('[name=d_color]').value=this.value">
+      </div>
+    </div>
+  </div>
+
+  <!-- Paperless -->
+  <div class="settings-section">
+    <h2>Paperless-ngx Integration</h2>
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" name="pl_enabled" {% if cfg.paperless.enabled %}checked{% endif %}>
+        Paperless-ngx aktivieren
+      </label>
+    </div>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Basis-URL</label>
+        <input type="url" name="pl_url" value="{{ cfg.paperless.base_url }}" placeholder="http://localhost:8000">
+      </div>
+      <div class="form-group">
+        <label>API-Token</label>
+        <input type="password" name="pl_token" value="{{ cfg.paperless.token }}" autocomplete="off">
+        <div class="field-hint">Paperless → Einstellungen → API-Token</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Einstellungen speichern</button>
+  </div>
+</form>
+
+<script>
+function toggleVAT(mode) {
+  const show = mode === 'regelbesteuerung';
+  document.getElementById('vat-id-group').style.display  = show ? '' : 'none';
+  document.getElementById('vat-rates').style.display     = show ? '' : 'none';
+}
+document.querySelector('[name=d_color]').addEventListener('input', function() {
+  document.getElementById('color-text').value = this.value;
+});
+</script>
+{% endblock %}

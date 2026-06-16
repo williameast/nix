@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Kunde bearbeiten' if edit else 'Neuer Kunde' }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ 'Kunde bearbeiten' if edit else 'Neuer Kunde' }}</h1>
+  {% if edit %}
+  <a href="{{ url_for('client_detail', cid=client.id) }}" class="btn btn-outline">Abbrechen</a>
+  {% endif %}
+</div>
+
+<form method="POST">
+  <div class="form-grid-2">
+    <div>
+      <div class="form-group">
+        <label>Firmenname / Name *</label>
+        <input type="text" name="name" value="{{ client.name or '' }}" required>
+      </div>
+      <div class="form-group">
+        <label>Ansprechpartner</label>
+        <input type="text" name="contact_name" value="{{ client.contact_name or '' }}">
+      </div>
+      <div class="form-group">
+        <label>E-Mail</label>
+        <input type="email" name="email" value="{{ client.email or '' }}">
+      </div>
+      <div class="form-group">
+        <label>Telefon</label>
+        <input type="text" name="phone" value="{{ client.phone or '' }}">
+      </div>
+      <div class="form-group">
+        <label>Website</label>
+        <input type="url" name="website" value="{{ client.website or '' }}" placeholder="https://...">
+      </div>
+    </div>
+    <div>
+      <div class="form-group">
+        <label>Straße + Hausnummer</label>
+        <input type="text" name="address_line1" value="{{ client.address_line1 or '' }}">
+      </div>
+      <div class="form-group">
+        <label>PLZ + Ort</label>
+        <input type="text" name="address_line2" value="{{ client.address_line2 or '' }}">
+      </div>
+      <div class="form-group">
+        <label>Land</label>
+        <input type="text" name="country" value="{{ client.country or 'Deutschland' }}">
+      </div>
+      <div class="form-group">
+        <label>USt-IdNr.</label>
+        <input type="text" name="ust_idnr" value="{{ client.ust_idnr or '' }}" placeholder="DE123456789">
+        <div class="field-hint">Erforderlich bei EU-Auslandsrechnungen</div>
+      </div>
+      <div class="form-group">
+        <label>Interne Notizen</label>
+        <textarea name="notes" rows="3">{{ client.notes or '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Speichern</button>
+    {% if not edit %}
+    <a href="{{ url_for('clients_list') }}" class="btn btn-outline">Abbrechen</a>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

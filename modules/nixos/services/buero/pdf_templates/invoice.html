@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --accent: {{ cfg.design.accent_color }};
+    --bg:     #f0f0f0;
+    --text:   #1a1a1a;
+    --border: #c8c8c8;
+  }
+
+  html, body {
+    font-family: 'Inter', Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    background: var(--bg);
+    color: var(--text);
+    width: 210mm;
+  }
+
+  .page {
+    background: #fff;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 14mm 16mm 20mm;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Top banner ── */
+  .top-banner {
+    font-size: 8.5pt;
+    color: var(--text);
+    line-height: 1.5;
+    padding-bottom: 6mm;
+    border-bottom: 2px solid var(--accent);
+    margin-bottom: 6mm;
+  }
+
+  /* ── Title row ── */
+  .title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6mm;
+  }
+
+  .doc-type {
+    font-size: 34pt;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: -.03em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .doc-number {
+    font-size: 34pt;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: -.03em;
+    line-height: 1;
+    text-align: right;
+  }
+
+  .doc-date {
+    font-size: 8.5pt;
+    color: #555;
+    margin-top: 3mm;
+  }
+
+  /* ── Address row ── */
+  .address-row {
+    display: flex;
+    gap: 10mm;
+    margin-bottom: 8mm;
+    font-size: 9pt;
+    line-height: 1.55;
+    border-top: 1px solid var(--border);
+    padding-top: 5mm;
+  }
+
+  .addr-col { flex: 1; }
+  .addr-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #888; margin-bottom: 2mm; }
+
+  /* ── Items table ── */
+  .items-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    margin-bottom: 0;
+    flex: 1;
+  }
+
+  .items-table th {
+    text-align: left;
+    padding: 3mm 3mm;
+    font-size: 7.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: #fff;
+    background: var(--accent);
+  }
+
+  .items-table th.r, .items-table td.r { text-align: right; }
+
+  .items-table tbody tr { border-bottom: 1px solid var(--border); }
+
+  .items-table td {
+    padding: 3mm 3mm;
+    vertical-align: top;
+  }
+
+  .items-table tbody tr:nth-child(even) { background: #f9f9f9; }
+
+  /* ── Totals ── */
+  .totals-section {
+    margin-left: auto;
+    width: 60%;
+    border-top: 2px solid var(--accent);
+    margin-top: 0;
+  }
+
+  .totals-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2mm 3mm;
+    font-size: 9pt;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .totals-row.grand {
+    font-weight: 700;
+    font-size: 11pt;
+    background: var(--bg);
+    border-bottom: none;
+    padding: 3mm;
+  }
+
+  /* ── Notes / bank ── */
+  .notes-section {
+    margin-top: 8mm;
+    font-size: 8.5pt;
+    line-height: 1.55;
+    border-top: 1px solid var(--border);
+    padding-top: 5mm;
+    display: flex;
+    gap: 10mm;
+  }
+
+  .notes-col { flex: 1; }
+  .notes-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #888; margin-bottom: 2mm; }
+
+  .ku-note {
+    margin-top: 5mm;
+    font-size: 8pt;
+    color: #666;
+    font-style: italic;
+  }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: auto;
+    padding-top: 6mm;
+    border-top: 2px solid var(--accent);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    font-size: 8pt;
+    color: #555;
+  }
+
+  .footer-name {
+    font-size: 20pt;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: -.02em;
+    line-height: 1;
+  }
+
+  .footer-cols {
+    display: flex;
+    gap: 8mm;
+    font-size: 7.5pt;
+  }
+
+  .footer-col { line-height: 1.6; }
+  .footer-col strong { display: block; color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Top banner -->
+  <div class="top-banner">
+    {% if invoice.type == 'invoice' %}
+    Vielen Dank für Ihren Auftrag. Dies ist Ihre Rechnung. Bei Fragen stehen wir gern zur Verfügung.
+    {% elif invoice.type == 'quote' %}
+    Vielen Dank für Ihre Anfrage. Dies ist unser Angebot. Wir freuen uns auf Ihre Rückmeldung.
+    {% else %}
+    Vielen Dank für Ihre Zahlung. Dies ist Ihre Quittung.
+    {% endif %}
+  </div>
+
+  <!-- Title row -->
+  <div class="title-row">
+    <div>
+      <div class="doc-type">
+        {% if invoice.type == 'invoice' %}Rechnung
+        {% elif invoice.type == 'quote' %}Angebot
+        {% else %}Quittung{% endif %}
+      </div>
+      <div class="doc-date">Datum: {{ invoice.date | date_de }}</div>
+      {% if invoice.service_date and invoice.service_date != invoice.date %}
+      <div class="doc-date">Leistungsdatum: {{ invoice.service_date | date_de }}</div>
+      {% endif %}
+    </div>
+    <div class="doc-number">{{ invoice.id }}</div>
+  </div>
+
+  <!-- Address row -->
+  <div class="address-row">
+    <div class="addr-col">
+      <div class="addr-label">Von</div>
+      <strong>{{ cfg.business.name }}</strong><br>
+      {% if cfg.business.profession %}{{ cfg.business.profession }}<br>{% endif %}
+      {{ cfg.business.address_line1 }}<br>
+      {{ cfg.business.address_line2 }}<br>
+      {{ cfg.business.country }}<br>
+      {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
+      {% if cfg.business.phone %}{{ cfg.business.phone }}<br>{% endif %}
+      {% if cfg.tax.mode == 'kleinunternehmer' %}
+      StNr.: {{ cfg.tax.steuernummer }}
+      {% else %}
+      USt-IdNr.: {{ cfg.tax.ust_idnr }}
+      {% endif %}
+    </div>
+
+    <div class="addr-col">
+      <div class="addr-label">An</div>
+      {% if client %}
+      <strong>{{ client.name }}</strong><br>
+      {% if client.contact_name %}{{ client.contact_name }}<br>{% endif %}
+      {% if client.address_line1 %}{{ client.address_line1 }}<br>{% endif %}
+      {% if client.address_line2 %}{{ client.address_line2 }}<br>{% endif %}
+      {% if client.country and client.country != 'Deutschland' %}{{ client.country }}<br>{% endif %}
+      {% if client.ust_idnr %}USt-IdNr.: {{ client.ust_idnr }}{% endif %}
+      {% endif %}
+    </div>
+
+    {% if invoice.type == 'invoice' and cfg.invoice.iban %}
+    <div class="addr-col">
+      <div class="addr-label">Zahlung</div>
+      Bitte überweisen Sie den Betrag bis zum <strong>{{ invoice.due_date | date_de }}</strong>
+      auf folgendes Konto:<br><br>
+      {% if cfg.invoice.bank_name %}<strong>{{ cfg.invoice.bank_name }}</strong><br>{% endif %}
+      IBAN: {{ cfg.invoice.iban }}<br>
+      {% if cfg.invoice.bic %}BIC: {{ cfg.invoice.bic }}<br>{% endif %}
+      {% if invoice.payment_ref %}Verwendungszweck: <strong>{{ invoice.payment_ref }}</strong>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Line items -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th style="width:50%">Beschreibung / Leistung</th>
+        <th class="r" style="width:10%">Menge</th>
+        <th style="width:10%">Einheit</th>
+        <th class="r" style="width:15%">Einzelpreis</th>
+        <th class="r" style="width:15%">Gesamt</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in invoice.items or [] %}
+      <tr>
+        <td>{{ item.description }}</td>
+        <td class="r">{{ item.quantity }}</td>
+        <td>{{ item.unit }}</td>
+        <td class="r">{{ item.unit_price | eur }}</td>
+        <td class="r">{{ (item.quantity * item.unit_price) | eur }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- Totals -->
+  <div class="totals-section">
+    {% if not kleinunternehmer %}
+    <div class="totals-row">
+      <span>Nettobetrag</span>
+      <span>{{ totals.subtotal | eur }}</span>
+    </div>
+    <div class="totals-row">
+      <span>MwSt. {{ totals.mwst_rate | int }} %</span>
+      <span>{{ totals.mwst | eur }}</span>
+    </div>
+    {% endif %}
+    <div class="totals-row grand">
+      <span>Gesamtbetrag</span>
+      <span>{{ totals.total | eur }}</span>
+    </div>
+  </div>
+
+  {% if kleinunternehmer %}
+  <p class="ku-note">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</p>
+  {% endif %}
+
+  <!-- Notes -->
+  {% if invoice.notes or cfg.invoice.iban %}
+  <div class="notes-section">
+    {% if invoice.notes %}
+    <div class="notes-col">
+      <div class="notes-label">Anmerkungen</div>
+      {{ invoice.notes }}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>
+      <div class="footer-name">{{ cfg.business.name }}</div>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <strong>Adresse</strong>
+        {{ cfg.business.address_line1 }}<br>
+        {{ cfg.business.address_line2 }}<br>
+        {{ cfg.business.country }}
+      </div>
+      {% if cfg.business.email or cfg.business.phone %}
+      <div class="footer-col">
+        <strong>Kontakt</strong>
+        {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
+        {% if cfg.business.phone %}{{ cfg.business.phone }}<br>{% endif %}
+        {% if cfg.business.website %}{{ cfg.business.website }}{% endif %}
+      </div>
+      {% endif %}
+      <div class="footer-col">
+        <strong>Steuer</strong>
+        {% if cfg.tax.mode == 'kleinunternehmer' %}
+        StNr.: {{ cfg.tax.steuernummer }}
+        {% else %}
+        USt-IdNr.:<br>{{ cfg.tax.ust_idnr }}
+        {% endif %}
+      </div>
+      {% if cfg.invoice.iban %}
+      <div class="footer-col">
+        <strong>Bank</strong>
+        {{ cfg.invoice.iban }}<br>
+        {{ cfg.invoice.bic }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

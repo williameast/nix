@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Paperless-ngx{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Paperless-ngx</h1>
+  <a href="{{ cfg.paperless.base_url }}" target="_blank" class="btn btn-outline">Paperless öffnen ↗</a>
+</div>
+
+<form method="GET" class="search-bar">
+  <input type="text" name="q" value="{{ q }}" placeholder="Dokumente durchsuchen…" class="search-input">
+  <button type="submit" class="btn btn-primary">Suchen</button>
+</form>
+
+{% if error %}
+<div class="flash flash-error">Verbindungsfehler: {{ error }}</div>
+{% endif %}
+
+{% if docs %}
+  <p class="muted" style="margin-bottom:1rem">{{ docs.count }} Dokument(e) gefunden</p>
+
+  <div class="doc-grid">
+    {% for doc in docs.results %}
+    <div class="doc-card">
+      <div class="doc-meta">
+        <strong>{{ doc.title }}</strong>
+        <span class="muted">{{ doc.created[:10] if doc.created else '' }}</span>
+      </div>
+      {% if doc.correspondent %}
+      <div class="tag">{{ doc.correspondent }}</div>
+      {% endif %}
+      <div class="doc-actions">
+        <a href="{{ cfg.paperless.base_url }}/documents/{{ doc.id }}/" target="_blank" class="btn btn-xs">Öffnen ↗</a>
+        <form method="POST" action="{{ url_for('paperless_import', did=doc.id) }}" style="display:inline">
+          <button type="submit" class="btn btn-xs btn-accent">→ Als Ausgabe</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  <div class="pagination">
+    {% if docs.previous %}
+    <a href="?page={{ page - 1 }}&q={{ q }}" class="btn btn-outline">← Zurück</a>
+    {% endif %}
+    <span class="muted">Seite {{ page }}</span>
+    {% if docs.next %}
+    <a href="?page={{ page + 1 }}&q={{ q }}" class="btn btn-outline">Weiter →</a>
+    {% endif %}
+  </div>
+{% endif %}
+{% endblock %}

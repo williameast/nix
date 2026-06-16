@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Rechnungen{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Rechnungen</h1>
+  <div class="header-actions">
+    <a href="{{ url_for('invoice_new') }}?type=quote" class="btn btn-outline">+ Angebot</a>
+    <a href="{{ url_for('invoice_new') }}?type=invoice" class="btn btn-primary">+ Rechnung</a>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <a href="{{ url_for('invoices_list') }}" class="filter-chip {% if not status_filter %}active{% endif %}">Alle</a>
+  <a href="?status=draft"     class="filter-chip {% if status_filter == 'draft' %}active{% endif %}">Entwurf</a>
+  <a href="?status=sent"      class="filter-chip {% if status_filter == 'sent' %}active{% endif %}">Versendet</a>
+  <a href="?status=overdue"   class="filter-chip {% if status_filter == 'overdue' %}active{% endif %}">Überfällig</a>
+  <a href="?status=paid"      class="filter-chip {% if status_filter == 'paid' %}active{% endif %}">Bezahlt</a>
+</div>
+
+{% if invoices %}
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Nr.</th>
+      <th>Typ</th>
+      <th>Kunde</th>
+      <th>Datum</th>
+      <th>Fällig</th>
+      <th class="num">Betrag</th>
+      <th>Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for inv in invoices %}
+    <tr onclick="location.href='{{ url_for('invoice_detail', iid=inv.id) }}'" style="cursor:pointer">
+      <td><code>{{ inv.id }}</code></td>
+      <td>{{ inv.type | type_de }}</td>
+      <td>{{ inv._client.get('name', '—') }}</td>
+      <td>{{ inv.date | date_de }}</td>
+      <td class="{% if inv.status == 'overdue' %}danger{% endif %}">{{ inv.due_date | date_de }}</td>
+      <td class="num">{{ inv._totals.total | eur }}</td>
+      <td><span class="badge badge-{{ inv.status }}">{{ inv.status | status_de }}</span></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <p>Keine Rechnungen gefunden.</p>
+  <a href="{{ url_for('invoice_new') }}" class="btn btn-primary">Erste Rechnung erstellen</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ client.name }}</h1>
+  <div class="header-actions">
+    <a href="{{ url_for('invoice_new') }}?client_id={{ client.id }}&type=invoice" class="btn btn-primary">+ Rechnung</a>
+    <a href="{{ url_for('invoice_new') }}?client_id={{ client.id }}&type=quote" class="btn btn-outline">+ Angebot</a>
+    <a href="{{ url_for('client_edit', cid=client.id) }}" class="btn btn-outline">Bearbeiten</a>
+  </div>
+</div>
+
+<div class="detail-meta">
+  <div class="meta-block">
+    <div class="meta-label">Kontakt</div>
+    {% if client.contact_name %}<div><strong>{{ client.contact_name }}</strong></div>{% endif %}
+    {% if client.email %}<div><a href="mailto:{{ client.email }}">{{ client.email }}</a></div>{% endif %}
+    {% if client.phone %}<div>{{ client.phone }}</div>{% endif %}
+    {% if client.website %}<div><a href="{{ client.website }}" target="_blank">{{ client.website }}</a></div>{% endif %}
+  </div>
+  <div class="meta-block">
+    <div class="meta-label">Adresse</div>
+    <div>{{ client.address_line1 or '—' }}</div>
+    <div>{{ client.address_line2 or '' }}</div>
+    <div>{{ client.country or '' }}</div>
+  </div>
+  <div class="meta-block">
+    <div class="meta-label">Steuer</div>
+    {% if client.ust_idnr %}<div>USt-IdNr.: {{ client.ust_idnr }}</div>{% endif %}
+    {% if client.notes %}
+    <div class="meta-label" style="margin-top:.5rem">Notizen</div>
+    <div>{{ client.notes }}</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="section">
+  <h2>Rechnungen</h2>
+  {% if invoices %}
+  <table class="table table-hover">
+    <thead>
+      <tr><th>Nr.</th><th>Typ</th><th>Datum</th><th class="num">Betrag</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr onclick="location.href='{{ url_for('invoice_detail', iid=inv.id) }}'" style="cursor:pointer">
+        <td><code>{{ inv.id }}</code></td>
+        <td>{{ inv.type | type_de }}</td>
+        <td>{{ inv.date | date_de }}</td>
+        <td class="num">—</td>
+        <td><span class="badge badge-{{ inv.status }}">{{ inv.status | status_de }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">Noch keine Rechnungen für diesen Kunden.</p>
+  {% endif %}
+</div>
+
+<div class="danger-zone">
+  <form method="POST" action="{{ url_for('client_delete', cid=client.id) }}"
+        onsubmit="return confirm('Kunden wirklich löschen?')">
+    <button type="submit" class="btn btn-danger">Kunden löschen</button>
+  </form>
+</div>
+{% endblock %}

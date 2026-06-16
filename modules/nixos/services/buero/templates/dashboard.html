@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <span class="muted">{{ stats.year }}</span>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Einnahmen YTD</div>
+    <div class="stat-value accent">{{ stats.ytd_revenue | eur }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Ausgaben YTD</div>
+    <div class="stat-value">{{ stats.ytd_expenses | eur }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Offen</div>
+    <div class="stat-value {% if stats.overdue %}danger{% endif %}">{{ stats.outstanding | eur }}</div>
+    {% if stats.overdue %}<div class="stat-sub">{{ stats.overdue }} überfällig</div>{% endif %}
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Kunden</div>
+    <div class="stat-value">{{ stats.client_count }}</div>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <h2>Letzte Rechnungen</h2>
+    <div class="header-actions">
+      <a href="{{ url_for('invoice_new') }}?type=quote" class="btn btn-outline">+ Angebot</a>
+      <a href="{{ url_for('invoice_new') }}?type=invoice" class="btn btn-primary">+ Rechnung</a>
+    </div>
+  </div>
+
+  {% if stats.recent %}
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Nr.</th>
+        <th>Typ</th>
+        <th>Kunde</th>
+        <th>Datum</th>
+        <th>Fällig</th>
+        <th>Betrag</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for inv in stats.recent %}
+      <tr onclick="location.href='{{ url_for('invoice_detail', iid=inv.id) }}'" style="cursor:pointer">
+        <td><code>{{ inv.id }}</code></td>
+        <td>{{ inv.type | type_de }}</td>
+        <td>{{ inv._client.get('name', '—') }}</td>
+        <td>{{ inv.date | date_de }}</td>
+        <td>{{ inv.due_date | date_de }}</td>
+        <td class="num">{{ inv._totals.total | eur }}</td>
+        <td><span class="badge badge-{{ inv.status }}">{{ inv.status | status_de }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">
+    <p>Noch keine Rechnungen vorhanden.</p>
+    <a href="{{ url_for('invoice_new') }}" class="btn btn-primary">Erste Rechnung erstellen</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

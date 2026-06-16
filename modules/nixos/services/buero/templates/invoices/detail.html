@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}{{ invoice.type | type_de }} {{ invoice.id }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1>{{ invoice.type | type_de }} <code>{{ invoice.id }}</code></h1>
+    <span class="badge badge-{{ invoice.status }} badge-lg">{{ invoice.status | status_de }}</span>
+  </div>
+  <div class="header-actions">
+    <a href="{{ url_for('invoice_pdf', iid=invoice.id) }}" class="btn btn-outline" target="_blank">↓ PDF</a>
+    <a href="{{ url_for('invoice_edit', iid=invoice.id) }}" class="btn btn-outline">Bearbeiten</a>
+    {% if invoice.type == 'quote' %}
+    <form method="POST" action="{{ url_for('quote_to_invoice', iid=invoice.id) }}" style="display:inline">
+      <button type="submit" class="btn btn-primary">→ In Rechnung umwandeln</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Status actions -->
+<div class="status-bar">
+  <span class="muted">Status ändern:</span>
+  {% for s, label in [('draft','Entwurf'),('sent','Versendet'),('paid','Bezahlt'),('cancelled','Storniert')] %}
+  {% if s != invoice.status %}
+  <form method="POST" action="{{ url_for('invoice_status', iid=invoice.id) }}" style="display:inline">
+    <input type="hidden" name="status" value="{{ s }}">
+    <button type="submit" class="btn btn-xs">{{ label }}</button>
+  </form>
+  {% endif %}
+  {% endfor %}
+</div>
+
+<!-- Meta grid -->
+<div class="detail-meta">
+  <div class="meta-block">
+    <div class="meta-label">Von</div>
+    <strong>{{ cfg.business.name }}</strong><br>
+    {{ cfg.business.address_line1 }}<br>
+    {{ cfg.business.address_line2 }}<br>
+    {% if cfg.tax.mode == 'kleinunternehmer' %}
+    StNr.: {{ cfg.tax.steuernummer }}
+    {% else %}
+    USt-IdNr.: {{ cfg.tax.ust_idnr }}
+    {% endif %}
+  </div>
+
+  <div class="meta-block">
+    <div class="meta-label">An</div>
+    {% if client %}
+    <strong>{{ client.name }}</strong><br>
+    {% if client.contact_name %}<em>{{ client.contact_name }}</em><br>{% endif %}
+    {{ client.address_line1 or '' }}<br>
+    {{ client.address_line2 or '' }}
+    {% if client.ust_idnr %}<br>USt-IdNr.: {{ client.ust_idnr }}{% endif %}
+    {% else %}
+    <span class="muted">Kein Kunde zugewiesen</span>
+    {% endif %}
+  </div>
+
+  <div class="meta-block">
+    <div class="meta-label">Details</div>
+    <table class="meta-table">
+      <tr><td>Datum</td><td>{{ invoice.date | date_de }}</td></tr>
+      {% if invoice.service_date %}<tr><td>Leistungsdatum</td><td>{{ invoice.service_date | date_de }}</td></tr>{% endif %}
+      {% if invoice.due_date %}<tr><td>Fällig</td><td>{{ invoice.due_date | date_de }}</td></tr>{% endif %}
+      {% if invoice.paid_date %}<tr><td>Bezahlt am</td><td>{{ invoice.paid_date | date_de }}</td></tr>{% endif %}
+      {% if invoice.quote_ref %}<tr><td>Angebot Ref.</td><td><a href="{{ url_for('invoice_detail', iid=invoice.quote_ref) }}">{{ invoice.quote_ref }}</a></td></tr>{% endif %}
+    </table>
+  </div>
+</div>
+
+<!-- Line items -->
+<table class="table" style="margin-top:2rem">
+  <thead>
+    <tr>
+      <th>Beschreibung</th>
+      <th class="num">Menge</th>
+      <th>Einheit</th>
+      <th class="num">Einzelpreis</th>
+      <th class="num">Gesamt</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for item in invoice.items or [] %}
+    <tr>
+      <td>{{ item.description }}</td>
+      <td class="num">{{ item.quantity }}</td>
+      <td>{{ item.unit }}</td>
+      <td class="num">{{ item.unit_price | eur }}</td>
+      <td class="num">{{ (item.quantity * item.unit_price) | eur }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    {% if not kleinunternehmer %}
+    <tr><td colspan="4" class="num">Netto</td><td class="num">{{ totals.subtotal | eur }}</td></tr>
+    <tr><td colspan="4" class="num">MwSt. {{ totals.mwst_rate | int }} %</td><td class="num">{{ totals.mwst | eur }}</td></tr>
+    {% endif %}
+    <tr class="totals-total">
+      <td colspan="4" class="num"><strong>Gesamt</strong></td>
+      <td class="num"><strong>{{ totals.total | eur }}</strong></td>
+    </tr>
+  </tfoot>
+</table>
+
+{% if kleinunternehmer %}
+<p class="legal-note">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</p>
+{% endif %}
+
+{% if invoice.notes %}
+<div class="detail-section">
+  <div class="meta-label">Anmerkungen</div>
+  <p>{{ invoice.notes }}</p>
+</div>
+{% endif %}
+
+{% if cfg.invoice.iban %}
+<div class="detail-section">
+  <div class="meta-label">Bankverbindung</div>
+  <table class="meta-table">
+    {% if cfg.invoice.bank_name %}<tr><td>Bank</td><td>{{ cfg.invoice.bank_name }}</td></tr>{% endif %}
+    <tr><td>IBAN</td><td><code>{{ cfg.invoice.iban }}</code></td></tr>
+    {% if cfg.invoice.bic %}<tr><td>BIC</td><td>{{ cfg.invoice.bic }}</td></tr>{% endif %}
+    {% if invoice.payment_ref %}<tr><td>Verwendungszweck</td><td>{{ invoice.payment_ref }}</td></tr>{% endif %}
+  </table>
+</div>
+{% endif %}
+
+<div class="danger-zone">
+  <form method="POST" action="{{ url_for('invoice_delete', iid=invoice.id) }}"
+        onsubmit="return confirm('Rechnung wirklich löschen?')">
+    <button type="submit" class="btn btn-danger">Löschen</button>
+  </form>
+</div>
+{% endblock %}

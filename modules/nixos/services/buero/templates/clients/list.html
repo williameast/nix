@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Kunden{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Kunden</h1>
+  <a href="{{ url_for('client_new') }}" class="btn btn-primary">+ Neuer Kunde</a>
+</div>
+
+{% if clients %}
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Ansprechpartner</th>
+      <th>E-Mail</th>
+      <th>Ort</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in clients %}
+    <tr>
+      <td><a href="{{ url_for('client_detail', cid=c.id) }}"><strong>{{ c.name }}</strong></a></td>
+      <td>{{ c.contact_name or '—' }}</td>
+      <td>{{ c.email or '—' }}</td>
+      <td>{{ c.address_line2 or '—' }}</td>
+      <td>
+        <a href="{{ url_for('client_detail', cid=c.id) }}" class="btn btn-xs">Details</a>
+        <a href="{{ url_for('invoice_new') }}?client_id={{ c.id }}&type=invoice" class="btn btn-xs btn-accent">+ Rechnung</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="empty">
+  <p>Noch keine Kunden angelegt.</p>
+  <a href="{{ url_for('client_new') }}" class="btn btn-primary">Ersten Kunden anlegen</a>
+</div>
+{% endif %}
+{% endblock %}
