@@ -20,12 +20,14 @@
     #   HOMEPAGE_VAR_NAVIDROME_SALT=<your-navidrome-salt>
     #   HOMEPAGE_VAR_IMMICH_KEY=<your-immich-api-key>
     #   HOMEPAGE_VAR_GITEA_KEY=<your-gitea-api-token>
+    #   HOMEPAGE_VAR_PAPERLESS_KEY=<your-paperless-api-token>
     #
     # Generate keys:
     #   Jellyfin:  Admin Dashboard → API Keys → Add
     #   Navidrome: Settings → Personal → create token (note token + salt)
     #   Immich:    User Settings → API Keys → New API Key
     #   Gitea:     User Settings → Applications → Generate New Token
+    #   Paperless: Admin → Token → Create token (or via API)
     environmentFile = "/etc/homepage-secrets.env";
 
     settings = {
@@ -93,6 +95,22 @@
                 type = "gitea";
                 url = "http://localhost:3000";
                 key = "{{HOMEPAGE_VAR_GITEA_KEY}}";
+              };
+            };
+          }
+        ];
+      }
+      {
+        "Productivity" = [
+          {
+            "Paperless" = {
+              href = "http://milo:28981";
+              description = "Document management";
+              icon = "paperless-ngx";
+              widget = {
+                type = "paperlessngx";
+                url = "http://localhost:28981";
+                key = "{{HOMEPAGE_VAR_PAPERLESS_KEY}}";
               };
             };
           }

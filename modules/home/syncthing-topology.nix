@@ -70,13 +70,13 @@ let
     tv-shows = {
       path = "tv-shows";
       devices = [ "ultracc" "milo" ];
-      pathOverrides.milo = "/mnt/vault-new/tv-shows";
+      pathOverrides.milo = "/mnt/bulk/tv-shows";
       # On ultracc: path = ~/media/TV Shows
     };
     movies = {
       path = "movies";
       devices = [ "ultracc" "milo" ];
-      pathOverrides.milo = "/mnt/vault-new/movies";
+      pathOverrides.milo = "/mnt/bulk/movies";
       # On ultracc: path = ~/media/Movies
     };
     program-staging = {

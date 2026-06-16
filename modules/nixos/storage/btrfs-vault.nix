@@ -58,18 +58,31 @@
   #     options = [ "compress=zstd" "noatime" ];
   #   };
 
-  # Ensure mount point exists
+  # Ensure mount points exist
   systemd.tmpfiles.rules = [
     "d /mnt/vault 0755 root root -"
+    "d /mnt/vault-new 0755 root root -"
   ];
 
-  # Mount vault filesystem
+  # Mount vault filesystem (sdc, ~1TB SSD)
   fileSystems."/mnt/vault" = {
     device = "/dev/disk/by-label/vault";
     fsType = "btrfs";
     options = [
-      "compress=zstd"  # Automatic compression (better than lz4)
-      "noatime"        # Don't update access times (faster)
+      "compress=zstd"
+      "noatime"
+      "nofail"
+    ];
+  };
+
+  # Mount vault-new filesystem (sda+sdb bcache, 2×6TB HDDs)
+  fileSystems."/mnt/vault-new" = {
+    device = "/dev/disk/by-uuid/05460559-6ec9-4b06-87ce-8c1867d8fbca";
+    fsType = "btrfs";
+    options = [
+      "compress=zstd"
+      "noatime"
+      "nofail"
     ];
   };
 }

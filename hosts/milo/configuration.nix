@@ -26,7 +26,11 @@
     ../../modules/nixos/services/homepage.nix
     ../../modules/nixos/services/gitea.nix
     ../../modules/nixos/services/scanning.nix
+<<<<<<< Updated upstream
     ../../modules/nixos/services/buero/service.nix
+=======
+    ../../modules/nixos/services/paperless-ngx.nix
+>>>>>>> Stashed changes
     # ../../modules/nixos/services/docker.nix
 
     # I/O devices (printers, monitors, etc.)
@@ -64,6 +68,13 @@
   environment.systemPackages = with pkgs; [
     beets
   ];
+
+  # Bulk storage (16TB shucked WD Elements, ext4)
+  fileSystems."/mnt/bulk" = {
+    device = "/dev/disk/by-uuid/da80699a-e934-4f46-b98c-1b91a45fd31f";
+    fsType = "ext4";
+    options = [ "defaults" "nofail" "x-systemd.device-timeout=5" ];
+  };
 
   # Syncthing is configured in modules/nixos/services/syncthing.nix
   # All settings come from modules/home/syncthing-topology.nix
