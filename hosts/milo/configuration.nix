@@ -26,11 +26,8 @@
     ../../modules/nixos/services/homepage.nix
     ../../modules/nixos/services/gitea.nix
     ../../modules/nixos/services/scanning.nix
-<<<<<<< Updated upstream
     ../../modules/nixos/services/buero/service.nix
-=======
     ../../modules/nixos/services/paperless-ngx.nix
->>>>>>> Stashed changes
     # ../../modules/nixos/services/docker.nix
 
     # I/O devices (printers, monitors, etc.)

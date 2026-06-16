@@ -37,22 +37,4 @@ in
   };
 
   networking.firewall.allowedTCPPorts = [ 6566 ];
-
-  # Tell brscan-skey which script to run when the IMAGE scan button is pressed
-  environment.etc."opt/brother/scanner/brscan-skey/brscan-skey.cfg".text = ''
-    IMAGE=Brother-L2520DW,${scanScript}
-  '';
-
-  # brscan-skey daemon: watches for scanner button events and fires the scan script
-  systemd.services.brscan-skey = {
-    description = "Brother Scanner Key Tool";
-    wantedBy = [ "multi-user.target" ];
-    after = [ "network.target" ];
-    serviceConfig = {
-      User = "weast";
-      ExecStart = "${pkgs.brscan-skey}/bin/brscan-skey";
-      Restart = "on-failure";
-      RestartSec = "5s";
-    };
-  };
 }
