@@ -51,12 +51,9 @@ in {
       Restart          = "on-failure";
       RestartSec       = "5s";
 
-      # Hardening
+      # Note: namespace-based hardening (ProtectSystem, PrivateTmp, etc.)
+      # is omitted — milo runs as an LXC container which doesn't support them.
       NoNewPrivileges  = true;
-      ProtectSystem    = "strict";
-      ProtectHome      = true;
-      PrivateTmp       = true;
-      ReadWritePaths   = [ dataDir ];
     };
   };
 
