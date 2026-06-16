@@ -10,10 +10,10 @@ function addLineItem() {
   const row   = document.createElement('tr');
   row.className = 'item-row';
   row.innerHTML = `
-    <td><input type="text" name="items[${idx}][description]" required placeholder="Leistungsbeschreibung"></td>
-    <td><input type="number" name="items[${idx}][quantity]" value="1" step="0.01" min="0" class="item-qty" oninput="recalc()"></td>
-    <td><input type="text" name="items[${idx}][unit]" value="Std." placeholder="Std."></td>
-    <td><input type="number" name="items[${idx}][unit_price]" step="0.01" min="0" class="item-price" oninput="recalc()"></td>
+    <td><input type="text" name="positions[${idx}][description]" required placeholder="Leistungsbeschreibung"></td>
+    <td><input type="number" name="positions[${idx}][quantity]" value="1" step="0.01" min="0" class="item-qty" oninput="recalc()"></td>
+    <td><input type="text" name="positions[${idx}][unit]" value="Std." placeholder="Std."></td>
+    <td><input type="number" name="positions[${idx}][unit_price]" step="0.01" min="0" class="item-price" oninput="recalc()"></td>
     <td class="num item-total">—</td>
     <td><button type="button" class="btn-icon" onclick="removeRow(this)" title="Entfernen">✕</button></td>
   `;
@@ -24,7 +24,7 @@ function addLineItem() {
 
 function removeRow(btn) {
   const row = btn.closest('tr');
-  if (document.querySelectorAll('.item-row').length <= 1) return; // keep at least one
+  if (document.querySelectorAll('.item-row').length <= 1) return;
   row.remove();
   renumberItems();
   recalc();
@@ -33,7 +33,7 @@ function removeRow(btn) {
 function renumberItems() {
   document.querySelectorAll('.item-row').forEach((row, i) => {
     row.querySelectorAll('input').forEach(inp => {
-      inp.name = inp.name.replace(/items\[\d+\]/, `items[${i}]`);
+      inp.name = inp.name.replace(/positions\[\d+\]/, `positions[${i}]`);
     });
   });
 }
@@ -52,7 +52,7 @@ async function recalc() {
     if (totalCell) totalCell.textContent = fmtEur(qty * price);
   });
 
-  const mwstSel = document.querySelector('[name=mwst_rate]');
+  const mwstSel  = document.querySelector('[name=mwst_rate]');
   const mwstRate = mwstSel ? parseFloat(mwstSel.value) || 0 : 0;
 
   try {
@@ -62,7 +62,6 @@ async function recalc() {
       body: JSON.stringify({ items, mwst_rate: mwstRate }),
     });
     const data = await res.json();
-
     setEl('t-subtotal', data.subtotal_fmt);
     setEl('t-mwst',     data.mwst_fmt);
     setEl('t-total',    data.total_fmt);
@@ -81,10 +80,8 @@ function fmtEur(n) {
 /* ── Init ────────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Trigger initial calc on invoice form
   if (document.getElementById('items-body')) recalc();
 
-  // Auto-dismiss flash messages after 4s
   document.querySelectorAll('.flash').forEach(el => {
     setTimeout(() => {
       el.style.transition = 'opacity .4s';

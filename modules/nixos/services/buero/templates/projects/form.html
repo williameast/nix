@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Projekt bearbeiten' if edit else 'Neues Projekt' }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ 'Projekt bearbeiten' if edit else 'Neues Projekt' }}</h1>
+  {% if edit %}
+  <a href="{{ url_for('project_detail', pid=project.id) }}" class="btn btn-outline">Abbrechen</a>
+  {% endif %}
+</div>
+
+<form method="POST">
+  <div class="form-grid-2">
+    <div>
+      <div class="form-group">
+        <label>Projektname *</label>
+        <input type="text" name="name" value="{{ project.name or '' }}" required>
+      </div>
+      <div class="form-group">
+        <label>Projektnummer / Bestellnummer</label>
+        <input type="text" name="project_number" value="{{ project.project_number or '' }}" placeholder="z.B. PO-2026-001">
+        <div class="field-hint">Diese Nummer erscheint auf Rechnungen und PDFs</div>
+      </div>
+      <div class="form-group">
+        <label>Kunde</label>
+        <select name="client_id">
+          <option value="">— Kein Kunde —</option>
+          {% for c in clients %}
+          <option value="{{ c.id }}" {% if c.id == project.client_id %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          <option value="active"    {% if project.status == 'active'    %}selected{% endif %}>Aktiv</option>
+          <option value="on-hold"   {% if project.status == 'on-hold'   %}selected{% endif %}>Pausiert</option>
+          <option value="completed" {% if project.status == 'completed' %}selected{% endif %}>Abgeschlossen</option>
+        </select>
+      </div>
+    </div>
+    <div>
+      <div class="form-group">
+        <label>Startdatum</label>
+        <input type="date" name="start_date" value="{{ project.start_date or '' }}">
+      </div>
+      <div class="form-group">
+        <label>Enddatum</label>
+        <input type="date" name="end_date" value="{{ project.end_date or '' }}">
+      </div>
+      <div class="form-group">
+        <label>Budget (€)</label>
+        <input type="number" name="budget" value="{{ project.budget or '' }}" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="form-group">
+        <label>Beschreibung / Notizen</label>
+        <textarea name="description" rows="5">{{ project.description or '' }}</textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Speichern</button>
+    {% if not edit %}
+    <a href="{{ url_for('projects_list') }}" class="btn btn-outline">Abbrechen</a>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

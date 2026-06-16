@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ project.name }}</h1>
+  <div class="header-actions">
+    <a href="{{ url_for('invoice_new') }}?project_id={{ project.id }}{% if project.client_id %}&client_id={{ project.client_id }}{% endif %}&type=invoice" class="btn btn-primary">+ Rechnung</a>
+    <a href="{{ url_for('expense_new') }}?project_id={{ project.id }}{% if project.client_id %}&client_id={{ project.client_id }}{% endif %}" class="btn btn-outline">+ Ausgabe</a>
+    <a href="{{ url_for('project_edit', pid=project.id) }}" class="btn btn-outline">Bearbeiten</a>
+  </div>
+</div>
+
+<div class="detail-meta">
+  <div class="meta-block">
+    <div class="meta-label">Projekt</div>
+    {% if project.project_number %}<div><strong>{{ project.project_number }}</strong></div>{% endif %}
+    {% if project.status == 'active' %}<span class="badge badge-sent">Aktiv</span>
+    {% elif project.status == 'completed' %}<span class="badge badge-paid">Abgeschlossen</span>
+    {% else %}<span class="badge badge-draft">Pausiert</span>{% endif %}
+    {% if project.description %}<div style="margin-top:.5rem;font-size:.9rem">{{ project.description }}</div>{% endif %}
+  </div>
+  <div class="meta-block">
+    <div class="meta-label">Kunde</div>
+    {% if client.name %}
+    <strong>{{ client.name }}</strong>
+    {% if client.contact_name %}<div>{{ client.contact_name }}</div>{% endif %}
+    {% if client.email %}<div><a href="mailto:{{ client.email }}">{{ client.email }}</a></div>{% endif %}
+    {% else %}
+    <span class="muted">—</span>
+    {% endif %}
+  </div>
+  <div class="meta-block">
+    <div class="meta-label">Zeitraum & Budget</div>
+    <table class="meta-table">
+      {% if project.start_date %}<tr><td>Start</td><td>{{ project.start_date | date_de }}</td></tr>{% endif %}
+      {% if project.end_date %}<tr><td>Ende</td><td>{{ project.end_date | date_de }}</td></tr>{% endif %}
+      {% if project.budget %}<tr><td>Budget</td><td>{{ project.budget | float | eur }}</td></tr>{% endif %}
+    </table>
+  </div>
+</div>
+
+<!-- Invoices -->
+<div class="section" style="margin-bottom:1.5rem">
+  <div class="section-header">
+    <h2>Rechnungen</h2>
+    <a href="{{ url_for('invoice_new') }}?project_id={{ project.id }}{% if project.client_id %}&client_id={{ project.client_id }}{% endif %}&type=invoice" class="btn btn-xs btn-primary">+ Rechnung</a>
+  </div>
+  {% if invoices %}
+  <table class="table table-hover">
+    <thead>
+      <tr><th>Nr.</th><th>Typ</th><th>Datum</th><th class="num">Betrag</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      {% for inv in invoices %}
+      <tr onclick="location.href='{{ url_for('invoice_detail', iid=inv.id) }}'" style="cursor:pointer">
+        <td><code>{{ inv.id }}</code></td>
+        <td>{{ inv.type | type_de }}</td>
+        <td>{{ inv.date | date_de }}</td>
+        <td class="num">{{ inv._totals.total | eur }}</td>
+        <td><span class="badge badge-{{ inv.status }}">{{ inv.status | status_de }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted" style="padding:1rem">Noch keine Rechnungen für dieses Projekt.</p>
+  {% endif %}
+</div>
+
+<!-- Expenses -->
+<div class="section">
+  <div class="section-header">
+    <h2>Ausgaben</h2>
+    <a href="{{ url_for('expense_new') }}?project_id={{ project.id }}{% if project.client_id %}&client_id={{ project.client_id }}{% endif %}" class="btn btn-xs btn-outline">+ Ausgabe</a>
+  </div>
+  {% if expenses %}
+  <table class="table table-hover">
+    <thead>
+      <tr><th>Datum</th><th>Beschreibung</th><th>Kategorie</th><th class="num">Betrag</th></tr>
+    </thead>
+    <tbody>
+      {% for e in expenses %}
+      <tr>
+        <td>{{ e.date | date_de }}</td>
+        <td>{{ e.description or '—' }}</td>
+        <td>{{ e.category or '—' }}</td>
+        <td class="num">{{ e.amount | float | eur }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted" style="padding:1rem">Noch keine Ausgaben für dieses Projekt.</p>
+  {% endif %}
+</div>
+
+<div class="danger-zone">
+  <form method="POST" action="{{ url_for('project_delete', pid=project.id) }}"
+        onsubmit="return confirm('Projekt wirklich löschen? Rechnungen und Ausgaben bleiben erhalten.')">
+    <button type="submit" class="btn btn-danger">Projekt löschen</button>
+  </form>
+</div>
+{% endblock %}

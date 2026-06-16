@@ -1,9 +1,23 @@
 # Scanning service for Brother DCP-L2520DW
-# Exposes the scanner over the network via saned (SANE daemon)
-# Desktop machines connect via SANE net backend and scan with simple-scan
-# Scans land in ~/org/scans/ on the desktop and sync everywhere via Syncthing
+# - brscan4: SANE backend driver so scanimage/simple-scan can talk to the printer
+# - saned: exposes the scanner over the network so desktop machines can scan remotely
+# - brscan-skey: listens for scan button presses and saves PDFs to ~/org/scans/
 { config, pkgs, lib, ... }:
 
+let
+  scanDir = "/home/weast/org/scans";
+
+  # Script run by brscan-skey when the scan button is pressed
+  scanScript = pkgs.writeShellScript "brother-scan-to-org" ''
+    set -euo pipefail
+    mkdir -p "${scanDir}"
+    filename="${scanDir}/scan_$(date +%Y-%m-%d_%H%M%S).pdf"
+    ${pkgs.sane-backends}/bin/scanimage \
+      --format=pdf \
+      --output-file="$filename"
+    echo "Saved: $filename"
+  '';
+in
 {
   hardware.sane = {
     enable = true;
@@ -16,11 +30,29 @@
     };
   };
 
-  # Expose scanner over the network
+  # Expose scanner over the network so desktop machines can use simple-scan
   services.saned = {
     enable = true;
-    extraConfig = "192.168.178.0/24";  # allow LAN access
+    extraConfig = "192.168.178.0/24";
   };
 
   networking.firewall.allowedTCPPorts = [ 6566 ];
+
+  # Tell brscan-skey which script to run when the IMAGE scan button is pressed
+  environment.etc."opt/brother/scanner/brscan-skey/brscan-skey.cfg".text = ''
+    IMAGE=Brother-L2520DW,${scanScript}
+  '';
+
+  # brscan-skey daemon: watches for scanner button events and fires the scan script
+  systemd.services.brscan-skey = {
+    description = "Brother Scanner Key Tool";
+    wantedBy = [ "multi-user.target" ];
+    after = [ "network.target" ];
+    serviceConfig = {
+      User = "weast";
+      ExecStart = "${pkgs.brscan-skey}/bin/brscan-skey";
+      Restart = "on-failure";
+      RestartSec = "5s";
+    };
+  };
 }

@@ -24,6 +24,42 @@
     # Prepend ~/.local/bin to PATH (for nixGL wrappers to take precedence)
     initContent = ''
       export PATH="$HOME/.local/bin:$PATH"
+
+      # Rebuild any machine from anywhere.
+      # Local: runs the rebuild command directly.
+      # Remote: SSHes in and runs it there.
+      rebuild() {
+        local target=''${1:-$(hostname -s)}
+        local flake="$HOME/.config/nix-config"
+        local self
+        self=$(hostname -s)
+
+        case "$target" in
+          orr|yossarian)
+            if [[ "$self" == "$target" ]]; then
+              home-manager switch --flake "$flake#weast@$target"
+            else
+              ssh "$target" "home-manager switch --flake ~/.config/nix-config#weast@$target"
+            fi
+            ;;
+          milo)
+            if [[ "$self" == "milo" ]]; then
+              sudo nixos-rebuild switch --flake "$flake#milo"
+            else
+              ssh milo "sudo nixos-rebuild switch --flake ~/.config/nix-config#milo"
+            fi
+            ;;
+          *)
+            echo "Usage: rebuild [orr|yossarian|milo]"
+            echo "  (no args rebuilds the current machine)"
+            return 1
+            ;;
+        esac
+      }
+
+      alias rbo="rebuild orr"
+      alias rby="rebuild yossarian"
+      alias rbm="rebuild milo"
     '';
 
     shellAliases = {

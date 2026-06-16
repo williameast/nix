@@ -26,7 +26,10 @@ in
   services.flatpak = {
     enable = true;
     remotes = [
-      { name = "flathub"; location = "https://dl.flathub.org/repo/flathub.flatpakrepo"; }
+      {
+        name = "flathub";
+        location = "https://dl.flathub.org/repo/flathub.flatpakrepo";
+      }
     ];
     packages = [
       "org.freecadweb.FreeCAD"
@@ -41,17 +44,24 @@ in
   # Nix packages (OpenSCAD still works from nixpkgs)
   home.packages = with pkgs; [
     openscad
+    blender
+    printrun
+    inkscape
   ];
 
-  # nixGL wrapper for OpenSCAD (needs GPU access)
+  # nixGL wrappers for GPU-accelerated apps
   home.file = {
     ".local/bin/openscad" = {
       executable = true;
       source = wrapWithGL "openscad" pkgs.openscad;
     };
+    ".local/bin/blender" = {
+      executable = true;
+      source = wrapWithGL "blender" pkgs.blender;
+    };
   };
 
-  # Desktop entry for OpenSCAD with nixGL wrapper
+  # Desktop entries with nixGL wrappers
   xdg.desktopEntries = {
     openscad = {
       name = "OpenSCAD";
@@ -64,6 +74,17 @@ in
         "Engineering"
       ];
       mimeType = [ "application/x-openscad" ];
+    };
+    blender = {
+      name = "Blender";
+      exec = "${config.home.homeDirectory}/.local/bin/blender %f";
+      icon = "blender";
+      terminal = false;
+      categories = [
+        "Graphics"
+        "3DGraphics"
+      ];
+      mimeType = [ "application/x-blender" ];
     };
   };
 }

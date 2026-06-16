@@ -5,5 +5,8 @@
   home.packages = with pkgs; [
     # German eID authentication app
     ausweisapp
+
+    # Video conferencing
+    zoom-us
   ];
 }

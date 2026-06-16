@@ -40,8 +40,9 @@ UPLOADS_DIR  = DATA_DIR / "uploads"      # logo, receipts (writable)
 CLIENTS_DIR  = DATA_DIR / "data" / "clients"
 INVOICES_DIR = DATA_DIR / "data" / "invoices"
 EXPENSES_DIR = DATA_DIR / "data" / "expenses"
+PROJECTS_DIR = DATA_DIR / "data" / "projects"
 
-for _d in [CLIENTS_DIR, INVOICES_DIR, EXPENSES_DIR, UPLOADS_DIR]:
+for _d in [CLIENTS_DIR, INVOICES_DIR, EXPENSES_DIR, PROJECTS_DIR, UPLOADS_DIR]:
     _d.mkdir(parents=True, exist_ok=True)
 
 # ── Default config ────────────────────────────────────────────────────────────
@@ -180,6 +181,29 @@ def del_expense(eid):
         p.unlink()
 
 
+# Projects
+def all_projects():
+    return sorted(
+        [_load(p) for p in PROJECTS_DIR.glob("*.yaml")],
+        key=lambda p: p.get("name", ""),
+    )
+
+
+def get_project(pid):
+    p = PROJECTS_DIR / f"{_safe(pid)}.yaml"
+    return _load(p) if p.exists() else None
+
+
+def put_project(pid, data):
+    _save(PROJECTS_DIR / f"{_safe(pid)}.yaml", data)
+
+
+def del_project(pid):
+    p = PROJECTS_DIR / f"{_safe(pid)}.yaml"
+    if p.exists():
+        p.unlink()
+
+
 # ── Invoice numbering ─────────────────────────────────────────────────────────
 
 def next_number(cfg, doc_type="invoice"):
@@ -200,7 +224,8 @@ def next_number(cfg, doc_type="invoice"):
 # ── Calculations ──────────────────────────────────────────────────────────────
 
 def calc_totals(invoice, cfg):
-    items = invoice.get("items") or []
+    # "positions" is the canonical key; fall back to "items" for old YAML files
+    items = invoice.get("positions") or invoice.get("items") or []
     subtotal = sum(
         float(i.get("quantity") or 0) * float(i.get("unit_price") or 0)
         for i in items
@@ -474,6 +499,7 @@ def invoices_list():
 def invoice_new():
     cfg = load_config()
     clients = all_clients()
+    projects = all_projects()
     doc_type = request.args.get("type", "invoice")
 
     if request.method == "POST":
@@ -484,19 +510,24 @@ def invoice_new():
 
     today_s = datetime.now().strftime("%Y-%m-%d")
     due_s   = (datetime.now() + timedelta(days=cfg["invoice"]["payment_terms_days"])).strftime("%Y-%m-%d")
+    client_id  = request.args.get("client_id", "")
+    project_id = request.args.get("project_id", "")
     inv = {
-        "id": next_number(cfg, doc_type),
-        "type": doc_type,
-        "status": "draft",
-        "date": today_s,
-        "due_date": due_s,
-        "service_date": today_s,
-        "client_id": request.args.get("client_id", ""),
-        "items": [{"description": "", "quantity": 1, "unit": "Std.", "unit_price": ""}],
-        "notes": cfg["invoice"]["default_notes"],
-        "mwst_rate": cfg["tax"]["mwst_rate"],
+        "id":                 next_number(cfg, doc_type),
+        "type":               doc_type,
+        "status":             "draft",
+        "date":               today_s,
+        "due_date":           due_s,
+        "service_date":       today_s,
+        "service_period_end": "",
+        "client_id":          client_id,
+        "project_id":         project_id,
+        "positions": [{"description": "", "quantity": 1, "unit": "Std.", "unit_price": ""}],
+        "notes":              cfg["invoice"]["default_notes"],
+        "mwst_rate":          cfg["tax"]["mwst_rate"],
     }
-    return render_template("invoices/form.html", invoice=inv, clients=clients, edit=False)
+    return render_template("invoices/form.html", invoice=inv, clients=clients,
+                           projects=projects, edit=False)
 
 
 @app.route("/invoices/<path:iid>", methods=["GET"])
@@ -505,10 +536,14 @@ def invoice_detail(iid):
     inv = get_invoice(iid)
     if not inv:
         abort(404)
-    client = get_client(inv.get("client_id", "")) or {}
-    totals = calc_totals(inv, cfg)
+    # migrate old "items" key
+    if "items" in inv and "positions" not in inv:
+        inv["positions"] = inv.pop("items")
+    client  = get_client(inv.get("client_id", "")) or {}
+    project = get_project(inv.get("project_id", "")) if inv.get("project_id") else None
+    totals  = calc_totals(inv, cfg)
     return render_template("invoices/detail.html", invoice=inv, client=client,
-                           totals=totals,
+                           project=project, totals=totals,
                            kleinunternehmer=cfg["tax"]["mode"] == "kleinunternehmer")
 
 
@@ -518,6 +553,9 @@ def invoice_edit(iid):
     inv = get_invoice(iid)
     if not inv:
         abort(404)
+    # migrate old "items" key on load
+    if "items" in inv and "positions" not in inv:
+        inv["positions"] = inv.pop("items")
     if request.method == "POST":
         data = _parse_invoice_form(request.form, cfg)
         data["id"] = iid
@@ -525,7 +563,7 @@ def invoice_edit(iid):
         flash("Rechnung aktualisiert.", "success")
         return redirect(url_for("invoice_detail", iid=iid))
     return render_template("invoices/form.html", invoice=inv,
-                           clients=all_clients(), edit=True)
+                           clients=all_clients(), projects=all_projects(), edit=True)
 
 
 @app.route("/invoices/<path:iid>/pdf")
@@ -588,35 +626,37 @@ def quote_to_invoice(iid):
 
 def _parse_invoice_form(form, cfg):
     data = {
-        "id":           form.get("id") or next_number(cfg, form.get("type", "invoice")),
-        "type":         form.get("type", "invoice"),
-        "status":       form.get("status", "draft"),
-        "date":         form.get("date", ""),
-        "due_date":     form.get("due_date", ""),
-        "service_date": form.get("service_date", ""),
-        "client_id":    form.get("client_id", ""),
-        "notes":        form.get("notes", ""),
-        "payment_ref":  form.get("payment_ref", ""),
-        "mwst_rate":    float(form.get("mwst_rate") or cfg["tax"]["mwst_rate"]),
+        "id":                 form.get("id") or next_number(cfg, form.get("type", "invoice")),
+        "type":               form.get("type", "invoice"),
+        "status":             form.get("status", "draft"),
+        "date":               form.get("date", ""),
+        "due_date":           form.get("due_date", ""),
+        "service_date":       form.get("service_date", ""),
+        "service_period_end": form.get("service_period_end", ""),
+        "client_id":          form.get("client_id", ""),
+        "project_id":         form.get("project_id", ""),
+        "notes":              form.get("notes", ""),
+        "payment_ref":        form.get("payment_ref", ""),
+        "mwst_rate":          float(form.get("mwst_rate") or cfg["tax"]["mwst_rate"]),
     }
-    items, i = [], 0
+    positions, i = [], 0
     while True:
-        desc = form.get(f"items[{i}][description]")
+        desc = form.get(f"positions[{i}][description]")
         if desc is None:
             break
         try:
-            qty = float(form.get(f"items[{i}][quantity]") or 1)
-            price = float(form.get(f"items[{i}][unit_price]") or 0)
+            qty   = float(form.get(f"positions[{i}][quantity]") or 1)
+            price = float(form.get(f"positions[{i}][unit_price]") or 0)
         except ValueError:
             qty, price = 1.0, 0.0
-        items.append({
+        positions.append({
             "description": desc,
             "quantity":    qty,
-            "unit":        form.get(f"items[{i}][unit]", "Std."),
+            "unit":        form.get(f"positions[{i}][unit]", "Std."),
             "unit_price":  price,
         })
         i += 1
-    data["items"] = items
+    data["positions"] = positions
     return data
 
 
@@ -650,8 +690,10 @@ def expense_new():
         flash("Ausgabe gespeichert.", "success")
         return redirect(url_for("expenses_list"))
     return render_template("expenses/form.html", expense={
-        "date": datetime.now().strftime("%Y-%m-%d")
-    }, categories=EXPENSE_CATS)
+        "date":       datetime.now().strftime("%Y-%m-%d"),
+        "client_id":  request.args.get("client_id", ""),
+        "project_id": request.args.get("project_id", ""),
+    }, categories=EXPENSE_CATS, clients=all_clients(), projects=all_projects())
 
 
 @app.route("/expenses/<eid>/delete", methods=["POST"])
@@ -659,6 +701,80 @@ def expense_delete(eid):
     del_expense(eid)
     flash("Ausgabe gelöscht.", "success")
     return redirect(url_for("expenses_list"))
+
+
+# ── Routes: projects ─────────────────────────────────────────────────────────
+
+@app.route("/projects")
+def projects_list():
+    cfg = load_config()
+    clients_map = {c["id"]: c for c in all_clients() if "id" in c}
+    projects = all_projects()
+    for p in projects:
+        p["_client"] = clients_map.get(p.get("client_id", ""), {})
+    return render_template("projects/list.html", projects=projects)
+
+
+@app.route("/projects/new", methods=["GET", "POST"])
+def project_new():
+    if request.method == "POST":
+        data = request.form.to_dict()
+        pid = f"proj-{uuid.uuid4().hex[:8]}"
+        data["id"]      = pid
+        data["created"] = datetime.now().strftime("%Y-%m-%d")
+        put_project(pid, data)
+        flash("Projekt gespeichert.", "success")
+        return redirect(url_for("project_detail", pid=pid))
+    return render_template("projects/form.html",
+                           project={"status": "active",
+                                    "client_id": request.args.get("client_id", "")},
+                           clients=all_clients(), edit=False)
+
+
+@app.route("/projects/<pid>")
+def project_detail(pid):
+    project = get_project(pid)
+    if not project:
+        abort(404)
+    cfg         = load_config()
+    client      = get_client(project.get("client_id", "")) or {}
+    clients_map = {c["id"]: c for c in all_clients() if "id" in c}
+    invoices    = []
+    expenses    = []
+    for inv in all_invoices():
+        if inv.get("project_id") == pid:
+            inv["_client"] = clients_map.get(inv.get("client_id", ""), {})
+            inv["_totals"] = calc_totals(inv, cfg)
+            invoices.append(inv)
+    for exp in all_expenses():
+        if exp.get("project_id") == pid:
+            exp["_client"] = clients_map.get(exp.get("client_id", ""), {})
+            expenses.append(exp)
+    return render_template("projects/detail.html", project=project, client=client,
+                           invoices=invoices, expenses=expenses)
+
+
+@app.route("/projects/<pid>/edit", methods=["GET", "POST"])
+def project_edit(pid):
+    project = get_project(pid)
+    if not project:
+        abort(404)
+    if request.method == "POST":
+        data = request.form.to_dict()
+        data["id"]      = pid
+        data["created"] = project.get("created", "")
+        put_project(pid, data)
+        flash("Projekt aktualisiert.", "success")
+        return redirect(url_for("project_detail", pid=pid))
+    return render_template("projects/form.html", project=project,
+                           clients=all_clients(), edit=True)
+
+
+@app.route("/projects/<pid>/delete", methods=["POST"])
+def project_delete(pid):
+    del_project(pid)
+    flash("Projekt gelöscht.", "success")
+    return redirect(url_for("projects_list"))
 
 
 # ── Routes: Paperless-ngx ─────────────────────────────────────────────────────
@@ -794,8 +910,8 @@ def api_totals():
 
 
 if __name__ == "__main__":
-    host = os.environ.get("HOST", "0.0.0.0")
-    port = int(os.environ.get("PORT", 5000))
+    host  = os.environ.get("BUERO_HOST", os.environ.get("HOST", "0.0.0.0"))
+    port  = int(os.environ.get("BUERO_PORT", os.environ.get("PORT", 5055)))
     debug = os.environ.get("DEBUG", "0") == "1"
     print(f"Büro running at http://{host}:{port}")
     app.run(host=host, port=port, debug=debug)

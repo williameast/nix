@@ -69,12 +69,13 @@ in {
   users.groups.buero = {};
 
   systemd.tmpfiles.rules = [
-    "d '${dataDir}'              0750 buero buero -"
-    "d '${dataDir}/data'         0750 buero buero -"
-    "d '${dataDir}/data/clients' 0750 buero buero -"
-    "d '${dataDir}/data/invoices' 0750 buero buero -"
-    "d '${dataDir}/data/expenses' 0750 buero buero -"
-    "d '${dataDir}/uploads'      0750 buero buero -"
+    "d '${dataDir}'                0750 buero buero -"
+    "d '${dataDir}/data'           0750 buero buero -"
+    "d '${dataDir}/data/clients'   0750 buero buero -"
+    "d '${dataDir}/data/invoices'  0750 buero buero -"
+    "d '${dataDir}/data/expenses'  0750 buero buero -"
+    "d '${dataDir}/data/projects'  0750 buero buero -"
+    "d '${dataDir}/uploads'        0750 buero buero -"
   ];
 
   networking.firewall.allowedTCPPorts = [ 5055 ];

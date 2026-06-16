@@ -1,6 +1,6 @@
 # Machine-specific configuration for orr (Pop!_OS workstation)
 # Includes 42 Berlin tools and other machine-specific packages
-{ config, pkgs, lib, ... }:
+{ config, pkgs, lib, inputs, ... }:
 
 {
   home.packages = with pkgs; [
@@ -37,6 +37,9 @@
 
     # Torrenting
     intermodal # Create .torrent files
+
+    # Claude Desktop
+    inputs.claude-desktop.packages.${pkgs.system}.claude-desktop-fhs
 
   ];
 

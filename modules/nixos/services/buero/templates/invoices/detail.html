@@ -61,10 +61,19 @@
     <div class="meta-label">Details</div>
     <table class="meta-table">
       <tr><td>Datum</td><td>{{ invoice.date | date_de }}</td></tr>
-      {% if invoice.service_date %}<tr><td>Leistungsdatum</td><td>{{ invoice.service_date | date_de }}</td></tr>{% endif %}
+      {% if invoice.service_date %}
+        {% if invoice.service_period_end %}
+        <tr><td>Leistungszeitraum</td><td>{{ invoice.service_date | date_de }} – {{ invoice.service_period_end | date_de }}</td></tr>
+        {% else %}
+        <tr><td>Leistungsdatum</td><td>{{ invoice.service_date | date_de }}</td></tr>
+        {% endif %}
+      {% endif %}
       {% if invoice.due_date %}<tr><td>Fällig</td><td>{{ invoice.due_date | date_de }}</td></tr>{% endif %}
       {% if invoice.paid_date %}<tr><td>Bezahlt am</td><td>{{ invoice.paid_date | date_de }}</td></tr>{% endif %}
       {% if invoice.quote_ref %}<tr><td>Angebot Ref.</td><td><a href="{{ url_for('invoice_detail', iid=invoice.quote_ref) }}">{{ invoice.quote_ref }}</a></td></tr>{% endif %}
+      {% if project %}
+      <tr><td>Projekt</td><td><a href="{{ url_for('project_detail', pid=project.id) }}">{{ project.name }}</a>{% if project.project_number %} · <code>{{ project.project_number }}</code>{% endif %}</td></tr>
+      {% endif %}
     </table>
   </div>
 </div>
@@ -81,7 +90,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for item in invoice.items or [] %}
+    {% for item in invoice.positions or [] %}
     <tr>
       <td>{{ item.description }}</td>
       <td class="num">{{ item.quantity }}</td>

@@ -67,10 +67,11 @@
     text-align: right;
   }
 
-  .doc-date {
+  .doc-meta {
     font-size: 8.5pt;
     color: #555;
     margin-top: 3mm;
+    line-height: 1.6;
   }
 
   /* ── Address row ── */
@@ -86,6 +87,21 @@
 
   .addr-col { flex: 1; }
   .addr-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #888; margin-bottom: 2mm; }
+
+  /* ── Reference bar ── */
+  .ref-bar {
+    display: flex;
+    gap: 8mm;
+    margin-bottom: 6mm;
+    font-size: 8.5pt;
+    background: #f7f7f7;
+    border: 1px solid var(--border);
+    padding: 3mm 4mm;
+    border-radius: 3px;
+  }
+  .ref-item { display: flex; flex-direction: column; gap: 1mm; }
+  .ref-label { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #888; }
+  .ref-value { font-weight: 600; }
 
   /* ── Items table ── */
   .items-table {
@@ -142,18 +158,14 @@
     padding: 3mm;
   }
 
-  /* ── Notes / bank ── */
+  /* ── Notes ── */
   .notes-section {
     margin-top: 8mm;
     font-size: 8.5pt;
     line-height: 1.55;
     border-top: 1px solid var(--border);
     padding-top: 5mm;
-    display: flex;
-    gap: 10mm;
   }
-
-  .notes-col { flex: 1; }
   .notes-label { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #888; margin-bottom: 2mm; }
 
   .ku-note {
@@ -215,13 +227,42 @@
         {% elif invoice.type == 'quote' %}Angebot
         {% else %}Quittung{% endif %}
       </div>
-      <div class="doc-date">Datum: {{ invoice.date | date_de }}</div>
-      {% if invoice.service_date and invoice.service_date != invoice.date %}
-      <div class="doc-date">Leistungsdatum: {{ invoice.service_date | date_de }}</div>
-      {% endif %}
+      <div class="doc-meta">
+        Datum: {{ invoice.date | date_de }}<br>
+        {% if invoice.service_period_end %}
+        Leistungszeitraum: {{ invoice.service_date | date_de }} – {{ invoice.service_period_end | date_de }}<br>
+        {% elif invoice.service_date and invoice.service_date != invoice.date %}
+        Leistungsdatum: {{ invoice.service_date | date_de }}<br>
+        {% endif %}
+        {% if invoice.due_date %}Zahlbar bis: {{ invoice.due_date | date_de }}{% endif %}
+      </div>
     </div>
     <div class="doc-number">{{ invoice.id }}</div>
   </div>
+
+  <!-- Reference bar (project / PO number) -->
+  {% if project or invoice.payment_ref %}
+  <div class="ref-bar">
+    {% if project %}
+    <div class="ref-item">
+      <span class="ref-label">Projekt</span>
+      <span class="ref-value">{{ project.name }}</span>
+    </div>
+    {% if project.project_number %}
+    <div class="ref-item">
+      <span class="ref-label">Projektnr. / Bestellnr.</span>
+      <span class="ref-value">{{ project.project_number }}</span>
+    </div>
+    {% endif %}
+    {% endif %}
+    {% if invoice.payment_ref %}
+    <div class="ref-item">
+      <span class="ref-label">Verwendungszweck</span>
+      <span class="ref-value">{{ invoice.payment_ref }}</span>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
 
   <!-- Address row -->
   <div class="address-row">
@@ -273,12 +314,12 @@
         <th style="width:50%">Beschreibung / Leistung</th>
         <th class="r" style="width:10%">Menge</th>
         <th style="width:10%">Einheit</th>
-        <th class="r" style="width:15%">Einzelpreis</th>
-        <th class="r" style="width:15%">Gesamt</th>
+        <th class="r" style="width:15%">Einzelpreis ({{ cfg.invoice.currency }})</th>
+        <th class="r" style="width:15%">Gesamt ({{ cfg.invoice.currency }})</th>
       </tr>
     </thead>
     <tbody>
-      {% for item in invoice.items or [] %}
+      {% for item in invoice.positions or [] %}
       <tr>
         <td>{{ item.description }}</td>
         <td class="r">{{ item.quantity }}</td>
@@ -294,7 +335,7 @@
   <div class="totals-section">
     {% if not kleinunternehmer %}
     <div class="totals-row">
-      <span>Nettobetrag</span>
+      <span>Nettobetrag ({{ cfg.invoice.currency }})</span>
       <span>{{ totals.subtotal | eur }}</span>
     </div>
     <div class="totals-row">
@@ -303,7 +344,7 @@
     </div>
     {% endif %}
     <div class="totals-row grand">
-      <span>Gesamtbetrag</span>
+      <span>Gesamtbetrag ({{ cfg.invoice.currency }})</span>
       <span>{{ totals.total | eur }}</span>
     </div>
   </div>
@@ -313,14 +354,10 @@
   {% endif %}
 
   <!-- Notes -->
-  {% if invoice.notes or cfg.invoice.iban %}
+  {% if invoice.notes %}
   <div class="notes-section">
-    {% if invoice.notes %}
-    <div class="notes-col">
-      <div class="notes-label">Anmerkungen</div>
-      {{ invoice.notes }}
-    </div>
-    {% endif %}
+    <div class="notes-label">Anmerkungen</div>
+    {{ invoice.notes }}
   </div>
   {% endif %}
 

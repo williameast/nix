@@ -10,8 +10,10 @@ let
 in {
   programs.emacs = {
     enable = true;
-    # vterm needs native compilation
-    extraPackages = epkgs: [ epkgs.vterm ];
+    extraPackages = epkgs: [
+      epkgs.vterm
+      epkgs.pdf-tools  # Precompiled from nixpkgs, avoids build issues
+    ];
   };
 
   # Start emacs daemon on login
