@@ -49,6 +49,9 @@
   # Network manager for easy network config
   networking.networkmanager.enable = true;
 
+  # Fonts (Inter used by Büro PDF generation via WeasyPrint/fontconfig)
+  fonts.packages = with pkgs; [ inter ];
+
   # State version - NEVER change this after initial install
   system.stateVersion = "25.11";
 
