@@ -10,6 +10,8 @@ let
     weasyprint
     jinja2
     werkzeug
+    qrcode
+    pillow
   ]);
 
   buero = pkgs.stdenv.mkDerivation {

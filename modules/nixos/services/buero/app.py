@@ -10,6 +10,7 @@ from copy import deepcopy
 from datetime import datetime, timedelta, date
 from io import BytesIO
 from pathlib import Path
+import base64
 
 import yaml
 import requests as req_lib
@@ -21,6 +22,13 @@ try:
     WEASYPRINT = True
 except Exception:
     WEASYPRINT = False
+
+try:
+    import qrcode as _qrcode
+    import qrcode.constants as _qrc
+    QRCODE = True
+except Exception:
+    QRCODE = False
 
 # APP_DIR  = read-only source tree (nix store when deployed, __file__ dir otherwise)
 # DATA_DIR = writable persistent storage (/mnt/vault-new/buero when deployed)
@@ -333,11 +341,83 @@ class Paperless:
         return f"{self.base}/api/documents/{did}/download/"
 
 
+# ── PDF helpers ───────────────────────────────────────────────────────────────
+
+def load_logo_b64(cfg):
+    """Return logo as a base64 data URI, or None if not available."""
+    try:
+        logo_path = cfg["design"].get("logo_path", "")
+        if not logo_path:
+            return None
+        p = UPLOADS_DIR / logo_path
+        if not p.exists():
+            return None
+        ext = p.suffix.lower().lstrip(".")
+        mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg",
+                "svg": "image/svg+xml", "gif": "image/gif"}.get(ext, "image/png")
+        data = base64.b64encode(p.read_bytes()).decode()
+        return f"data:{mime};base64,{data}"
+    except Exception:
+        return None
+
+
+def make_epc_qr(cfg, invoice, totals):
+    """Generate EPC/GiroCode QR for SEPA bank transfer (base64 PNG string)."""
+    if not QRCODE:
+        return None
+    try:
+        iban = (cfg["invoice"].get("iban") or "").replace(" ", "").replace("-", "")
+        if not iban:
+            return None
+        bic  = (cfg["invoice"].get("bic") or "").strip()
+        name = (cfg["business"].get("name") or "")[:70]
+        amount = f"EUR{totals['total']:.2f}"
+        ref = (invoice.get("payment_ref") or invoice.get("id") or "")[:140]
+        # EPC QR / GiroCode standard (SEPA Credit Transfer)
+        data = "\n".join(["BCD", "002", "1", "SCT", bic, name, iban,
+                          amount, "", "", ref])
+        qr = _qrcode.QRCode(
+            error_correction=_qrc.ERROR_CORRECT_M,
+            box_size=6, border=2,
+        )
+        qr.add_data(data)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return None
+
+
+def make_invoice_qr(invoice_id):
+    """Generate small QR with invoice ID for footer micrographic (base64 PNG)."""
+    if not QRCODE:
+        return None
+    try:
+        qr = _qrcode.QRCode(
+            error_correction=_qrc.ERROR_CORRECT_M,
+            box_size=4, border=2,
+        )
+        qr.add_data(str(invoice_id))
+        qr.make(fit=True)
+        img = qr.make_image(fill_color="black", back_color="white")
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return None
+
+
 # ── PDF generation ────────────────────────────────────────────────────────────
 
-def make_pdf(invoice, client, cfg):
+def make_pdf(invoice, client, cfg, project=None):
     from jinja2 import Environment, FileSystemLoader
-    totals = calc_totals(invoice, cfg)
+    totals   = calc_totals(invoice, cfg)
+    logo_b64 = load_logo_b64(cfg)
+    epc_qr   = make_epc_qr(cfg, invoice, totals) if invoice.get("type") == "invoice" else None
+    inv_qr   = make_invoice_qr(invoice.get("id", ""))
+
     env = Environment(loader=FileSystemLoader(str(APP_DIR / "pdf_templates")))
     env.filters["eur"] = lambda v: fmt_eur(float(v or 0), cfg["invoice"]["currency_symbol"])
     env.filters["date_de"] = _date_de
@@ -348,6 +428,10 @@ def make_pdf(invoice, client, cfg):
         client=client,
         cfg=cfg,
         totals=totals,
+        project=project,
+        logo_b64=logo_b64,
+        epc_qr=epc_qr,
+        inv_qr=inv_qr,
         kleinunternehmer=cfg["tax"]["mode"] == "kleinunternehmer",
         now=datetime.now(),
     )
@@ -572,8 +656,9 @@ def invoice_pdf(iid):
     inv = get_invoice(iid)
     if not inv:
         abort(404)
-    client = get_client(inv.get("client_id", "")) or {}
-    data, mimetype = make_pdf(inv, client, cfg)
+    client  = get_client(inv.get("client_id", "")) or {}
+    project = get_project(inv.get("project_id", "")) if inv.get("project_id") else None
+    data, mimetype = make_pdf(inv, client, cfg, project=project)
     buf = BytesIO(data)
     ext = "pdf" if WEASYPRINT else "html"
     fname = f"{inv.get('type','invoice')}-{_safe(iid)}.{ext}"
