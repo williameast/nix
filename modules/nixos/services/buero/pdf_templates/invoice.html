@@ -13,12 +13,20 @@
   :root { --accent: {{ cfg.design.accent_color }}; }
 
   body {
-    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    font-family: Inter, 'Inter UI', Helvetica Neue, Helvetica, Arial, sans-serif;
     font-size: 9.5pt;
     color: #111;
     background: #fff;
     line-height: 1.45;
   }
+
+  /* Single-page layout for short invoices */
+  .doc-wrap {
+    display: flex;
+    flex-direction: column;
+    min-height: 263mm; /* A4 content height: 297 - 14 top - 18 bottom - 2 buffer */
+  }
+  .page-spacer { flex: 1; min-height: 0; }
 
   /* ── HEADER ────────────────────────────────────────────── */
   .hdr { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
@@ -203,6 +211,8 @@
 </style>
 </head>
 <body>
+{% set item_count = (invoice.positions or [])|length %}
+{% if item_count < 5 %}<div class="doc-wrap">{% endif %}
 
 <!-- ── HEADER: Logo + Company Name ── -->
 <table class="hdr">
@@ -404,6 +414,8 @@
 </table>
 {% endif %}
 
+{% if item_count < 5 %}<div class="page-spacer"></div>{% endif %}
+
 <!-- ── FOOTER ── -->
 <div class="footer-rule">
   <table class="footer">
@@ -456,5 +468,6 @@
   </table>
 </div>
 
+{% if item_count < 5 %}</div>{% endif %}
 </body>
 </html>
