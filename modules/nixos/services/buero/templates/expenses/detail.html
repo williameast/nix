@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ expense.description or 'Ausgabe' }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ expense.description or 'Ausgabe' }}</h1>
+  <div class="header-actions">
+    <a href="{{ url_for('expense_edit', eid=expense.id) }}" class="btn btn-outline">Bearbeiten</a>
+    <a href="{{ url_for('expenses_list') }}" class="btn btn-outline">← Zurück</a>
+  </div>
+</div>
+
+<div class="detail-meta">
+  <div class="meta-block">
+    <div class="meta-label">Betrag</div>
+    <div style="font-size:1.5rem;font-weight:700">{{ expense.amount | float | eur }}</div>
+    {% if expense.category %}<div class="muted">{{ expense.category }}</div>{% endif %}
+  </div>
+  <div class="meta-block">
+    <div class="meta-label">Details</div>
+    <table class="meta-table">
+      <tr><td>Datum</td><td>{{ expense.date | date_de }}</td></tr>
+      {% if expense.vendor %}<tr><td>Lieferant</td><td>{{ expense.vendor }}</td></tr>{% endif %}
+      {% if expense.vat_rate %}<tr><td>MwSt. im Beleg</td><td>{{ expense.vat_rate }} %</td></tr>{% endif %}
+      {% if expense.invoice_id %}<tr><td>Rechnung</td><td><a href="{{ url_for('invoice_detail', iid=expense.invoice_id) }}">{{ expense.invoice_id }}</a></td></tr>{% endif %}
+    </table>
+  </div>
+  {% if expense.notes %}
+  <div class="meta-block">
+    <div class="meta-label">Notizen</div>
+    <div>{{ expense.notes }}</div>
+  </div>
+  {% endif %}
+</div>
+
+{% if receipt_url %}
+<div class="section" style="margin-top:1.5rem">
+  <div class="section-header">
+    <h2>Beleg</h2>
+    <a href="{{ receipt_url }}" download class="btn btn-outline">↓ Download</a>
+  </div>
+  {% if receipt_is_pdf %}
+  <iframe src="{{ receipt_url }}" style="width:100%;height:80vh;border:1px solid var(--border);border-radius:4px"></iframe>
+  {% else %}
+  <img src="{{ receipt_url }}" style="max-width:100%;border:1px solid var(--border);border-radius:4px;display:block">
+  {% endif %}
+</div>
+{% else %}
+<p class="muted" style="margin-top:1.5rem">Kein Beleg hochgeladen.</p>
+{% endif %}
+
+<div class="danger-zone">
+  <form method="POST" action="{{ url_for('expense_delete', eid=expense.id) }}"
+        onsubmit="return confirm('Ausgabe wirklich löschen?')">
+    <button type="submit" class="btn btn-danger">Ausgabe löschen</button>
+  </form>
+</div>
+{% endblock %}
