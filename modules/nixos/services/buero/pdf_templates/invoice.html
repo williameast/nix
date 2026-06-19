@@ -18,8 +18,8 @@
     color: #111;
     background: #fff;
     line-height: 1.45;
-    /* Reserve space at the bottom for the fixed footer (~24mm) */
-    padding-bottom: 28mm;
+    /* Reserve space at the bottom for the fixed footer (~22mm tall) */
+    padding-bottom: 26mm;
   }
 
   /* ── HEADER ────────────────────────────────────────────── */
@@ -129,8 +129,33 @@
     padding-top: 2mm;
   }
 
+  /* ── ANLAGE STAMP ──────────────────────────────────────── */
+  .anlage-stamp {
+    text-align: right;
+    font-size: 9pt;
+    font-weight: 700;
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 3mm;
+    border-bottom: 1.5pt solid var(--accent);
+    padding-bottom: 1.5mm;
+  }
+
   /* ── §19 NOTE ───────────────────────────────────────────── */
   .ku-note { font-size: 8pt; color: #666; font-style: italic; margin-bottom: 4mm; }
+
+  /* ── AUSLAGENERSATZ ─────────────────────────────────────── */
+  .auslagen-section { margin-top: 4mm; margin-bottom: 2mm; }
+  .auslagen-lbl {
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: #555;
+    margin-bottom: 1mm;
+    display: block;
+  }
 
   /* ── NOTES ──────────────────────────────────────────────── */
   .notes { margin-top: 3mm; margin-bottom: 5mm; font-size: 8.5pt; line-height: 1.5; border-top: 0.5pt solid #ccc; padding-top: 3mm; }
@@ -166,35 +191,26 @@
      removing it from normal flow so content above is never pushed to page 2. */
   .footer-rule {
     position: fixed;
-    bottom: 18mm;   /* = @page bottom margin — sits at content area base */
-    left: 16mm;     /* = @page left margin */
-    right: 16mm;    /* = @page right margin */
+    bottom: 0;
+    left: 0;
+    right: 0;
     border-top: 2.5pt solid var(--accent);
-    padding-top: 0;
     background: #fff;
   }
-  .footer { width: 100%; border-collapse: collapse; }
-  .footer td { padding-top: 3.5mm; vertical-align: top; }
+  /* Single flat table — no nested subtable, each column gets a direct cell */
+  .footer { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .footer td { padding-top: 3mm; vertical-align: top; font-size: 6.5pt; color: #555; line-height: 1.55; overflow: hidden; }
+  .footer-name-cell { width: 36mm; white-space: nowrap; overflow: visible; }
   .footer-name {
-    font-size: 17pt;
+    font-size: 15pt;
     font-weight: 900;
     color: var(--accent);
     letter-spacing: -0.02em;
     line-height: 1;
     white-space: nowrap;
   }
-  .footer-right { text-align: right; }
-  .fcols { border-collapse: collapse; margin-left: auto; }
-  .fcols td {
-    font-size: 7pt;
-    color: #555;
-    line-height: 1.6;
-    padding-left: 5mm;
-    vertical-align: top;
-    text-align: left;
-  }
   .fclbl {
-    font-size: 6pt;
+    font-size: 5.5pt;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -202,12 +218,17 @@
     display: block;
     margin-bottom: 0.5mm;
   }
-  .fqr { text-align: center; padding-left: 5mm; vertical-align: middle; }
-  .fqr img { width: 15mm; height: 15mm; }
+  .fiban { word-break: break-all; }
+  .fqr-cell { text-align: center; width: 17mm; vertical-align: middle; }
+  .fqr-cell img { width: 14mm; height: 14mm; }
   .fqr-lbl { font-size: 5pt; color: #aaa; display: block; margin-top: 0.5mm; }
 </style>
 </head>
 <body>
+
+{% if anlage_nr %}
+<div class="anlage-stamp">Anlage {{ anlage_nr }}</div>
+{% endif %}
 
 <!-- ── HEADER: Logo + Company Name ── -->
 <table class="hdr">
@@ -336,6 +357,12 @@
 </div>
 
 <!-- ── LINE ITEMS ── -->
+{% set regular_items  = (invoice.positions or []) | selectattr("auslagenersatz", "undefined") | list %}
+{% set regular_items  = regular_items + ((invoice.positions or []) | selectattr("auslagenersatz", "equalto", false) | list) %}
+{% set auslagen_items = (invoice.positions or []) | selectattr("auslagenersatz", "equalto", true) | list %}
+{# fallback: if no auslagenersatz attr at all, treat all as regular #}
+{% set regular_items  = (invoice.positions or []) | rejectattr("auslagenersatz", "equalto", true) | list %}
+
 <table class="items">
   <thead>
     <tr>
@@ -348,7 +375,7 @@
     </tr>
   </thead>
   <tbody>
-    {% for item in invoice.positions or [] %}
+    {% for item in regular_items %}
     <tr>
       <td>{{ loop.index }}</td>
       <td>{{ item.description }}</td>
@@ -360,6 +387,30 @@
     {% endfor %}
   </tbody>
 </table>
+
+{% if auslagen_items %}
+<div class="auslagen-section">
+  <span class="auslagen-lbl">Auslagenersatz</span>
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:5%">Pos.</th>
+        <th style="width:72%">Beschreibung</th>
+        <th class="r" style="width:23%">Betrag ({{ cfg.invoice.currency }})</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in auslagen_items %}
+      <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ item.description }}</td>
+        <td class="r">{{ (item.quantity * item.unit_price) | eur }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 
 <!-- ── TOTALS ── -->
 <div class="totals-wrap">
@@ -419,50 +470,40 @@
 <div class="footer-rule">
   <table class="footer">
     <tr>
-      <td style="width:40%">
-        <div class="footer-name">{{ cfg.business.legal_name or cfg.business.name }}</div>
+      <td style="padding-left:0">
+        <span class="fclbl">Adresse</span>
+        {{ cfg.business.address_line1 }}<br>
+        {{ cfg.business.address_line2 }}{% if cfg.business.country %}, {{ cfg.business.country }}{% endif %}
       </td>
-      <td class="footer-right">
-        <table class="fcols">
-          <tr>
-            <td>
-              <span class="fclbl">Adresse</span>
-              {{ cfg.business.address_line1 }}<br>
-              {{ cfg.business.address_line2 }}<br>
-              {{ cfg.business.country }}
-            </td>
-            {% if cfg.business.email or cfg.business.phone or cfg.business.website %}
-            <td>
-              <span class="fclbl">Kontakt</span>
-              {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
-              {% if cfg.business.phone %}{{ cfg.business.phone }}<br>{% endif %}
-              {% if cfg.business.website %}{{ cfg.business.website }}{% endif %}
-            </td>
-            {% endif %}
-            <td>
-              <span class="fclbl">Steuer</span>
-              {% if cfg.tax.mode == 'kleinunternehmer' %}
-              StNr.:<br>{{ cfg.tax.steuernummer }}
-              {% elif cfg.tax.ust_idnr %}
-              USt-IdNr.:<br>{{ cfg.tax.ust_idnr }}
-              {% endif %}
-            </td>
-            {% if cfg.invoice.iban %}
-            <td>
-              <span class="fclbl">Bank</span>
-              {{ cfg.invoice.iban }}<br>
-              {% if cfg.invoice.bic %}{{ cfg.invoice.bic }}{% endif %}
-            </td>
-            {% endif %}
-            {% if inv_qr %}
-            <td class="fqr">
-              <img src="data:image/png;base64,{{ inv_qr }}" alt="{{ invoice.id }}">
-              <span class="fqr-lbl">{{ invoice.id }}</span>
-            </td>
-            {% endif %}
-          </tr>
-        </table>
+      {% if cfg.business.email or cfg.business.phone or cfg.business.website %}
+      <td style="padding-left:4mm">
+        <span class="fclbl">Kontakt</span>
+        {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
+        {% if cfg.business.phone %}{{ cfg.business.phone }}<br>{% endif %}
+        {% if cfg.business.website %}{{ cfg.business.website }}{% endif %}
       </td>
+      {% endif %}
+      <td style="padding-left:4mm">
+        <span class="fclbl">Steuer</span>
+        {% if cfg.tax.mode == 'kleinunternehmer' %}
+        StNr.: {{ cfg.tax.steuernummer }}
+        {% elif cfg.tax.ust_idnr %}
+        USt-IdNr.: {{ cfg.tax.ust_idnr }}
+        {% endif %}
+      </td>
+      {% if cfg.invoice.iban %}
+      <td style="padding-left:4mm;width:30mm">
+        <span class="fclbl">Bank</span>
+        <span class="fiban">{{ cfg.invoice.iban }}</span>
+        {% if cfg.invoice.bic %}<br>{{ cfg.invoice.bic }}{% endif %}
+      </td>
+      {% endif %}
+      {% if inv_qr %}
+      <td class="fqr-cell" style="padding-left:4mm">
+        <img src="data:image/png;base64,{{ inv_qr }}" alt="{{ invoice.id }}">
+        <span class="fqr-lbl">{{ invoice.id }}</span>
+      </td>
+      {% endif %}
     </tr>
   </table>
 </div>

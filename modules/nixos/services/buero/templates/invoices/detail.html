@@ -135,6 +135,74 @@
 </div>
 {% endif %}
 
+<!-- ── Auslagenersatz ─────────────────────────────────────────────────────── -->
+{% if available_auslagen %}
+<div class="detail-section">
+  <div class="meta-label">Auslagenersatz hinzufügen</div>
+  <form method="POST" action="{{ url_for('invoice_add_auslagen', iid=invoice.id) }}">
+    <table class="table" style="margin-bottom:0.75rem">
+      <thead>
+        <tr>
+          <th style="width:2rem"><input type="checkbox" id="ausl-all" onclick="document.querySelectorAll('.ausl-cb').forEach(c=>c.checked=this.checked)"></th>
+          <th>Beschreibung</th>
+          <th>Datum</th>
+          <th>Kategorie</th>
+          <th class="num">Betrag</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in available_auslagen %}
+        <tr>
+          <td><input class="ausl-cb" type="checkbox" name="expense_ids" value="{{ e.id }}"></td>
+          <td>{{ e.description }}{% if e.vendor %} <span class="muted">({{ e.vendor }})</span>{% endif %}</td>
+          <td>{{ e.date | date_de }}</td>
+          <td>{{ e.category or '—' }}</td>
+          <td class="num">{{ e.amount | float | eur }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="submit" class="btn btn-outline">Ausgewählte als Auslagenersatz hinzufügen</button>
+  </form>
+</div>
+{% endif %}
+
+<!-- ── PDF mit Anlagen ───────────────────────────────────────────────────── -->
+<div class="detail-section">
+  <div class="meta-label">PDF mit Anlagen</div>
+  <form method="POST" action="{{ url_for('invoice_pdf_with_anlagen', iid=invoice.id) }}">
+    {% if other_invoices %}
+    <table class="table" style="margin-bottom:0.75rem">
+      <thead>
+        <tr>
+          <th style="width:2rem"></th>
+          <th>Nr.</th>
+          <th>Typ</th>
+          <th>Datum</th>
+          <th>Kunde</th>
+          <th class="num">Betrag</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for i in other_invoices %}
+        <tr>
+          <td><input type="checkbox" name="anlage_ids" value="{{ i.id }}"></td>
+          <td><code>{{ i.id }}</code></td>
+          <td>{{ i.type | type_de }}</td>
+          <td>{{ i.date | date_de }}</td>
+          <td>{{ i.client_id or '—' }}</td>
+          <td class="num">{{ i._totals.total | eur }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted" style="margin-bottom:0.75rem">Keine weiteren Rechnungen vorhanden.</p>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">↓ PDF herunterladen{% if other_invoices %} (mit Anlagen){% endif %}</button>
+  </form>
+</div>
+
 <div class="danger-zone">
   <form method="POST" action="{{ url_for('invoice_delete', iid=invoice.id) }}"
         onsubmit="return confirm('Rechnung wirklich löschen?')">

@@ -12,6 +12,7 @@ let
     werkzeug
     qrcode
     pillow
+    pypdf
   ]);
 
   buero = pkgs.stdenv.mkDerivation {

@@ -30,6 +30,12 @@ try:
 except Exception:
     QRCODE = False
 
+try:
+    import pypdf as _pypdf
+    PYPDF = True
+except Exception:
+    PYPDF = False
+
 # APP_DIR  = read-only source tree (nix store when deployed, __file__ dir otherwise)
 # DATA_DIR = writable persistent storage (/mnt/vault-new/buero when deployed)
 APP_DIR  = Path(os.environ.get("BUERO_APP_DIR",  Path(__file__).parent))
@@ -179,6 +185,11 @@ def all_expenses():
     return sorted(exp, key=lambda e: e.get("date", ""), reverse=True)
 
 
+def get_expense(eid):
+    p = EXPENSES_DIR / f"{_safe(eid)}.yaml"
+    return _load(p) if p.exists() else None
+
+
 def put_expense(eid, data):
     _save(EXPENSES_DIR / f"{_safe(eid)}.yaml", data)
 
@@ -215,18 +226,33 @@ def del_project(pid):
 # ── Invoice numbering ─────────────────────────────────────────────────────────
 
 def next_number(cfg, doc_type="invoice"):
+    """Return the next invoice/quote/receipt number.
+
+    Uses a persistent counter (data/counters.yaml) to guarantee strictly
+    sequential numbering as required by §14 UStG — safe across deletions.
+    A collision guard skips any IDs already on disk (handles migration from
+    the old count-based scheme).
+    """
     year = datetime.now().year
     prefix = {"quote": "A", "invoice": "", "receipt": "Q"}.get(doc_type, "")
-    all_inv = all_invoices()
-    year_docs = [
-        i for i in all_inv
-        if i.get("date", "").startswith(str(year))
-        and i.get("type", "invoice") == doc_type
-    ]
-    seq = len(year_docs) + 1
-    fmt = cfg["invoice"]["number_format"]
-    raw = fmt.format(YEAR=year, SEQ=seq)
-    return f"{prefix}{raw}" if prefix else raw
+    fmt    = cfg["invoice"]["number_format"]
+
+    counters_path = DATA_DIR / "counters.yaml"
+    counters      = _load(counters_path) if counters_path.exists() else {}
+    key           = f"{doc_type}_{year}"
+    seq           = int(counters.get(key, 0)) + 1
+
+    # Skip over any IDs that already exist on disk (migration safety)
+    while True:
+        raw       = fmt.format(YEAR=year, SEQ=seq)
+        candidate = f"{prefix}{raw}" if prefix else raw
+        if not (INVOICES_DIR / f"{_safe(candidate)}.yaml").exists():
+            break
+        seq += 1
+
+    counters[key] = seq
+    _save(counters_path, counters)
+    return candidate
 
 
 # ── Calculations ──────────────────────────────────────────────────────────────
@@ -409,9 +435,60 @@ def make_invoice_qr(invoice_id):
         return None
 
 
+# ── Receipt → PDF helper ──────────────────────────────────────────────────────
+
+def receipt_to_pdf_bytes(receipt_path, label=""):
+    """Convert an image or PDF receipt to PDF bytes ready for pypdf merging."""
+    ext = Path(receipt_path).suffix.lower()
+    if ext == ".pdf":
+        return Path(receipt_path).read_bytes()
+    if ext in (".jpg", ".jpeg", ".png") and WEASYPRINT:
+        try:
+            b64  = base64.b64encode(Path(receipt_path).read_bytes()).decode()
+            mime = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
+            html = f"""<!DOCTYPE html><html><head><style>
+@page {{ size: A4; margin: 15mm; }}
+body {{ margin:0; font-family: sans-serif; }}
+.lbl {{ font-size:8pt; color:#888; margin-bottom:6mm; }}
+img {{ max-width:100%; max-height:255mm; display:block; }}
+</style></head><body>
+<div class="lbl">Beleg: {label}</div>
+<img src="data:{mime};base64,{b64}">
+</body></html>"""
+            return WPHtml(string=html).write_pdf()
+        except Exception:
+            return None
+    return None
+
+
+def append_receipts_to_writer(writer, invoice):
+    """Append receipt PDFs for all Auslagenersatz positions in the invoice."""
+    if not PYPDF:
+        return
+    for pos in (invoice.get("positions") or []):
+        if not pos.get("auslagenersatz"):
+            continue
+        eid = pos.get("expense_id")
+        if not eid:
+            continue
+        exp = get_expense(eid)
+        if not exp or not exp.get("receipt_file"):
+            continue
+        receipt_path = UPLOADS_DIR / exp["receipt_file"]
+        if not receipt_path.exists():
+            continue
+        pdf_bytes = receipt_to_pdf_bytes(receipt_path, label=exp.get("description", eid))
+        if pdf_bytes:
+            try:
+                for page in _pypdf.PdfReader(BytesIO(pdf_bytes)).pages:
+                    writer.add_page(page)
+            except Exception:
+                pass
+
+
 # ── PDF generation ────────────────────────────────────────────────────────────
 
-def make_pdf(invoice, client, cfg, project=None):
+def make_pdf(invoice, client, cfg, project=None, anlage_nr=None):
     from jinja2 import Environment, FileSystemLoader
     totals   = calc_totals(invoice, cfg)
     logo_b64 = load_logo_b64(cfg)
@@ -434,6 +511,7 @@ def make_pdf(invoice, client, cfg, project=None):
         inv_qr=inv_qr,
         kleinunternehmer=cfg["tax"]["mode"] == "kleinunternehmer",
         now=datetime.now(),
+        anlage_nr=anlage_nr,
     )
 
     if WEASYPRINT:
@@ -639,9 +717,32 @@ def invoice_detail(iid):
     client  = get_client(inv.get("client_id", "")) or {}
     project = get_project(inv.get("project_id", "")) if inv.get("project_id") else None
     totals  = calc_totals(inv, cfg)
+
+    # Expenses eligible for Auslagenersatz: same client/project, not yet attached to an invoice
+    attached_expense_ids = {
+        p.get("expense_id") for p in (inv.get("positions") or [])
+        if p.get("expense_id")
+    }
+    all_exp = all_expenses()
+    available_auslagen = [
+        e for e in all_exp
+        if not e.get("invoice_id")
+        and e.get("id") not in attached_expense_ids
+        and (
+            (inv.get("client_id")  and e.get("client_id")  == inv.get("client_id"))
+            or (inv.get("project_id") and e.get("project_id") == inv.get("project_id"))
+        )
+    ]
+
+    # Other invoices available as Anlagen
+    other_invoices = [i for i in all_invoices() if i.get("id") != iid]
+
     return render_template("invoices/detail.html", invoice=inv, client=client,
                            project=project, totals=totals,
-                           kleinunternehmer=cfg["tax"]["mode"] == "kleinunternehmer")
+                           kleinunternehmer=cfg["tax"]["mode"] == "kleinunternehmer",
+                           available_auslagen=available_auslagen,
+                           other_invoices=other_invoices,
+                           cfg=cfg)
 
 
 @app.route("/invoices/<path:iid>/edit", methods=["GET", "POST"])
@@ -672,11 +773,98 @@ def invoice_pdf(iid):
     client  = get_client(inv.get("client_id", "")) or {}
     project = get_project(inv.get("project_id", "")) if inv.get("project_id") else None
     data, mimetype = make_pdf(inv, client, cfg, project=project)
-    buf = BytesIO(data)
-    ext = "pdf" if WEASYPRINT else "html"
+    ext   = "pdf" if WEASYPRINT else "html"
     fname = f"{inv.get('type','invoice')}-{_safe(iid)}.{ext}"
-    return send_file(buf, mimetype=mimetype, download_name=fname,
+
+    # Append Auslagenersatz receipts if any
+    if WEASYPRINT and PYPDF:
+        writer = _pypdf.PdfWriter()
+        for page in _pypdf.PdfReader(BytesIO(data)).pages:
+            writer.add_page(page)
+        append_receipts_to_writer(writer, inv)
+        out = BytesIO()
+        writer.write(out)
+        out.seek(0)
+        return send_file(out, mimetype="application/pdf", download_name=fname, as_attachment=True)
+
+    return send_file(BytesIO(data), mimetype=mimetype, download_name=fname,
                      as_attachment=(ext == "pdf"))
+
+
+@app.route("/invoices/<path:iid>/add-auslagen", methods=["POST"])
+def invoice_add_auslagen(iid):
+    inv = get_invoice(iid)
+    if not inv:
+        abort(404)
+    expense_ids = request.form.getlist("expense_ids")
+    added = 0
+    for eid in expense_ids:
+        exp = get_expense(eid)
+        if not exp:
+            continue
+        desc = exp.get("description", "Ausgabe")
+        if exp.get("vendor"):
+            desc += f" ({exp['vendor']})"
+        if exp.get("date"):
+            desc += f" – {_date_de(exp['date'])}"
+        pos = {
+            "description":   desc,
+            "quantity":      1.0,
+            "unit":          "pauschal",
+            "unit_price":    float(exp.get("amount") or 0),
+            "auslagenersatz": True,
+            "expense_id":    eid,
+        }
+        inv.setdefault("positions", []).append(pos)
+        # Mark expense as attached to this invoice
+        exp["invoice_id"] = iid
+        put_expense(eid, exp)
+        added += 1
+    put_invoice(iid, inv)
+    flash(f"{added} Auslagen hinzugefügt.", "success")
+    return redirect(url_for("invoice_detail", iid=iid))
+
+
+@app.route("/invoices/<path:iid>/pdf-with-anlagen", methods=["POST"])
+def invoice_pdf_with_anlagen(iid):
+    cfg = load_config()
+    inv = get_invoice(iid)
+    if not inv:
+        abort(404)
+    anlage_ids = request.form.getlist("anlage_ids")
+
+    client  = get_client(inv.get("client_id", "")) or {}
+    project = get_project(inv.get("project_id", "")) if inv.get("project_id") else None
+    main_pdf, _ = make_pdf(inv, client, cfg, project=project)
+
+    if not PYPDF or not WEASYPRINT:
+        return send_file(BytesIO(main_pdf), mimetype="application/pdf",
+                         download_name=f"invoice-{_safe(iid)}.pdf", as_attachment=True)
+
+    writer = _pypdf.PdfWriter()
+    for page in _pypdf.PdfReader(BytesIO(main_pdf)).pages:
+        writer.add_page(page)
+    append_receipts_to_writer(writer, inv)
+
+    for nr, aid in enumerate(anlage_ids, 1):
+        a_inv = get_invoice(aid)
+        if not a_inv:
+            continue
+        if "items" in a_inv and "positions" not in a_inv:
+            a_inv["positions"] = a_inv.pop("items")
+        a_client  = get_client(a_inv.get("client_id", "")) or {}
+        a_project = get_project(a_inv.get("project_id", "")) if a_inv.get("project_id") else None
+        a_pdf, _  = make_pdf(a_inv, a_client, cfg, project=a_project, anlage_nr=nr)
+        for page in _pypdf.PdfReader(BytesIO(a_pdf)).pages:
+            writer.add_page(page)
+        append_receipts_to_writer(writer, a_inv)
+
+    out = BytesIO()
+    writer.write(out)
+    out.seek(0)
+    return send_file(out, mimetype="application/pdf",
+                     download_name=f"invoice-{_safe(iid)}-mit-anlagen.pdf",
+                     as_attachment=True)
 
 
 @app.route("/invoices/<path:iid>/status", methods=["POST"])
@@ -772,6 +960,20 @@ def expenses_list():
     return render_template("expenses/list.html", expenses=all_expenses())
 
 
+@app.route("/expenses/<eid>")
+def expense_detail(eid):
+    exp = get_expense(eid)
+    if not exp:
+        abort(404)
+    receipt_url = None
+    receipt_is_pdf = False
+    if exp.get("receipt_file"):
+        receipt_url    = url_for("uploaded_file", filename=exp["receipt_file"])
+        receipt_is_pdf = exp["receipt_file"].lower().endswith(".pdf")
+    return render_template("expenses/detail.html", expense=exp,
+                           receipt_url=receipt_url, receipt_is_pdf=receipt_is_pdf)
+
+
 @app.route("/expenses/new", methods=["GET", "POST"])
 def expense_new():
     if request.method == "POST":
@@ -793,6 +995,35 @@ def expense_new():
         "client_id":  request.args.get("client_id", ""),
         "project_id": request.args.get("project_id", ""),
     }, categories=EXPENSE_CATS, clients=all_clients(), projects=all_projects())
+
+
+@app.route("/expenses/<eid>/edit", methods=["GET", "POST"])
+def expense_edit(eid):
+    exp = get_expense(eid)
+    if not exp:
+        abort(404)
+    if request.method == "POST":
+        data = request.form.to_dict()
+        data["date"] = _parse_date_input(data.get("date", ""))
+        data["id"] = eid
+        # Keep existing receipt unless a new one is uploaded
+        f = request.files.get("receipt")
+        if f and f.filename:
+            ext = Path(f.filename).suffix.lower()
+            UPLOADS_DIR.mkdir(exist_ok=True)
+            f.save(UPLOADS_DIR / f"receipt-{eid}{ext}")
+            data["receipt_file"] = f"receipt-{eid}{ext}"
+        else:
+            data["receipt_file"] = exp.get("receipt_file", "")
+        # Preserve fields not in the form
+        for key in ("invoice_id",):
+            if key in exp:
+                data[key] = exp[key]
+        put_expense(eid, data)
+        flash("Ausgabe aktualisiert.", "success")
+        return redirect(url_for("expenses_list"))
+    return render_template("expenses/form.html", expense=exp, edit=True,
+                           categories=EXPENSE_CATS, clients=all_clients(), projects=all_projects())
 
 
 @app.route("/expenses/<eid>/delete", methods=["POST"])
