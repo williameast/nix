@@ -18,8 +18,8 @@
     color: #111;
     background: #fff;
     line-height: 1.45;
-    /* Reserve space for fixed footer: payment row ~8mm + rule + info row ~10mm + border ~1mm */
-    padding-bottom: 26mm;
+    /* Reserve space for fixed footer: ~17mm + safety margin */
+    padding-bottom: 22mm;
   }
 
   /* ── HEADER ────────────────────────────────────────────── */
@@ -104,6 +104,7 @@
   }
   .items th.r, .items td.r { text-align: right; }
   .items td { padding: 2.5mm 3mm; vertical-align: top; border-bottom: 0.5pt solid #ddd; }
+  .items tbody tr { page-break-inside: avoid; }
   .items tbody tr:nth-child(even) { background: #f8f8f8; }
 
   /* ── TOTALS ─────────────────────────────────────────────── */
@@ -192,24 +193,19 @@
     background: #fff;
   }
 
-  /* Payment strip — compact single line inside footer */
+  /* Payment strip — single compact text line, no QR (keeps footer short) */
   .fpay {
     width: 100%;
     border-collapse: collapse;
   }
   .fpay td {
-    padding: 2mm 0 1.5mm 0;
+    padding: 1.5mm 0 1mm 0;
     font-size: 6.5pt;
     color: #222;
     vertical-align: middle;
     white-space: nowrap;
+    overflow: hidden;
   }
-  .fpay-qr-cell {
-    width: 16mm;
-    text-align: right;
-    padding: 1mm 0 1mm 0;
-  }
-  .fpay-qr { width: 15mm; height: 15mm; display: block; margin-left: auto; }
   .fplbl {
     font-size: 5pt;
     font-weight: 700;
@@ -224,7 +220,7 @@
 
   /* Info strip */
   .footer { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .footer td { padding-top: 2.5mm; vertical-align: top; font-size: 6.5pt; color: #555; line-height: 1.5; overflow: hidden; }
+  .footer td { padding-top: 2mm; vertical-align: top; font-size: 6.5pt; color: #555; line-height: 1.4; overflow: hidden; }
   .fclbl {
     font-size: 5pt;
     font-weight: 700;
@@ -482,11 +478,6 @@
           <span class="fpay-dot">·</span><span class="fplbl">VWZ</span>{{ invoice.payment_ref or invoice.id }}
         {% endif %}
       </td>
-      {% if epc_qr and invoice.status != 'paid' %}
-      <td class="fpay-qr-cell">
-        <img src="data:image/png;base64,{{ epc_qr }}" class="fpay-qr" alt="GiroCode">
-      </td>
-      {% endif %}
     </tr>
   </table>
   <div class="fpay-rule"></div>
