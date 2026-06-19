@@ -5,16 +5,13 @@
 <style>
   @page {
     size: A4;
-    /* 8mm bottom margin — just enough for the page number */
-    margin: 14mm 16mm 8mm 16mm;
+    /* 20mm bottom margin holds the running footer (≈16mm tall) */
+    margin: 14mm 16mm 20mm 16mm;
 
-    @bottom-right {
-      content: "Seite " counter(page) " / " counter(pages);
-      font-family: Inter, 'Inter UI', Helvetica Neue, Helvetica, Arial, sans-serif;
-      font-size: 6pt;
-      color: #aaa;
+    @bottom-left {
+      /* Running footer element — removed from content flow, no overlap */
+      content: element(page-footer);
       vertical-align: top;
-      padding-top: 2mm;
     }
   }
 
@@ -28,9 +25,7 @@
     color: #111;
     background: #fff;
     line-height: 1.45;
-    /* Footer is ~15mm (border + padding + 3 lines of 6.5pt text).
-       20mm padding-bottom ensures the last table row never slides under it. */
-    padding-bottom: 20mm;
+    /* Footer is in the @page margin box — no padding-bottom needed */
   }
 
   /* ── HEADER ────────────────────────────────────────────── */
@@ -176,13 +171,13 @@
   }
 
   /* ── FOOTER ─────────────────────────────────────────────── */
-  /* Fixed to the bottom of the content area on every page.
-     8mm @page bottom margin keeps the page number separate below. */
+  /* Running element: pulled out of content flow, painted in @page @bottom-left
+     on every page — never overlaps content. */
   .footer-rule {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
+    position: running(page-footer);
     border-top: 2pt solid var(--accent);
     background: #fff;
+    width: 100%;
   }
   .footer { width: 100%; border-collapse: collapse; table-layout: fixed; }
   .footer td {
@@ -197,6 +192,12 @@
   .fqr-cell { text-align: center; width: 16mm; vertical-align: middle; }
   .fqr-cell img { width: 13mm; height: 13mm; }
   .fqr-lbl { font-size: 5pt; color: #aaa; display: block; margin-top: 0.5mm; }
+  /* Page number rendered via CSS counter inside the running element */
+  .fpg-cell { text-align: right; width: 14mm; white-space: nowrap; vertical-align: bottom; }
+  .fpg-num::after {
+    content: counter(page) " / " counter(pages);
+    font-size: 6pt; color: #aaa;
+  }
 </style>
 </head>
 <body>
@@ -485,6 +486,7 @@
         <span class="fqr-lbl">{{ invoice.id }}</span>
       </td>
       {% endif %}
+      <td class="fpg-cell" style="padding-left:2mm"><span class="fpg-num"></span></td>
     </tr>
   </table>
 </div>
