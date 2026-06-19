@@ -1010,12 +1010,13 @@ def _parse_invoice_form(form, cfg):
             price = float(form.get(f"positions[{i}][unit_price]") or 0)
         except ValueError:
             qty, price = 1.0, 0.0
-        positions.append({
-            "description": desc,
-            "quantity":    qty,
-            "unit":        form.get(f"positions[{i}][unit]", "Std."),
-            "unit_price":  price,
-        })
+        if desc.strip():  # skip blank rows
+            positions.append({
+                "description": desc,
+                "quantity":    qty,
+                "unit":        form.get(f"positions[{i}][unit]", "Std."),
+                "unit_price":  price,
+            })
         i += 1
     data["positions"] = positions
     return data
