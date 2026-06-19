@@ -18,8 +18,8 @@
     color: #111;
     background: #fff;
     line-height: 1.45;
-    /* Reserve space at the bottom for the fixed footer (~22mm tall) */
-    padding-bottom: 26mm;
+    /* Reserve space at the bottom for the fixed footer (~18mm) + safety margin */
+    padding-bottom: 36mm;
   }
 
   /* ── HEADER ────────────────────────────────────────────── */
@@ -146,7 +146,7 @@
   .ku-note { font-size: 8pt; color: #666; font-style: italic; margin-bottom: 4mm; }
 
   /* ── AUSLAGENERSATZ ─────────────────────────────────────── */
-  .auslagen-section { margin-top: 4mm; margin-bottom: 2mm; }
+  .auslagen-section { margin-top: 2mm; margin-bottom: 1mm; }
   .auslagen-lbl {
     font-size: 6.5pt;
     font-weight: 700;
@@ -265,7 +265,8 @@
     <td class="addr-box" style="width:48%">
       <span class="addr-lbl">Von</span>
       <strong>{{ cfg.business.name }}</strong><br>
-      {% if cfg.business.profession %}{{ cfg.business.profession }}<br>{% endif %}
+      {% if invoice.position_title %}{{ invoice.position_title }}<br>
+      {% elif cfg.business.profession %}{{ cfg.business.profession }}<br>{% endif %}
       {{ cfg.business.address_line1 }}<br>
       {{ cfg.business.address_line2 }}<br>
       {{ cfg.business.country }}<br>

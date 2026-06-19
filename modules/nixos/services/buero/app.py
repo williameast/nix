@@ -940,6 +940,7 @@ def _parse_invoice_form(form, cfg):
         "notes":              form.get("notes", ""),
         "payment_ref":        form.get("payment_ref", ""),
         "mwst_rate":          float(form.get("mwst_rate") or cfg["tax"]["mwst_rate"]),
+        "position_title":     form.get("position_title", ""),
     }
     positions, i = [], 0
     while True:
@@ -981,6 +982,7 @@ def expense_detail(eid):
     exp = get_expense(eid)
     if not exp:
         abort(404)
+    exp.setdefault("id", eid)   # Paperless imports may omit id from YAML
     receipt_url = None
     receipt_is_pdf = False
     if exp.get("receipt_file"):
@@ -1018,6 +1020,7 @@ def expense_edit(eid):
     exp = get_expense(eid)
     if not exp:
         abort(404)
+    exp.setdefault("id", eid)
     if request.method == "POST":
         data = request.form.to_dict()
         data["date"] = _parse_date_input(data.get("date", ""))
