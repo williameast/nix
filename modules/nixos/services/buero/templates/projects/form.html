@@ -41,11 +41,11 @@
     <div>
       <div class="form-group">
         <label>Startdatum</label>
-        <input type="date" name="start_date" value="{{ project.start_date or '' }}">
+        <input type="text" name="start_date" value="{{ project.start_date | date_de }}" placeholder="TT.MM.JJJJ">
       </div>
       <div class="form-group">
         <label>Enddatum</label>
-        <input type="date" name="end_date" value="{{ project.end_date or '' }}">
+        <input type="text" name="end_date" value="{{ project.end_date | date_de }}" placeholder="TT.MM.JJJJ">
       </div>
       <div class="form-group">
         <label>Budget (€)</label>

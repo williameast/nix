@@ -445,6 +445,19 @@ def make_pdf(invoice, client, cfg, project=None):
 
 # ── Template helpers ──────────────────────────────────────────────────────────
 
+def _parse_date_input(s):
+    """Accept DD.MM.YYYY or YYYY-MM-DD, normalise to YYYY-MM-DD for storage."""
+    if not s:
+        return ""
+    s = s.strip()
+    if len(s) == 10 and s[2] == "." and s[5] == ".":
+        try:
+            return datetime.strptime(s, "%d.%m.%Y").strftime("%Y-%m-%d")
+        except ValueError:
+            pass
+    return s
+
+
 def _date_de(v):
     if not v:
         return ""
@@ -714,10 +727,10 @@ def _parse_invoice_form(form, cfg):
         "id":                 form.get("id") or next_number(cfg, form.get("type", "invoice")),
         "type":               form.get("type", "invoice"),
         "status":             form.get("status", "draft"),
-        "date":               form.get("date", ""),
-        "due_date":           form.get("due_date", ""),
-        "service_date":       form.get("service_date", ""),
-        "service_period_end": form.get("service_period_end", ""),
+        "date":               _parse_date_input(form.get("date", "")),
+        "due_date":           _parse_date_input(form.get("due_date", "")),
+        "service_date":       _parse_date_input(form.get("service_date", "")),
+        "service_period_end": _parse_date_input(form.get("service_period_end", "")),
         "client_id":          form.get("client_id", ""),
         "project_id":         form.get("project_id", ""),
         "notes":              form.get("notes", ""),
@@ -763,6 +776,7 @@ def expenses_list():
 def expense_new():
     if request.method == "POST":
         data = request.form.to_dict()
+        data["date"] = _parse_date_input(data.get("date", ""))
         eid = f"exp-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
         data["id"] = eid
         f = request.files.get("receipt")
@@ -804,6 +818,8 @@ def projects_list():
 def project_new():
     if request.method == "POST":
         data = request.form.to_dict()
+        data["start_date"] = _parse_date_input(data.get("start_date", ""))
+        data["end_date"]   = _parse_date_input(data.get("end_date", ""))
         pid = f"proj-{uuid.uuid4().hex[:8]}"
         data["id"]      = pid
         data["created"] = datetime.now().strftime("%Y-%m-%d")
@@ -835,8 +851,16 @@ def project_detail(pid):
         if exp.get("project_id") == pid:
             exp["_client"] = clients_map.get(exp.get("client_id", ""), {})
             expenses.append(exp)
+    total_invoiced = sum(i["_totals"]["total"] for i in invoices)
+    total_expenses = sum(float(e.get("amount") or 0) for e in expenses)
+    budget         = float(project.get("budget") or 0)
+    budget_pct     = min(round(total_invoiced / budget * 100), 100) if budget else None
     return render_template("projects/detail.html", project=project, client=client,
-                           invoices=invoices, expenses=expenses)
+                           invoices=invoices, expenses=expenses,
+                           total_invoiced=total_invoiced,
+                           total_expenses=total_expenses,
+                           budget=budget,
+                           budget_pct=budget_pct)
 
 
 @app.route("/projects/<pid>/edit", methods=["GET", "POST"])
@@ -846,6 +870,8 @@ def project_edit(pid):
         abort(404)
     if request.method == "POST":
         data = request.form.to_dict()
+        data["start_date"] = _parse_date_input(data.get("start_date", ""))
+        data["end_date"]   = _parse_date_input(data.get("end_date", ""))
         data["id"]      = pid
         data["created"] = project.get("created", "")
         put_project(pid, data)

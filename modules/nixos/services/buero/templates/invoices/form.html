@@ -58,16 +58,16 @@
       <div class="form-row-3">
         <div class="form-group">
           <label>Rechnungsdatum</label>
-          <input type="date" name="date" value="{{ invoice.date }}" required>
+          <input type="text" name="date" value="{{ invoice.date | date_de }}" required placeholder="TT.MM.JJJJ">
         </div>
         <div class="form-group">
           <label>Leistungsdatum *</label>
-          <input type="date" name="service_date" value="{{ invoice.service_date or invoice.date }}" required>
+          <input type="text" name="service_date" value="{{ (invoice.service_date or invoice.date) | date_de }}" required placeholder="TT.MM.JJJJ">
           <div class="field-hint">§ 14 UStG Pflicht</div>
         </div>
         <div class="form-group">
           <label>Leistungszeitraum bis</label>
-          <input type="date" name="service_period_end" value="{{ invoice.service_period_end or '' }}">
+          <input type="text" name="service_period_end" value="{{ invoice.service_period_end | date_de }}" placeholder="TT.MM.JJJJ">
           <div class="field-hint">Nur ausfüllen wenn Leistung einen Zeitraum umfasst</div>
         </div>
       </div>
@@ -75,7 +75,7 @@
       <div class="form-row-3">
         <div class="form-group">
           <label>Fälligkeitsdatum</label>
-          <input type="date" name="due_date" value="{{ invoice.due_date }}">
+          <input type="text" name="due_date" value="{{ invoice.due_date | date_de }}" placeholder="TT.MM.JJJJ">
         </div>
         <div class="form-group">
           <label>Status</label>
