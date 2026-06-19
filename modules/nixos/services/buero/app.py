@@ -734,8 +734,12 @@ def invoice_detail(iid):
         )
     ]
 
-    # Other invoices available as Anlagen
-    other_invoices = [i for i in all_invoices() if i.get("id") != iid]
+    # Other invoices available as Anlagen (with totals pre-computed)
+    other_invoices = []
+    for i in all_invoices():
+        if i.get("id") != iid:
+            i["_totals"] = calc_totals(i, cfg)
+            other_invoices.append(i)
 
     return render_template("invoices/detail.html", invoice=inv, client=client,
                            project=project, totals=totals,
