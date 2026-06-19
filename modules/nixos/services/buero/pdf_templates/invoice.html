@@ -5,7 +5,17 @@
 <style>
   @page {
     size: A4;
-    margin: 14mm 16mm 18mm 16mm;
+    /* 8mm bottom margin — just enough for the page number */
+    margin: 14mm 16mm 8mm 16mm;
+
+    @bottom-right {
+      content: "Seite " counter(page) " / " counter(pages);
+      font-family: Inter, 'Inter UI', Helvetica Neue, Helvetica, Arial, sans-serif;
+      font-size: 6pt;
+      color: #aaa;
+      vertical-align: top;
+      padding-top: 2mm;
+    }
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -18,8 +28,9 @@
     color: #111;
     background: #fff;
     line-height: 1.45;
-    /* Reserve space for fixed footer: ~17mm + safety margin */
-    padding-bottom: 22mm;
+    /* Footer is ~10mm; 8mm @page bottom margin keeps page numbers separate.
+       14mm padding-bottom reserves space for the fixed footer. */
+    padding-bottom: 14mm;
   }
 
   /* ── HEADER ────────────────────────────────────────────── */
@@ -37,41 +48,26 @@
 
   .hdr-rule { border-top: 3pt solid var(--accent); margin-bottom: 0; }
 
-  /* Gradient boxes */
   .grad-boxes { text-align: right; margin-bottom: 4mm; margin-top: 1.5mm; line-height: 0; }
 
   /* ── ADDRESS BOXES ──────────────────────────────────────── */
   .addr-tbl { width: 100%; border-collapse: separate; border-spacing: 4mm 0; margin-bottom: 6mm; }
   .addr-box { border: 2pt solid var(--accent); padding: 3.5mm 4mm; vertical-align: top; font-size: 9pt; line-height: 1.55; }
   .addr-lbl {
-    font-size: 6.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-    display: block;
-    margin-bottom: 1.5mm;
+    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--accent); display: block; margin-bottom: 1.5mm;
   }
 
   /* ── DOCUMENT TITLE ─────────────────────────────────────── */
   .doc-hdr { width: 100%; border-collapse: collapse; margin-bottom: 1.5mm; }
   .doc-type {
-    font-size: 30pt;
-    font-weight: 900;
-    color: var(--accent);
-    letter-spacing: -0.03em;
-    line-height: 1;
-    vertical-align: bottom;
+    font-size: 30pt; font-weight: 900; color: var(--accent);
+    letter-spacing: -0.03em; line-height: 1; vertical-align: bottom;
   }
   .doc-nr-cell { text-align: right; vertical-align: bottom; }
   .doc-nr-lbl {
-    font-size: 6.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #888;
-    display: block;
-    margin-bottom: 0.5mm;
+    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: #888; display: block; margin-bottom: 0.5mm;
   }
   .doc-nr { font-size: 15pt; font-weight: 700; color: #111; letter-spacing: -0.01em; }
 
@@ -81,13 +77,8 @@
   .dbar td { padding: 2.5mm 3mm 2.5mm 4mm; color: #fff; font-size: 8pt; vertical-align: middle; white-space: nowrap; }
   .dbar td:last-child { padding-right: 4mm; }
   .dlbl {
-    font-size: 6pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    opacity: 0.75;
-    display: block;
-    margin-bottom: 0.4mm;
+    font-size: 6pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; opacity: 0.75; display: block; margin-bottom: 0.4mm;
   }
   .dval { font-weight: 600; }
 
@@ -95,12 +86,8 @@
   .items { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 3mm; }
   .items thead tr { background: var(--accent); color: #fff; }
   .items th {
-    padding: 2.5mm 3mm;
-    font-size: 7pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    text-align: left;
+    padding: 2.5mm 3mm; font-size: 7pt; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em; text-align: left;
   }
   .items th.r, .items td.r { text-align: right; }
   .items td { padding: 2.5mm 3mm; vertical-align: top; border-bottom: 0.5pt solid #ddd; }
@@ -110,50 +97,65 @@
   /* ── TOTALS ─────────────────────────────────────────────── */
   .totals-wrap { text-align: right; margin-bottom: 4mm; page-break-inside: avoid; }
   .totals {
-    display: inline-table;
-    min-width: 68mm;
-    border-left: 3pt solid var(--accent);
-    border-collapse: collapse;
-    font-size: 9.5pt;
+    display: inline-table; min-width: 68mm;
+    border-left: 3pt solid var(--accent); border-collapse: collapse; font-size: 9.5pt;
   }
   .totals td { padding: 1.5mm 3mm; border-bottom: 0.5pt solid #e0e0e0; }
   .totals td.tv { text-align: right; font-weight: 600; }
   .totals .grand td {
-    font-weight: 700;
-    font-size: 11pt;
-    color: var(--accent);
-    border-top: 1.5pt solid var(--accent);
-    border-bottom: none;
-    padding-top: 2mm;
+    font-weight: 700; font-size: 11pt; color: var(--accent);
+    border-top: 1.5pt solid var(--accent); border-bottom: none; padding-top: 2mm;
+  }
+
+  /* ── PAYMENT BOX ────────────────────────────────────────── */
+  .pay {
+    width: 100%; border-collapse: collapse;
+    border: 2pt solid var(--accent); margin-top: 6mm;
+    page-break-inside: avoid;
+  }
+  .pay td { padding: 4mm; vertical-align: middle; }
+  .pay-lbl {
+    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--accent); display: block; margin-bottom: 2mm;
+  }
+  .pay-body { font-size: 9pt; line-height: 1.65; }
+  .pay-qr { text-align: center; width: 34mm; border-left: 0.5pt solid #ddd; }
+  .pay-qr img { width: 28mm; height: 28mm; }
+  .pay-qr-lbl { font-size: 5.5pt; color: #888; margin-top: 1.5mm; line-height: 1.3; }
+
+  /* ── PAID CONFIRMATION ───────────────────────────────────── */
+  .pay-confirmed {
+    width: 100%; border-collapse: collapse;
+    border: 2pt solid #1a8a3c; margin-top: 6mm;
+    page-break-inside: avoid; background: #f0faf4;
+  }
+  .pay-confirmed td { padding: 4mm; vertical-align: middle; }
+  .pay-confirmed-lbl {
+    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: #1a8a3c; display: block; margin-bottom: 2mm;
+  }
+  .pay-confirmed-body { font-size: 9pt; line-height: 1.65; color: #111; }
+  .bezahlt-badge {
+    font-size: 18pt; font-weight: 900; color: #1a8a3c;
+    letter-spacing: 0.04em; text-align: center;
+    border-left: 0.5pt solid #aaddbb; padding-left: 5mm; white-space: nowrap;
   }
 
   /* ── BEZAHLT WATERMARK ─────────────────────────────────── */
   .bezahlt-watermark {
-    position: fixed;
-    top: 50%;
-    left: 50%;
+    position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%) rotate(-35deg);
-    font-size: 72pt;
-    font-weight: 900;
-    color: rgba(0, 140, 60, 0.10);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    white-space: nowrap;
-    pointer-events: none;
-    z-index: 0;
+    font-size: 72pt; font-weight: 900;
+    color: rgba(0, 140, 60, 0.09);
+    letter-spacing: 0.05em; text-transform: uppercase;
+    white-space: nowrap; pointer-events: none; z-index: 0;
   }
 
   /* ── ANLAGE STAMP ──────────────────────────────────────── */
   .anlage-stamp {
-    text-align: right;
-    font-size: 9pt;
-    font-weight: 700;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.12em;
-    margin-bottom: 3mm;
-    border-bottom: 1.5pt solid var(--accent);
-    padding-bottom: 1.5mm;
+    text-align: right; font-size: 9pt; font-weight: 700;
+    color: var(--accent); text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 3mm; border-bottom: 1.5pt solid var(--accent); padding-bottom: 1.5mm;
   }
 
   /* ── §19 NOTE ───────────────────────────────────────────── */
@@ -162,77 +164,38 @@
   /* ── AUSLAGENERSATZ ─────────────────────────────────────── */
   .auslagen-section { margin-top: 2mm; margin-bottom: 1mm; }
   .auslagen-lbl {
-    font-size: 6.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: #555;
-    margin-bottom: 1mm;
-    display: block;
+    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.09em; color: #555; margin-bottom: 1mm; display: block;
   }
 
   /* ── NOTES ──────────────────────────────────────────────── */
   .notes { margin-top: 3mm; margin-bottom: 4mm; font-size: 8.5pt; line-height: 1.5; border-top: 0.5pt solid #ccc; padding-top: 3mm; }
   .nlbl {
-    font-size: 6.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #888;
-    display: block;
-    margin-bottom: 1.5mm;
+    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: #888; display: block; margin-bottom: 1.5mm;
   }
 
-  /* ── FOOTER (fixed, every page) ─────────────────────────── */
+  /* ── FOOTER ─────────────────────────────────────────────── */
+  /* Fixed to the bottom of the content area on every page.
+     8mm @page bottom margin keeps the page number separate below. */
   .footer-rule {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    border-top: 2.5pt solid var(--accent);
+    bottom: 0; left: 0; right: 0;
+    border-top: 2pt solid var(--accent);
     background: #fff;
   }
-
-  /* Payment strip — single compact text line, no QR (keeps footer short) */
-  .fpay {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  .fpay td {
-    padding: 1.5mm 0 1mm 0;
-    font-size: 6.5pt;
-    color: #222;
-    vertical-align: middle;
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  .fplbl {
-    font-size: 5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #999;
-    margin-right: 0.8mm;
-  }
-  .fpay-dot { color: var(--accent); opacity: 0.45; margin: 0 2.5mm; }
-  .fpay-paid { font-weight: 700; color: #1a8a3c; }
-  .fpay-rule { border-top: 0.5pt solid #e0e0e0; }
-
-  /* Info strip */
   .footer { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .footer td { padding-top: 2mm; vertical-align: top; font-size: 6.5pt; color: #555; line-height: 1.4; overflow: hidden; }
+  .footer td {
+    padding-top: 2mm; vertical-align: top;
+    font-size: 6.5pt; color: #555; line-height: 1.4; overflow: hidden;
+  }
   .fclbl {
-    font-size: 5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: #111;
-    display: block;
-    margin-bottom: 0.5mm;
+    font-size: 5pt; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: #111; display: block; margin-bottom: 0.5mm;
   }
   .fiban { word-break: break-all; }
-  .fqr-cell { text-align: center; width: 17mm; vertical-align: middle; }
-  .fqr-cell img { width: 14mm; height: 14mm; }
+  .fqr-cell { text-align: center; width: 16mm; vertical-align: middle; }
+  .fqr-cell img { width: 13mm; height: 13mm; }
   .fqr-lbl { font-size: 5pt; color: #aaa; display: block; margin-top: 0.5mm; }
 </style>
 </head>
@@ -264,7 +227,6 @@
 </table>
 <div class="hdr-rule"></div>
 
-<!-- ── GRADIENT BOXES ── -->
 <div class="grad-boxes">
   <svg width="46mm" height="3.5mm" xmlns="http://www.w3.org/2000/svg">
     {% for i in range(10) %}
@@ -288,11 +250,8 @@
       {{ cfg.business.country }}<br>
       {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
       {% if cfg.business.phone %}Tel. {{ cfg.business.phone }}<br>{% endif %}
-      {% if cfg.tax.mode == 'kleinunternehmer' %}
-      StNr.: {{ cfg.tax.steuernummer }}
-      {% elif cfg.tax.ust_idnr %}
-      USt-IdNr.: {{ cfg.tax.ust_idnr }}
-      {% endif %}
+      {% if cfg.tax.mode == 'kleinunternehmer' %}StNr.: {{ cfg.tax.steuernummer }}
+      {% elif cfg.tax.ust_idnr %}USt-IdNr.: {{ cfg.tax.ust_idnr }}{% endif %}
     </td>
     <td class="addr-box" style="width:48%">
       <span class="addr-lbl">An</span>
@@ -303,9 +262,7 @@
       {% if client.address_line2 %}{{ client.address_line2 }}<br>{% endif %}
       {% if client.country and client.country != 'Deutschland' %}{{ client.country }}<br>{% endif %}
       {% if client.ust_idnr %}<br>USt-IdNr.: {{ client.ust_idnr }}{% endif %}
-      {% else %}
-      <span style="color:#bbb">—</span>
-      {% endif %}
+      {% else %}<span style="color:#bbb">—</span>{% endif %}
     </td>
   </tr>
 </table>
@@ -457,32 +414,44 @@
 </div>
 {% endif %}
 
-<!-- ── FOOTER (fixed, every page) ── -->
-<div class="footer-rule">
-
-  {% if invoice.type == 'invoice' %}
-  <table class="fpay">
+<!-- ── PAYMENT BOX (end of invoice) ── -->
+{% if invoice.type == 'invoice' %}
+  {% if invoice.status == 'paid' %}
+  <table class="pay-confirmed">
     <tr>
-      <td>
-        {% if invoice.status == 'paid' %}
-          <span class="fpay-paid">✓ BEZAHLT</span>
-          {% if invoice.paid_date %}<span class="fpay-dot">·</span>{{ invoice.paid_date | date_de }}{% endif %}
-          <span class="fpay-dot">·</span>{{ totals.total | eur }}
-          <span class="fpay-dot">·</span><span class="fplbl">VWZ</span>{{ invoice.payment_ref or invoice.id }}
-        {% else %}
-          <span class="fplbl">Betrag</span><strong>{{ totals.total | eur }}</strong>
-          {% if invoice.due_date %}<span class="fpay-dot">·</span><span class="fplbl">Fällig</span>{{ invoice.due_date | date_de }}{% endif %}
-          {% if cfg.invoice.bank_name %}<span class="fpay-dot">·</span>{{ cfg.invoice.bank_name }}{% endif %}
-          {% if cfg.invoice.iban %}<span class="fpay-dot">·</span><span class="fplbl">IBAN</span>{{ cfg.invoice.iban }}{% endif %}
-          {% if cfg.invoice.bic %}<span class="fpay-dot">·</span><span class="fplbl">BIC</span>{{ cfg.invoice.bic }}{% endif %}
-          <span class="fpay-dot">·</span><span class="fplbl">VWZ</span>{{ invoice.payment_ref or invoice.id }}
-        {% endif %}
+      <td class="pay-confirmed-body">
+        <span class="pay-confirmed-lbl">Zahlungseingang</span>
+        Betrag von <strong>{{ totals.total | eur }}</strong> wurde beglichen.
+        {% if invoice.paid_date %}<br>Zahlungsdatum: <strong>{{ invoice.paid_date | date_de }}</strong>{% endif %}
+        <br>Verwendungszweck: {{ invoice.payment_ref or invoice.id }}
       </td>
+      <td class="bezahlt-badge">✓ BEZAHLT</td>
     </tr>
   </table>
-  <div class="fpay-rule"></div>
+  {% elif cfg.invoice.iban %}
+  <table class="pay">
+    <tr>
+      <td class="pay-body">
+        <span class="pay-lbl">Zahlungsinformationen</span>
+        Bitte überweisen Sie <strong>{{ totals.total | eur }}</strong>
+        bis zum <strong>{{ invoice.due_date | date_de }}</strong>.<br>
+        {% if cfg.invoice.bank_name %}<strong>{{ cfg.invoice.bank_name }}</strong><br>{% endif %}
+        IBAN:&nbsp;<strong>{{ cfg.invoice.iban }}</strong>{% if cfg.invoice.bic %}&nbsp;&nbsp;BIC:&nbsp;{{ cfg.invoice.bic }}{% endif %}<br>
+        Verwendungszweck:&nbsp;<strong>{{ invoice.payment_ref or invoice.id }}</strong>
+      </td>
+      {% if epc_qr %}
+      <td class="pay-qr">
+        <img src="data:image/png;base64,{{ epc_qr }}" alt="GiroCode">
+        <div class="pay-qr-lbl">GiroCode<br>SEPA-Überweisung</div>
+      </td>
+      {% endif %}
+    </tr>
+  </table>
   {% endif %}
+{% endif %}
 
+<!-- ── FOOTER: address / contact / tax / bank — every page ── -->
+<div class="footer-rule">
   <table class="footer">
     <tr>
       <td style="padding-left:0">
@@ -500,14 +469,11 @@
       {% endif %}
       <td style="padding-left:4mm">
         <span class="fclbl">Steuer</span>
-        {% if cfg.tax.mode == 'kleinunternehmer' %}
-        StNr.: {{ cfg.tax.steuernummer }}
-        {% elif cfg.tax.ust_idnr %}
-        USt-IdNr.: {{ cfg.tax.ust_idnr }}
-        {% endif %}
+        {% if cfg.tax.mode == 'kleinunternehmer' %}StNr.: {{ cfg.tax.steuernummer }}
+        {% elif cfg.tax.ust_idnr %}USt-IdNr.: {{ cfg.tax.ust_idnr }}{% endif %}
       </td>
       {% if cfg.invoice.iban %}
-      <td style="padding-left:4mm;width:30mm">
+      <td style="padding-left:4mm; width:30mm">
         <span class="fclbl">Bank</span>
         <span class="fiban">{{ cfg.invoice.iban }}</span>
         {% if cfg.invoice.bic %}<br>{{ cfg.invoice.bic }}{% endif %}
@@ -521,7 +487,6 @@
       {% endif %}
     </tr>
   </table>
-
 </div>
 
 </body>

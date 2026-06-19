@@ -488,7 +488,8 @@ def fetch_paperless_receipt_bytes(exp, cfg):
         r.raise_for_status()
         mime = r.headers.get("Content-Type", "application/pdf").split(";")[0].strip()
         return r.content, mime
-    except Exception:
+    except Exception as e:
+        app.logger.warning("Paperless receipt fetch failed for id=%s: %s", pid, e)
         return None, None
 
 
@@ -511,8 +512,16 @@ def append_receipts_to_writer(writer, invoice, cfg=None):
 
         if exp.get("receipt_file"):
             receipt_path = UPLOADS_DIR / exp["receipt_file"]
+            if not receipt_path.exists():
+                # Legacy: expense_new stored filename without "receipt-" prefix
+                # but actually saved the file with it. Try the prefixed name.
+                alt = UPLOADS_DIR / f"receipt-{exp['receipt_file']}"
+                if alt.exists():
+                    receipt_path = alt
             if receipt_path.exists():
                 pdf_bytes = receipt_to_pdf_bytes(receipt_path, label=label)
+            else:
+                app.logger.warning("Receipt file not found for expense %s: %s", eid, exp["receipt_file"])
         elif exp.get("paperless_id") and cfg:
             raw, mime = fetch_paperless_receipt_bytes(exp, cfg)
             if raw:
@@ -902,18 +911,27 @@ def invoice_pdf_with_anlagen(iid):
         writer.add_page(page)
     append_receipts_to_writer(writer, inv, cfg)
 
+    app.logger.info("pdf-with-anlagen: iid=%s anlage_ids=%s", iid, anlage_ids)
     for nr, aid in enumerate(anlage_ids, 1):
         a_inv = get_invoice(aid)
-        if not a_inv:
+        if a_inv is None:           # file does not exist
+            app.logger.warning("Anlage invoice not found: %s", aid)
             continue
-        if "items" in a_inv and "positions" not in a_inv:
-            a_inv["positions"] = a_inv.pop("items")
-        a_client  = get_client(a_inv.get("client_id", "")) or {}
-        a_project = get_project(a_inv.get("project_id", "")) if a_inv.get("project_id") else None
-        a_pdf, _  = make_pdf(a_inv, a_client, cfg, project=a_project, anlage_nr=nr)
-        for page in _pypdf.PdfReader(BytesIO(a_pdf)).pages:
-            writer.add_page(page)
-        append_receipts_to_writer(writer, a_inv, cfg)
+        if not a_inv:               # file exists but YAML loaded as empty dict
+            app.logger.warning("Anlage invoice empty YAML: %s", aid)
+            continue
+        try:
+            if "items" in a_inv and "positions" not in a_inv:
+                a_inv["positions"] = a_inv.pop("items")
+            a_client  = get_client(a_inv.get("client_id", "")) or {}
+            a_project = get_project(a_inv.get("project_id", "")) if a_inv.get("project_id") else None
+            a_pdf, _  = make_pdf(a_inv, a_client, cfg, project=a_project, anlage_nr=nr)
+            for page in _pypdf.PdfReader(BytesIO(a_pdf)).pages:
+                writer.add_page(page)
+            append_receipts_to_writer(writer, a_inv, cfg)
+            app.logger.info("Anlage %d (%s) added successfully", nr, aid)
+        except Exception as e:
+            app.logger.error("Error generating anlage %d (%s): %s", nr, aid, e)
 
     out = BytesIO()
     writer.write(out)
@@ -1028,8 +1046,25 @@ def expense_detail(eid):
     if exp.get("receipt_file"):
         receipt_url    = url_for("uploaded_file", filename=exp["receipt_file"])
         receipt_is_pdf = exp["receipt_file"].lower().endswith(".pdf")
+    elif exp.get("paperless_id"):
+        # Proxy through our own route so auth is handled server-side
+        receipt_url    = url_for("expense_paperless_receipt", eid=eid)
+        receipt_is_pdf = True
     return render_template("expenses/detail.html", expense=exp,
                            receipt_url=receipt_url, receipt_is_pdf=receipt_is_pdf)
+
+
+@app.route("/expenses/<eid>/paperless-receipt")
+def expense_paperless_receipt(eid):
+    """Proxy the Paperless document download so the browser can display it."""
+    cfg = load_config()
+    exp = get_expense(eid)
+    if not exp or not exp.get("paperless_id"):
+        abort(404)
+    raw, mime = fetch_paperless_receipt_bytes(exp, cfg)
+    if not raw:
+        abort(502)  # Paperless unreachable or disabled
+    return send_file(BytesIO(raw), mimetype=mime)
 
 
 @app.route("/expenses/new", methods=["GET", "POST"])
@@ -1044,7 +1079,7 @@ def expense_new():
             ext = Path(f.filename).suffix.lower()
             UPLOADS_DIR.mkdir(exist_ok=True)
             f.save(UPLOADS_DIR / f"receipt-{eid}{ext}")
-            data["receipt_file"] = f"{eid}{ext}"
+            data["receipt_file"] = f"receipt-{eid}{ext}"
         put_expense(eid, data)
         flash("Ausgabe gespeichert.", "success")
         return redirect(url_for("expenses_list"))
@@ -1215,6 +1250,22 @@ def paperless_import(did):
             "notes": f"Import aus Paperless Dokument #{did}",
         }
         put_expense(eid, expense)
+
+        # Immediately download the PDF from Paperless and cache it locally.
+        # This makes the receipt available even if Paperless is later unreachable.
+        try:
+            r = req_lib.get(pl.download(did), headers=pl.h, timeout=30)
+            r.raise_for_status()
+            mime = r.headers.get("Content-Type", "application/pdf").split(";")[0].strip()
+            ext  = ".pdf" if "pdf" in mime else ".jpg"
+            fname = f"receipt-{eid}{ext}"
+            (UPLOADS_DIR / fname).write_bytes(r.content)
+            expense["receipt_file"] = fname
+            put_expense(eid, expense)
+            app.logger.info("Paperless receipt cached locally as %s", fname)
+        except Exception as dl_err:
+            app.logger.warning("Could not cache Paperless receipt for %s: %s", eid, dl_err)
+
         flash("Dokument als Ausgabe importiert. Bitte Betrag ergänzen.", "success")
     except Exception as e:
         flash(f"Import fehlgeschlagen: {e}", "error")
