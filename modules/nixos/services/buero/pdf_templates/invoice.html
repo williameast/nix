@@ -5,12 +5,7 @@
 <style>
   @page {
     size: A4;
-    margin: 14mm 16mm 22mm 16mm;
-
-    @bottom-left {
-      content: element(page-footer);
-      vertical-align: top;
-    }
+    margin: 14mm 16mm 18mm 16mm;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -23,7 +18,8 @@
     color: #111;
     background: #fff;
     line-height: 1.45;
-    /* No padding-bottom needed — footer lives in the @page margin box */
+    /* Reserve space for fixed footer: payment row ~8mm + rule + info row ~10mm + border ~1mm */
+    padding-bottom: 26mm;
   }
 
   /* ── HEADER ────────────────────────────────────────────── */
@@ -39,12 +35,9 @@
   }
   .company-sub { font-size: 9pt; color: #555; margin-top: 1mm; }
 
-  .hdr-rule {
-    border-top: 3pt solid var(--accent);
-    margin-bottom: 0;
-  }
+  .hdr-rule { border-top: 3pt solid var(--accent); margin-bottom: 0; }
 
-  /* Gradient boxes — decorative element below header rule */
+  /* Gradient boxes */
   .grad-boxes { text-align: right; margin-bottom: 4mm; margin-top: 1.5mm; line-height: 0; }
 
   /* ── ADDRESS BOXES ──────────────────────────────────────── */
@@ -114,7 +107,7 @@
   .items tbody tr:nth-child(even) { background: #f8f8f8; }
 
   /* ── TOTALS ─────────────────────────────────────────────── */
-  .totals-wrap { text-align: right; margin-bottom: 4mm; }
+  .totals-wrap { text-align: right; margin-bottom: 4mm; page-break-inside: avoid; }
   .totals {
     display: inline-table;
     min-width: 68mm;
@@ -149,37 +142,6 @@
     z-index: 0;
   }
 
-  /* ── PAYMENT CONFIRMATION (replaces pay box when paid) ── */
-  .pay-confirmed {
-    width: 100%;
-    border-collapse: collapse;
-    border: 2pt solid #1a8a3c;
-    margin-top: 5mm;
-    page-break-inside: avoid;
-    background: #f0faf4;
-  }
-  .pay-confirmed td { padding: 4mm; vertical-align: middle; }
-  .pay-confirmed-lbl {
-    font-size: 6.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: #1a8a3c;
-    display: block;
-    margin-bottom: 2mm;
-  }
-  .pay-confirmed-body { font-size: 9pt; line-height: 1.65; color: #111; }
-  .bezahlt-badge {
-    font-size: 20pt;
-    font-weight: 900;
-    color: #1a8a3c;
-    letter-spacing: 0.05em;
-    white-space: nowrap;
-    text-align: center;
-    border-left: 0.5pt solid #aaddbb;
-    padding-left: 5mm;
-  }
-
   /* ── ANLAGE STAMP ──────────────────────────────────────── */
   .anlage-stamp {
     text-align: right;
@@ -209,7 +171,7 @@
   }
 
   /* ── NOTES ──────────────────────────────────────────────── */
-  .notes { margin-top: 3mm; margin-bottom: 5mm; font-size: 8.5pt; line-height: 1.5; border-top: 0.5pt solid #ccc; padding-top: 3mm; }
+  .notes { margin-top: 3mm; margin-bottom: 4mm; font-size: 8.5pt; line-height: 1.5; border-top: 0.5pt solid #ccc; padding-top: 3mm; }
   .nlbl {
     font-size: 6.5pt;
     font-weight: 700;
@@ -220,46 +182,51 @@
     margin-bottom: 1.5mm;
   }
 
-  /* ── PAYMENT ────────────────────────────────────────────── */
-  .pay { width: 100%; border-collapse: collapse; border: 2pt solid var(--accent); margin-top: 5mm; page-break-inside: avoid; }
-  .pay td { padding: 4mm; vertical-align: middle; }
-  .pay-lbl {
-    font-size: 6.5pt;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-    display: block;
-    margin-bottom: 2mm;
-  }
-  .pay-body { font-size: 9pt; line-height: 1.65; }
-  .pay-qr { text-align: center; width: 32mm; border-left: 0.5pt solid #ddd; }
-  .pay-qr img { width: 27mm; height: 27mm; }
-  .pay-qr-lbl { font-size: 5.5pt; color: #888; margin-top: 1mm; line-height: 1.3; }
-
-  /* ── FOOTER ─────────────────────────────────────────────── */
-  /* position: running() pulls the element out of normal flow and places it
-     in the @page @bottom-left margin box on every page. Content can never
-     overlap it, and page-break-inside: avoid works correctly. */
+  /* ── FOOTER (fixed, every page) ─────────────────────────── */
   .footer-rule {
-    position: running(page-footer);
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     border-top: 2.5pt solid var(--accent);
     background: #fff;
   }
-  /* Single flat table — no nested subtable, each column gets a direct cell */
-  .footer { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .footer td { padding-top: 3mm; vertical-align: top; font-size: 6.5pt; color: #555; line-height: 1.55; overflow: hidden; }
-  .footer-name-cell { width: 36mm; white-space: nowrap; overflow: visible; }
-  .footer-name {
-    font-size: 15pt;
-    font-weight: 900;
-    color: var(--accent);
-    letter-spacing: -0.02em;
-    line-height: 1;
+
+  /* Payment strip — compact single line inside footer */
+  .fpay {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .fpay td {
+    padding: 2mm 0 1.5mm 0;
+    font-size: 6.5pt;
+    color: #222;
+    vertical-align: middle;
     white-space: nowrap;
   }
+  .fpay-qr-cell {
+    width: 16mm;
+    text-align: right;
+    padding: 1mm 0 1mm 0;
+  }
+  .fpay-qr { width: 15mm; height: 15mm; display: block; margin-left: auto; }
+  .fplbl {
+    font-size: 5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #999;
+    margin-right: 0.8mm;
+  }
+  .fpay-dot { color: var(--accent); opacity: 0.45; margin: 0 2.5mm; }
+  .fpay-paid { font-weight: 700; color: #1a8a3c; }
+  .fpay-rule { border-top: 0.5pt solid #e0e0e0; }
+
+  /* Info strip */
+  .footer { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .footer td { padding-top: 2.5mm; vertical-align: top; font-size: 6.5pt; color: #555; line-height: 1.5; overflow: hidden; }
   .fclbl {
-    font-size: 5.5pt;
+    font-size: 5pt;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
@@ -283,7 +250,7 @@
 <div class="anlage-stamp">Anlage {{ anlage_nr }}</div>
 {% endif %}
 
-<!-- ── HEADER: Logo + Company Name ── -->
+<!-- ── HEADER ── -->
 <table class="hdr">
   <tr>
     {% if logo_b64 %}
@@ -301,7 +268,7 @@
 </table>
 <div class="hdr-rule"></div>
 
-<!-- ── GRADIENT BOXES (brand element) ── -->
+<!-- ── GRADIENT BOXES ── -->
 <div class="grad-boxes">
   <svg width="46mm" height="3.5mm" xmlns="http://www.w3.org/2000/svg">
     {% for i in range(10) %}
@@ -312,7 +279,7 @@
   </svg>
 </div>
 
-<!-- ── ADDRESS BOXES: Sender | Client ── -->
+<!-- ── ADDRESS BOXES ── -->
 <table class="addr-tbl">
   <tr>
     <td class="addr-box" style="width:48%">
@@ -411,11 +378,8 @@
 </div>
 
 <!-- ── LINE ITEMS ── -->
-{% set regular_items  = (invoice.positions or []) | selectattr("auslagenersatz", "undefined") | list %}
-{% set regular_items  = regular_items + ((invoice.positions or []) | selectattr("auslagenersatz", "equalto", false) | list) %}
-{% set auslagen_items = (invoice.positions or []) | selectattr("auslagenersatz", "equalto", true) | list %}
-{# fallback: if no auslagenersatz attr at all, treat all as regular #}
 {% set regular_items  = (invoice.positions or []) | rejectattr("auslagenersatz", "equalto", true) | list %}
+{% set auslagen_items = (invoice.positions or []) | selectattr("auslagenersatz", "equalto", true) | list %}
 
 <table class="items">
   <thead>
@@ -490,7 +454,6 @@
 <p class="ku-note">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</p>
 {% endif %}
 
-<!-- ── NOTES ── -->
 {% if invoice.notes %}
 <div class="notes">
   <span class="nlbl">Anmerkungen</span>
@@ -498,44 +461,37 @@
 </div>
 {% endif %}
 
-<!-- ── PAYMENT + EPC QR ── -->
-{% if invoice.type == 'invoice' %}
-  {% if invoice.status == 'paid' %}
-  <table class="pay-confirmed">
+<!-- ── FOOTER (fixed, every page) ── -->
+<div class="footer-rule">
+
+  {% if invoice.type == 'invoice' %}
+  <table class="fpay">
     <tr>
-      <td class="pay-confirmed-body">
-        <span class="pay-confirmed-lbl">Zahlungseingang</span>
-        Betrag von <strong>{{ totals.total | eur }}</strong> wurde beglichen.
-        {% if invoice.paid_date %}<br>Zahlungsdatum: <strong>{{ invoice.paid_date | date_de }}</strong>{% endif %}
-        <br>Verwendungszweck: {{ invoice.payment_ref or invoice.id }}
+      <td>
+        {% if invoice.status == 'paid' %}
+          <span class="fpay-paid">✓ BEZAHLT</span>
+          {% if invoice.paid_date %}<span class="fpay-dot">·</span>{{ invoice.paid_date | date_de }}{% endif %}
+          <span class="fpay-dot">·</span>{{ totals.total | eur }}
+          <span class="fpay-dot">·</span><span class="fplbl">VWZ</span>{{ invoice.payment_ref or invoice.id }}
+        {% else %}
+          <span class="fplbl">Betrag</span><strong>{{ totals.total | eur }}</strong>
+          {% if invoice.due_date %}<span class="fpay-dot">·</span><span class="fplbl">Fällig</span>{{ invoice.due_date | date_de }}{% endif %}
+          {% if cfg.invoice.bank_name %}<span class="fpay-dot">·</span>{{ cfg.invoice.bank_name }}{% endif %}
+          {% if cfg.invoice.iban %}<span class="fpay-dot">·</span><span class="fplbl">IBAN</span>{{ cfg.invoice.iban }}{% endif %}
+          {% if cfg.invoice.bic %}<span class="fpay-dot">·</span><span class="fplbl">BIC</span>{{ cfg.invoice.bic }}{% endif %}
+          <span class="fpay-dot">·</span><span class="fplbl">VWZ</span>{{ invoice.payment_ref or invoice.id }}
+        {% endif %}
       </td>
-      <td class="bezahlt-badge">✓ BEZAHLT</td>
-    </tr>
-  </table>
-  {% elif cfg.invoice.iban %}
-  <table class="pay">
-    <tr>
-      <td class="pay-body">
-        <span class="pay-lbl">Zahlungsinformationen</span>
-        Bitte überweisen Sie <strong>{{ totals.total | eur }}</strong>
-        bis zum <strong>{{ invoice.due_date | date_de }}</strong>.<br>
-        {% if cfg.invoice.bank_name %}<strong>{{ cfg.invoice.bank_name }}</strong><br>{% endif %}
-        IBAN:&nbsp;<strong>{{ cfg.invoice.iban }}</strong>{% if cfg.invoice.bic %}&nbsp;&nbsp;BIC:&nbsp;{{ cfg.invoice.bic }}{% endif %}<br>
-        Verwendungszweck:&nbsp;<strong>{{ invoice.payment_ref or invoice.id }}</strong>
-      </td>
-      {% if epc_qr %}
-      <td class="pay-qr">
-        <img src="data:image/png;base64,{{ epc_qr }}" alt="GiroCode">
-        <div class="pay-qr-lbl">GiroCode<br>SEPA-Überweisung</div>
+      {% if epc_qr and invoice.status != 'paid' %}
+      <td class="fpay-qr-cell">
+        <img src="data:image/png;base64,{{ epc_qr }}" class="fpay-qr" alt="GiroCode">
       </td>
       {% endif %}
     </tr>
   </table>
+  <div class="fpay-rule"></div>
   {% endif %}
-{% endif %}
 
-<!-- ── FOOTER ── -->
-<div class="footer-rule">
   <table class="footer">
     <tr>
       <td style="padding-left:0">
@@ -574,8 +530,8 @@
       {% endif %}
     </tr>
   </table>
-</div>
 
+</div>
 
 </body>
 </html>
