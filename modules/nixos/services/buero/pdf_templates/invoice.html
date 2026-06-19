@@ -24,9 +24,15 @@
   .doc-wrap {
     display: flex;
     flex-direction: column;
-    min-height: 263mm; /* A4 content height: 297 - 14 top - 18 bottom - 2 buffer */
+    min-height: 235mm; /* conservative: leaves ~30mm for footer within 265mm content area */
   }
   .page-spacer { flex: 1; min-height: 0; }
+
+  /* Never split the footer across pages */
+  .footer-rule { page-break-inside: avoid; page-break-before: avoid; }
+  .footer       { page-break-inside: avoid; }
+  .fcols        { page-break-inside: avoid; }
+  .fcols td     { page-break-inside: avoid; }
 
   /* ── HEADER ────────────────────────────────────────────── */
   .hdr { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
