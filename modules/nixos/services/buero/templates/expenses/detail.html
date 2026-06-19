@@ -21,7 +21,18 @@
       <tr><td>Datum</td><td>{{ expense.date | date_de }}</td></tr>
       {% if expense.vendor %}<tr><td>Lieferant</td><td>{{ expense.vendor }}</td></tr>{% endif %}
       {% if expense.vat_rate %}<tr><td>MwSt. im Beleg</td><td>{{ expense.vat_rate }} %</td></tr>{% endif %}
-      {% if expense.invoice_id %}<tr><td>Rechnung</td><td><a href="{{ url_for('invoice_detail', iid=expense.invoice_id) }}">{{ expense.invoice_id }}</a></td></tr>{% endif %}
+      {% if expense.invoice_id %}
+      <tr>
+        <td>Rechnung</td>
+        <td>
+          <a href="{{ url_for('invoice_detail', iid=expense.invoice_id) }}">{{ expense.invoice_id }}</a>
+          <form method="POST" action="{{ url_for('expense_unassign', eid=expense.id) }}" style="display:inline;margin-left:.75rem"
+                onsubmit="return confirm('Ausgabe von Rechnung {{ expense.invoice_id }} trennen?')">
+            <button type="submit" class="btn btn-outline" style="font-size:.75rem;padding:.2rem .5rem">Trennen</button>
+          </form>
+        </td>
+      </tr>
+      {% endif %}
     </table>
   </div>
   {% if expense.notes %}

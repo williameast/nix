@@ -958,9 +958,37 @@ def invoice_status(iid):
 
 @app.route("/invoices/<path:iid>/delete", methods=["POST"])
 def invoice_delete(iid):
+    # Free any expenses that were attached to this invoice
+    inv = get_invoice(iid)
+    if inv:
+        for pos in (inv.get("positions") or []):
+            eid = pos.get("expense_id")
+            if eid:
+                exp = get_expense(eid)
+                if exp and exp.get("invoice_id") == iid:
+                    exp.pop("invoice_id", None)
+                    put_expense(eid, exp)
     del_invoice(iid)
     flash("Gelöscht.", "success")
     return redirect(url_for("invoices_list"))
+
+
+@app.route("/expenses/<eid>/unassign", methods=["POST"])
+def expense_unassign(eid):
+    """Remove invoice_id from an expense so it can be attached to another invoice."""
+    exp = get_expense(eid)
+    if not exp:
+        abort(404)
+    iid = exp.pop("invoice_id", None)
+    # Also remove the corresponding position from the invoice, if it still exists
+    if iid:
+        inv = get_invoice(iid)
+        if inv:
+            inv["positions"] = [p for p in (inv.get("positions") or []) if p.get("expense_id") != eid]
+            put_invoice(iid, inv)
+    put_expense(eid, exp)
+    flash("Ausgabe aus Rechnung entfernt.", "success")
+    return redirect(url_for("expense_detail", eid=eid))
 
 
 @app.route("/invoices/<path:iid>/to-invoice", methods=["POST"])
