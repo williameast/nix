@@ -13,7 +13,7 @@ function addLineItem() {
     <td><input type="text" name="positions[${idx}][description]" required placeholder="Leistungsbeschreibung"></td>
     <td><input type="number" name="positions[${idx}][quantity]" value="1" step="0.01" min="0" class="item-qty" oninput="recalc()"></td>
     <td><input type="text" name="positions[${idx}][unit]" value="Std." placeholder="Std."></td>
-    <td><input type="number" name="positions[${idx}][unit_price]" step="0.01" min="0" class="item-price" oninput="recalc()"></td>
+    <td><input type="number" name="positions[${idx}][unit_price]" step="0.01" class="item-price" oninput="recalc()"></td>
     <td class="num item-total">—</td>
     <td><button type="button" class="btn-icon" onclick="removeRow(this)" title="Entfernen">✕</button></td>
   `;
