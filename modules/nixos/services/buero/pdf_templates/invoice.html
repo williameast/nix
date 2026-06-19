@@ -129,6 +129,53 @@
     padding-top: 2mm;
   }
 
+  /* ── BEZAHLT WATERMARK ─────────────────────────────────── */
+  .bezahlt-watermark {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-35deg);
+    font-size: 72pt;
+    font-weight: 900;
+    color: rgba(0, 140, 60, 0.10);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── PAYMENT CONFIRMATION (replaces pay box when paid) ── */
+  .pay-confirmed {
+    width: 100%;
+    border-collapse: collapse;
+    border: 2pt solid #1a8a3c;
+    margin-top: 5mm;
+    page-break-inside: avoid;
+    background: #f0faf4;
+  }
+  .pay-confirmed td { padding: 4mm; vertical-align: middle; }
+  .pay-confirmed-lbl {
+    font-size: 6.5pt;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #1a8a3c;
+    display: block;
+    margin-bottom: 2mm;
+  }
+  .pay-confirmed-body { font-size: 9pt; line-height: 1.65; color: #111; }
+  .bezahlt-badge {
+    font-size: 20pt;
+    font-weight: 900;
+    color: #1a8a3c;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    text-align: center;
+    border-left: 0.5pt solid #aaddbb;
+    padding-left: 5mm;
+  }
+
   /* ── ANLAGE STAMP ──────────────────────────────────────── */
   .anlage-stamp {
     text-align: right;
@@ -225,6 +272,10 @@
 </style>
 </head>
 <body>
+
+{% if invoice.status == 'paid' %}
+<div class="bezahlt-watermark">BEZAHLT</div>
+{% endif %}
 
 {% if anlage_nr %}
 <div class="anlage-stamp">Anlage {{ anlage_nr }}</div>
@@ -446,25 +497,39 @@
 {% endif %}
 
 <!-- ── PAYMENT + EPC QR ── -->
-{% if invoice.type == 'invoice' and cfg.invoice.iban %}
-<table class="pay">
-  <tr>
-    <td class="pay-body">
-      <span class="pay-lbl">Zahlungsinformationen</span>
-      Bitte überweisen Sie <strong>{{ totals.total | eur }}</strong>
-      bis zum <strong>{{ invoice.due_date | date_de }}</strong>.<br>
-      {% if cfg.invoice.bank_name %}<strong>{{ cfg.invoice.bank_name }}</strong><br>{% endif %}
-      IBAN:&nbsp;<strong>{{ cfg.invoice.iban }}</strong>{% if cfg.invoice.bic %}&nbsp;&nbsp;BIC:&nbsp;{{ cfg.invoice.bic }}{% endif %}<br>
-      Verwendungszweck:&nbsp;<strong>{{ invoice.payment_ref or invoice.id }}</strong>
-    </td>
-    {% if epc_qr %}
-    <td class="pay-qr">
-      <img src="data:image/png;base64,{{ epc_qr }}" alt="GiroCode">
-      <div class="pay-qr-lbl">GiroCode<br>SEPA-Überweisung</div>
-    </td>
-    {% endif %}
-  </tr>
-</table>
+{% if invoice.type == 'invoice' %}
+  {% if invoice.status == 'paid' %}
+  <table class="pay-confirmed">
+    <tr>
+      <td class="pay-confirmed-body">
+        <span class="pay-confirmed-lbl">Zahlungseingang</span>
+        Betrag von <strong>{{ totals.total | eur }}</strong> wurde beglichen.
+        {% if invoice.paid_date %}<br>Zahlungsdatum: <strong>{{ invoice.paid_date | date_de }}</strong>{% endif %}
+        <br>Verwendungszweck: {{ invoice.payment_ref or invoice.id }}
+      </td>
+      <td class="bezahlt-badge">✓ BEZAHLT</td>
+    </tr>
+  </table>
+  {% elif cfg.invoice.iban %}
+  <table class="pay">
+    <tr>
+      <td class="pay-body">
+        <span class="pay-lbl">Zahlungsinformationen</span>
+        Bitte überweisen Sie <strong>{{ totals.total | eur }}</strong>
+        bis zum <strong>{{ invoice.due_date | date_de }}</strong>.<br>
+        {% if cfg.invoice.bank_name %}<strong>{{ cfg.invoice.bank_name }}</strong><br>{% endif %}
+        IBAN:&nbsp;<strong>{{ cfg.invoice.iban }}</strong>{% if cfg.invoice.bic %}&nbsp;&nbsp;BIC:&nbsp;{{ cfg.invoice.bic }}{% endif %}<br>
+        Verwendungszweck:&nbsp;<strong>{{ invoice.payment_ref or invoice.id }}</strong>
+      </td>
+      {% if epc_qr %}
+      <td class="pay-qr">
+        <img src="data:image/png;base64,{{ epc_qr }}" alt="GiroCode">
+        <div class="pay-qr-lbl">GiroCode<br>SEPA-Überweisung</div>
+      </td>
+      {% endif %}
+    </tr>
+  </table>
+  {% endif %}
 {% endif %}
 
 <!-- ── FOOTER ── -->
