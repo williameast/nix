@@ -190,7 +190,7 @@
           <td><code>{{ i.id }}</code></td>
           <td>{{ i.type | type_de }}</td>
           <td>{{ i.date | date_de }}</td>
-          <td>{{ i.client_id or '—' }}</td>
+          <td>{{ i._client_name or '—' }}</td>
           <td class="num">{{ i._totals.total | eur }}</td>
         </tr>
         {% endfor %}

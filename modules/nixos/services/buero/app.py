@@ -724,21 +724,33 @@ def invoice_detail(iid):
         if p.get("expense_id")
     }
     all_exp = all_expenses()
-    available_auslagen = [
-        e for e in all_exp
-        if not e.get("invoice_id")
-        and e.get("id") not in attached_expense_ids
-        and (
-            (inv.get("client_id")  and e.get("client_id")  == inv.get("client_id"))
-            or (inv.get("project_id") and e.get("project_id") == inv.get("project_id"))
-        )
-    ]
+    # When the invoice has a project, only show expenses for that project.
+    # Otherwise fall back to matching by client.
+    if inv.get("project_id"):
+        available_auslagen = [
+            e for e in all_exp
+            if not e.get("invoice_id")
+            and e.get("id") not in attached_expense_ids
+            and e.get("project_id") == inv["project_id"]
+        ]
+    elif inv.get("client_id"):
+        available_auslagen = [
+            e for e in all_exp
+            if not e.get("invoice_id")
+            and e.get("id") not in attached_expense_ids
+            and e.get("client_id") == inv["client_id"]
+            and not e.get("project_id")  # exclude expenses already assigned to a project
+        ]
+    else:
+        available_auslagen = []
 
-    # Other invoices available as Anlagen (with totals pre-computed)
+    # Other invoices available as Anlagen (with totals + client name pre-computed)
     other_invoices = []
     for i in all_invoices():
         if i.get("id") != iid:
             i["_totals"] = calc_totals(i, cfg)
+            c = get_client(i.get("client_id", ""))
+            i["_client_name"] = c.get("name", i.get("client_id", "—")) if c else (i.get("client_id") or "—")
             other_invoices.append(i)
 
     return render_template("invoices/detail.html", invoice=inv, client=client,
