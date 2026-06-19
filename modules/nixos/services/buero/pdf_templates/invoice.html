@@ -20,14 +20,6 @@
     line-height: 1.45;
   }
 
-  /* Single-page layout for short invoices */
-  .doc-wrap {
-    display: flex;
-    flex-direction: column;
-    min-height: 235mm; /* conservative: leaves ~30mm for footer within 265mm content area */
-  }
-  .page-spacer { flex: 1; min-height: 0; }
-
   /* Never split the footer across pages */
   .footer-rule { page-break-inside: avoid; page-break-before: avoid; }
   .footer       { page-break-inside: avoid; }
@@ -49,18 +41,11 @@
 
   .hdr-rule {
     border-top: 3pt solid var(--accent);
-    margin-bottom: 4mm;
+    margin-bottom: 0;
   }
 
-  /* ── RETURN ADDRESS ─────────────────────────────────────── */
-  .return-addr {
-    font-size: 7pt;
-    color: #888;
-    border-left: 2pt solid var(--accent);
-    padding-left: 2.5mm;
-    margin-bottom: 3mm;
-    line-height: 1.4;
-  }
+  /* Gradient boxes — decorative element below header rule */
+  .grad-boxes { text-align: right; margin-bottom: 4mm; margin-top: 1.5mm; line-height: 0; }
 
   /* ── ADDRESS BOXES ──────────────────────────────────────── */
   .addr-tbl { width: 100%; border-collapse: separate; border-spacing: 4mm 0; margin-bottom: 6mm; }
@@ -217,19 +202,17 @@
 </style>
 </head>
 <body>
-{% set item_count = (invoice.positions or [])|length %}
-{% if item_count < 5 %}<div class="doc-wrap">{% endif %}
 
 <!-- ── HEADER: Logo + Company Name ── -->
 <table class="hdr">
   <tr>
     {% if logo_b64 %}
     <td class="hdr-logo" style="width:38mm; vertical-align:middle">
-      <img src="{{ logo_b64 }}" alt="{{ cfg.business.name }}">
+      <img src="{{ logo_b64 }}" alt="{{ cfg.business.legal_name or cfg.business.name }}">
     </td>
     {% endif %}
     <td class="hdr-name">
-      <div class="company-name">{{ cfg.business.name }}</div>
+      <div class="company-name">{{ cfg.business.legal_name or cfg.business.name }}</div>
       {% if cfg.business.profession %}
       <div class="company-sub">{{ cfg.business.profession }}</div>
       {% endif %}
@@ -238,9 +221,15 @@
 </table>
 <div class="hdr-rule"></div>
 
-<!-- ── RETURN ADDRESS (§14 UStG — sender visible above client window) ── -->
-<div class="return-addr">
-  {{ cfg.business.name }} · {{ cfg.business.address_line1 }} · {{ cfg.business.address_line2 }}{% if cfg.tax.mode == 'kleinunternehmer' %} · StNr. {{ cfg.tax.steuernummer }}{% elif cfg.tax.ust_idnr %} · USt-IdNr. {{ cfg.tax.ust_idnr }}{% endif %}
+<!-- ── GRADIENT BOXES (brand element) ── -->
+<div class="grad-boxes">
+  <svg width="46mm" height="3.5mm" xmlns="http://www.w3.org/2000/svg">
+    {% for i in range(10) %}
+    <rect x="{{ i * 4.6 }}mm" y="0" width="3.5mm" height="3.5mm"
+          fill="{{ cfg.design.accent_color }}"
+          opacity="{{ ((i + 1) / 10.0) | round(2) }}"/>
+    {% endfor %}
+  </svg>
 </div>
 
 <!-- ── ADDRESS BOXES: Sender | Client ── -->
@@ -420,14 +409,12 @@
 </table>
 {% endif %}
 
-{% if item_count < 5 %}<div class="page-spacer"></div>{% endif %}
-
 <!-- ── FOOTER ── -->
 <div class="footer-rule">
   <table class="footer">
     <tr>
       <td style="width:40%">
-        <div class="footer-name">{{ cfg.business.name }}</div>
+        <div class="footer-name">{{ cfg.business.legal_name or cfg.business.name }}</div>
       </td>
       <td class="footer-right">
         <table class="fcols">
@@ -474,6 +461,6 @@
   </table>
 </div>
 
-{% if item_count < 5 %}</div>{% endif %}
+
 </body>
 </html>
