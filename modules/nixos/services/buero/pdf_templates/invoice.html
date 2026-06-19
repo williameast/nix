@@ -328,12 +328,6 @@
         <span class="dval">{{ invoice.service_date | date_de }}</span>
       </td>
       {% endif %}
-      {% if invoice.due_date and invoice.type == 'invoice' %}
-      <td>
-        <span class="dlbl">Zahlbar bis</span>
-        <span class="dval">{{ invoice.due_date | date_de }}</span>
-      </td>
-      {% endif %}
       {% if project %}
       <td>
         <span class="dlbl">Projekt</span>
@@ -345,6 +339,12 @@
         <span class="dval">{{ project.project_number }}</span>
       </td>
       {% endif %}
+      {% endif %}
+      {% if invoice.position_title %}
+      <td>
+        <span class="dlbl">Position</span>
+        <span class="dval">{{ invoice.position_title }}</span>
+      </td>
       {% endif %}
       {% if invoice.payment_ref %}
       <td>

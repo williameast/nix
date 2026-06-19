@@ -437,15 +437,29 @@ def make_invoice_qr(invoice_id):
 
 # ── Receipt → PDF helper ──────────────────────────────────────────────────────
 
-def receipt_to_pdf_bytes(receipt_path, label=""):
-    """Convert an image or PDF receipt to PDF bytes ready for pypdf merging."""
-    ext = Path(receipt_path).suffix.lower()
-    if ext == ".pdf":
-        return Path(receipt_path).read_bytes()
-    if ext in (".jpg", ".jpeg", ".png") and WEASYPRINT:
+def receipt_to_pdf_bytes(source, label="", mime_hint=""):
+    """Convert a receipt to PDF bytes ready for pypdf merging.
+
+    source may be a filesystem Path, or raw bytes (in which case mime_hint
+    should be the Content-Type, e.g. 'application/pdf' or 'image/jpeg').
+    """
+    if isinstance(source, (str, Path)):
+        path = Path(source)
+        ext  = path.suffix.lower()
+        if ext == ".pdf":
+            return path.read_bytes()
+        raw  = path.read_bytes()
+        mime = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
+    else:
+        raw  = source
+        mime = mime_hint or "application/pdf"
+
+    if mime == "application/pdf":
+        return raw
+
+    if WEASYPRINT and mime.startswith("image/"):
         try:
-            b64  = base64.b64encode(Path(receipt_path).read_bytes()).decode()
-            mime = "image/jpeg" if ext in (".jpg", ".jpeg") else "image/png"
+            b64  = base64.b64encode(raw).decode()
             html = f"""<!DOCTYPE html><html><head><style>
 @page {{ size: A4; margin: 15mm; }}
 body {{ margin:0; font-family: sans-serif; }}
@@ -461,7 +475,24 @@ img {{ max-width:100%; max-height:255mm; display:block; }}
     return None
 
 
-def append_receipts_to_writer(writer, invoice):
+def fetch_paperless_receipt_bytes(exp, cfg):
+    """Download the original file for a Paperless-imported expense.
+    Returns (raw_bytes, mime_type) or (None, None) on failure.
+    """
+    pid = exp.get("paperless_id")
+    if not pid or not cfg.get("paperless", {}).get("enabled"):
+        return None, None
+    try:
+        pl = Paperless(cfg["paperless"]["base_url"], cfg["paperless"]["token"])
+        r  = req_lib.get(pl.download(pid), headers=pl.h, timeout=30)
+        r.raise_for_status()
+        mime = r.headers.get("Content-Type", "application/pdf").split(";")[0].strip()
+        return r.content, mime
+    except Exception:
+        return None, None
+
+
+def append_receipts_to_writer(writer, invoice, cfg=None):
     """Append receipt PDFs for all Auslagenersatz positions in the invoice."""
     if not PYPDF:
         return
@@ -472,12 +503,21 @@ def append_receipts_to_writer(writer, invoice):
         if not eid:
             continue
         exp = get_expense(eid)
-        if not exp or not exp.get("receipt_file"):
+        if not exp:
             continue
-        receipt_path = UPLOADS_DIR / exp["receipt_file"]
-        if not receipt_path.exists():
-            continue
-        pdf_bytes = receipt_to_pdf_bytes(receipt_path, label=exp.get("description", eid))
+
+        pdf_bytes = None
+        label     = exp.get("description", eid)
+
+        if exp.get("receipt_file"):
+            receipt_path = UPLOADS_DIR / exp["receipt_file"]
+            if receipt_path.exists():
+                pdf_bytes = receipt_to_pdf_bytes(receipt_path, label=label)
+        elif exp.get("paperless_id") and cfg:
+            raw, mime = fetch_paperless_receipt_bytes(exp, cfg)
+            if raw:
+                pdf_bytes = receipt_to_pdf_bytes(raw, label=label, mime_hint=mime)
+
         if pdf_bytes:
             try:
                 for page in _pypdf.PdfReader(BytesIO(pdf_bytes)).pages:
@@ -744,10 +784,10 @@ def invoice_detail(iid):
     else:
         available_auslagen = []
 
-    # Other invoices available as Anlagen (with totals + client name pre-computed)
+    # Other invoices available as Anlagen — same client only (with totals pre-computed)
     other_invoices = []
     for i in all_invoices():
-        if i.get("id") != iid:
+        if i.get("id") != iid and i.get("client_id") == inv.get("client_id"):
             i["_totals"] = calc_totals(i, cfg)
             c = get_client(i.get("client_id", ""))
             i["_client_name"] = c.get("name", i.get("client_id", "—")) if c else (i.get("client_id") or "—")
@@ -797,7 +837,7 @@ def invoice_pdf(iid):
         writer = _pypdf.PdfWriter()
         for page in _pypdf.PdfReader(BytesIO(data)).pages:
             writer.add_page(page)
-        append_receipts_to_writer(writer, inv)
+        append_receipts_to_writer(writer, inv, cfg)
         out = BytesIO()
         writer.write(out)
         out.seek(0)
@@ -860,7 +900,7 @@ def invoice_pdf_with_anlagen(iid):
     writer = _pypdf.PdfWriter()
     for page in _pypdf.PdfReader(BytesIO(main_pdf)).pages:
         writer.add_page(page)
-    append_receipts_to_writer(writer, inv)
+    append_receipts_to_writer(writer, inv, cfg)
 
     for nr, aid in enumerate(anlage_ids, 1):
         a_inv = get_invoice(aid)
@@ -873,7 +913,7 @@ def invoice_pdf_with_anlagen(iid):
         a_pdf, _  = make_pdf(a_inv, a_client, cfg, project=a_project, anlage_nr=nr)
         for page in _pypdf.PdfReader(BytesIO(a_pdf)).pages:
             writer.add_page(page)
-        append_receipts_to_writer(writer, a_inv)
+        append_receipts_to_writer(writer, a_inv, cfg)
 
     out = BytesIO()
     writer.write(out)
