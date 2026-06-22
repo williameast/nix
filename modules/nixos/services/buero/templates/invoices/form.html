@@ -22,6 +22,14 @@
       </div>
 
       <div class="form-group">
+        <label>Sprache / Language</label>
+        <select name="language">
+          <option value="de" {% if (invoice.language or 'de') == 'de' %}selected{% endif %}>Deutsch</option>
+          <option value="en" {% if invoice.language == 'en' %}selected{% endif %}>English</option>
+        </select>
+      </div>
+
+      <div class="form-group">
         <label>Nummer</label>
         <input type="text" name="id" value="{{ invoice.id }}" required {% if edit %}readonly{% endif %}>
       </div>
@@ -129,8 +137,14 @@
       <tbody id="items-body">
         {% for item in invoice.positions %}
         <tr class="item-row">
-          <td><input type="text" name="positions[{{ loop.index0 }}][description]" value="{{ item.description }}" placeholder="Leistungsbeschreibung"></td>
-          <td><input type="number" name="positions[{{ loop.index0 }}][quantity]" value="{{ item.quantity }}" step="0.01" min="0" class="item-qty" oninput="recalc()"></td>
+          <td>
+            <input type="text" name="positions[{{ loop.index0 }}][description]" value="{{ item.description }}" placeholder="Leistungsbeschreibung">
+            {% if item.auslagenersatz %}
+            <input type="hidden" name="positions[{{ loop.index0 }}][auslagenersatz]" value="1">
+            <input type="hidden" name="positions[{{ loop.index0 }}][expense_id]" value="{{ item.expense_id or '' }}">
+            {% endif %}
+          </td>
+          <td><input type="number" name="positions[{{ loop.index0 }}][quantity]" value="{{ item.quantity }}" step="0.01" class="item-qty" oninput="recalc()"></td>
           <td><input type="text" name="positions[{{ loop.index0 }}][unit]" value="{{ item.unit }}" placeholder="Std."></td>
           <td><input type="number" name="positions[{{ loop.index0 }}][unit_price]" value="{{ item.unit_price }}" step="0.01" class="item-price" oninput="recalc()"></td>
           <td class="num item-total">—</td>

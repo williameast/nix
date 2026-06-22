@@ -203,11 +203,11 @@
 <body>
 
 {% if invoice.status == 'paid' %}
-<div class="bezahlt-watermark">BEZAHLT</div>
+<div class="bezahlt-watermark">{{ t.paid_watermark }}</div>
 {% endif %}
 
 {% if anlage_nr %}
-<div class="anlage-stamp">Anlage {{ anlage_nr }}</div>
+<div class="anlage-stamp">{{ t.enclosure }} {{ anlage_nr }}</div>
 {% endif %}
 
 <!-- ── HEADER ── -->
@@ -242,7 +242,7 @@
 <table class="addr-tbl">
   <tr>
     <td class="addr-box" style="width:48%">
-      <span class="addr-lbl">Von</span>
+      <span class="addr-lbl">{{ t.from_lbl }}</span>
       <strong>{{ cfg.business.name }}</strong><br>
       {% if invoice.position_title %}{{ invoice.position_title }}<br>
       {% elif cfg.business.profession %}{{ cfg.business.profession }}<br>{% endif %}
@@ -255,7 +255,7 @@
       {% elif cfg.tax.ust_idnr %}USt-IdNr.: {{ cfg.tax.ust_idnr }}{% endif %}
     </td>
     <td class="addr-box" style="width:48%">
-      <span class="addr-lbl">An</span>
+      <span class="addr-lbl">{{ t.to_lbl }}</span>
       {% if client and client.name %}
       <strong>{{ client.name }}</strong><br>
       {% if client.contact_name %}{{ client.contact_name }}<br>{% endif %}
@@ -271,13 +271,9 @@
 <!-- ── DOCUMENT TYPE + NUMBER ── -->
 <table class="doc-hdr">
   <tr>
-    <td class="doc-type">
-      {% if invoice.type == 'invoice' %}Rechnung
-      {% elif invoice.type == 'quote' %}Angebot
-      {% else %}Quittung{% endif %}
-    </td>
+    <td class="doc-type">{{ t[invoice.type] if invoice.type in t else t.invoice }}</td>
     <td class="doc-nr-cell">
-      <span class="doc-nr-lbl">Rechnungsnummer</span>
+      <span class="doc-nr-lbl">{{ t.doc_nr_lbl }}</span>
       <span class="doc-nr">{{ invoice.id }}</span>
     </td>
   </tr>
@@ -288,41 +284,41 @@
   <table class="dbar">
     <tr>
       <td>
-        <span class="dlbl">Datum</span>
+        <span class="dlbl">{{ t.date }}</span>
         <span class="dval">{{ invoice.date | date_de }}</span>
       </td>
       {% if invoice.service_period_end %}
       <td>
-        <span class="dlbl">Leistungszeitraum</span>
+        <span class="dlbl">{{ t.service_period }}</span>
         <span class="dval">{{ invoice.service_date | date_de }} – {{ invoice.service_period_end | date_de }}</span>
       </td>
       {% elif invoice.service_date and invoice.service_date != invoice.date %}
       <td>
-        <span class="dlbl">Leistungsdatum</span>
+        <span class="dlbl">{{ t.service_date }}</span>
         <span class="dval">{{ invoice.service_date | date_de }}</span>
       </td>
       {% endif %}
       {% if project %}
       <td>
-        <span class="dlbl">Projekt</span>
+        <span class="dlbl">{{ t.project }}</span>
         <span class="dval">{{ project.name }}</span>
       </td>
       {% if project.project_number %}
       <td>
-        <span class="dlbl">Bestell-Nr.</span>
+        <span class="dlbl">{{ t.order_nr }}</span>
         <span class="dval">{{ project.project_number }}</span>
       </td>
       {% endif %}
       {% endif %}
       {% if invoice.position_title %}
       <td>
-        <span class="dlbl">Position</span>
+        <span class="dlbl">{{ t.position }}</span>
         <span class="dval">{{ invoice.position_title }}</span>
       </td>
       {% endif %}
       {% if invoice.payment_ref %}
       <td>
-        <span class="dlbl">Verwendungszweck</span>
+        <span class="dlbl">{{ t.ref }}</span>
         <span class="dval">{{ invoice.payment_ref }}</span>
       </td>
       {% endif %}
@@ -338,12 +334,12 @@
 <table class="items">
   <thead>
     <tr>
-      <th style="width:5%">Pos.</th>
-      <th style="width:48%">Beschreibung / Leistung</th>
-      <th class="r" style="width:8%">Menge</th>
-      <th style="width:9%">Einheit</th>
-      <th class="r" style="width:15%">Einzelpreis ({{ cfg.invoice.currency }})</th>
-      <th class="r" style="width:15%">Gesamt ({{ cfg.invoice.currency }})</th>
+      <th style="width:5%">{{ t.pos }}</th>
+      <th style="width:48%">{{ t.description }}</th>
+      <th class="r" style="width:8%">{{ t.qty }}</th>
+      <th style="width:9%">{{ t.unit }}</th>
+      <th class="r" style="width:15%">{{ t.unit_price }} ({{ cfg.invoice.currency }})</th>
+      <th class="r" style="width:15%">{{ t.total_col }} ({{ cfg.invoice.currency }})</th>
     </tr>
   </thead>
   <tbody>
@@ -362,13 +358,13 @@
 
 {% if auslagen_items %}
 <div class="auslagen-section">
-  <span class="auslagen-lbl">Auslagenersatz</span>
+  <span class="auslagen-lbl">{{ t.expense_reimb }}</span>
   <table class="items">
     <thead>
       <tr>
-        <th style="width:5%">Pos.</th>
-        <th style="width:72%">Beschreibung</th>
-        <th class="r" style="width:23%">Betrag ({{ cfg.invoice.currency }})</th>
+        <th style="width:5%">{{ t.pos }}</th>
+        <th style="width:72%">{{ t.desc_short }}</th>
+        <th class="r" style="width:23%">{{ t.amount }} ({{ cfg.invoice.currency }})</th>
       </tr>
     </thead>
     <tbody>
@@ -389,28 +385,28 @@
   <table class="totals">
     {% if not kleinunternehmer %}
     <tr>
-      <td>Nettobetrag ({{ cfg.invoice.currency }})</td>
+      <td>{{ t.net }} ({{ cfg.invoice.currency }})</td>
       <td class="tv">{{ totals.subtotal | eur }}</td>
     </tr>
     <tr>
-      <td>MwSt. {{ totals.mwst_rate | int }} %</td>
+      <td>{{ t.vat }} {{ totals.mwst_rate | int }} %</td>
       <td class="tv">{{ totals.mwst | eur }}</td>
     </tr>
     {% endif %}
     <tr class="grand">
-      <td>Gesamtbetrag ({{ cfg.invoice.currency }})</td>
+      <td>{{ t.total_amount }} ({{ cfg.invoice.currency }})</td>
       <td class="tv">{{ totals.total | eur }}</td>
     </tr>
   </table>
 </div>
 
 {% if kleinunternehmer %}
-<p class="ku-note">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</p>
+<p class="ku-note">{{ t.ku_note }}</p>
 {% endif %}
 
 {% if invoice.notes %}
 <div class="notes">
-  <span class="nlbl">Anmerkungen</span>
+  <span class="nlbl">{{ t.notes_lbl }}</span>
   {{ invoice.notes }}
 </div>
 {% endif %}
@@ -421,29 +417,26 @@
   <table class="pay-confirmed">
     <tr>
       <td class="pay-confirmed-body">
-        <span class="pay-confirmed-lbl">Zahlungseingang</span>
-        Betrag von <strong>{{ totals.total | eur }}</strong> wurde beglichen.
-        {% if invoice.paid_date %}<br>Zahlungsdatum: <strong>{{ invoice.paid_date | date_de }}</strong>{% endif %}
-        <br>Verwendungszweck: {{ invoice.payment_ref or invoice.id }}
+        <span class="pay-confirmed-lbl">{{ t.payment_received }}</span>
+        {{ t.payment_body_html | safe }}
       </td>
-      <td class="bezahlt-badge">✓ BEZAHLT</td>
+      <td class="bezahlt-badge">{{ t.paid_badge }}</td>
     </tr>
   </table>
   {% elif cfg.invoice.iban %}
   <table class="pay">
     <tr>
       <td class="pay-body">
-        <span class="pay-lbl">Zahlungsinformationen</span>
-        Bitte überweisen Sie <strong>{{ totals.total | eur }}</strong>
-        bis zum <strong>{{ invoice.due_date | date_de }}</strong>.<br>
+        <span class="pay-lbl">{{ t.payment_info }}</span>
+        {{ t.please_pay_html | safe }}<br>
         {% if cfg.invoice.bank_name %}<strong>{{ cfg.invoice.bank_name }}</strong><br>{% endif %}
         IBAN:&nbsp;<strong>{{ cfg.invoice.iban }}</strong>{% if cfg.invoice.bic %}&nbsp;&nbsp;BIC:&nbsp;{{ cfg.invoice.bic }}{% endif %}<br>
-        Verwendungszweck:&nbsp;<strong>{{ invoice.payment_ref or invoice.id }}</strong>
+        {{ t.usage }}:&nbsp;<strong>{{ invoice.payment_ref or invoice.id }}</strong>
       </td>
       {% if epc_qr %}
       <td class="pay-qr">
         <img src="data:image/png;base64,{{ epc_qr }}" alt="GiroCode">
-        <div class="pay-qr-lbl">GiroCode<br>SEPA-Überweisung</div>
+        <div class="pay-qr-lbl">{{ t.girocode }}<br>{{ t.sepa }}</div>
       </td>
       {% endif %}
     </tr>
@@ -456,26 +449,26 @@
   <table class="footer">
     <tr>
       <td style="padding-left:0">
-        <span class="fclbl">Adresse</span>
+        <span class="fclbl">{{ t.address }}</span>
         {{ cfg.business.address_line1 }}<br>
         {{ cfg.business.address_line2 }}{% if cfg.business.country %}, {{ cfg.business.country }}{% endif %}
       </td>
       {% if cfg.business.email or cfg.business.phone or cfg.business.website %}
       <td style="padding-left:4mm">
-        <span class="fclbl">Kontakt</span>
+        <span class="fclbl">{{ t.contact }}</span>
         {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
         {% if cfg.business.phone %}{{ cfg.business.phone }}<br>{% endif %}
         {% if cfg.business.website %}{{ cfg.business.website }}{% endif %}
       </td>
       {% endif %}
       <td style="padding-left:4mm">
-        <span class="fclbl">Steuer</span>
+        <span class="fclbl">{{ t.tax }}</span>
         {% if cfg.tax.mode == 'kleinunternehmer' %}StNr.: {{ cfg.tax.steuernummer }}
         {% elif cfg.tax.ust_idnr %}USt-IdNr.: {{ cfg.tax.ust_idnr }}{% endif %}
       </td>
       {% if cfg.invoice.iban %}
       <td style="padding-left:4mm; width:30mm">
-        <span class="fclbl">Bank</span>
+        <span class="fclbl">{{ t.bank }}</span>
         <span class="fiban">{{ cfg.invoice.iban }}</span>
         {% if cfg.invoice.bic %}<br>{{ cfg.invoice.bic }}{% endif %}
       </td>

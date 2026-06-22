@@ -535,6 +535,68 @@ def append_receipts_to_writer(writer, invoice, cfg=None):
                 pass
 
 
+# ── Translations ──────────────────────────────────────────────────────────────
+
+_TRANSLATIONS = {
+    "de": {
+        "invoice": "Rechnung", "quote": "Angebot", "receipt": "Quittung",
+        "from_lbl": "Von", "to_lbl": "An",
+        "doc_nr_lbl": "Rechnungsnummer",
+        "date": "Datum", "service_period": "Leistungszeitraum",
+        "service_date": "Leistungsdatum", "project": "Projekt",
+        "order_nr": "Bestell-Nr.", "position": "Position", "ref": "Verwendungszweck",
+        "pos": "Pos.", "description": "Beschreibung / Leistung",
+        "qty": "Menge", "unit": "Einheit",
+        "unit_price": "Einzelpreis", "total_col": "Gesamt",
+        "expense_reimb": "Auslagenersatz", "desc_short": "Beschreibung",
+        "amount": "Betrag",
+        "net": "Nettobetrag", "vat": "MwSt.", "total_amount": "Gesamtbetrag",
+        "ku_note": "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
+        "notes_lbl": "Anmerkungen",
+        "payment_received": "Zahlungseingang",
+        "payment_body": lambda amt, date, ref: (
+            f"Betrag von <strong>{amt}</strong> wurde beglichen."
+            + (f"<br>Zahlungsdatum: <strong>{date}</strong>" if date else "")
+            + f"<br>Verwendungszweck: {ref}"
+        ),
+        "paid_badge": "✓ BEZAHLT", "paid_watermark": "BEZAHLT",
+        "payment_info": "Zahlungsinformationen",
+        "please_pay": lambda amt, due: f"Bitte überweisen Sie <strong>{amt}</strong> bis zum <strong>{due}</strong>.",
+        "usage": "Verwendungszweck", "girocode": "GiroCode", "sepa": "SEPA-Überweisung",
+        "address": "Adresse", "contact": "Kontakt", "tax": "Steuer", "bank": "Bank",
+        "enclosure": "Anlage",
+    },
+    "en": {
+        "invoice": "Invoice", "quote": "Quote", "receipt": "Receipt",
+        "from_lbl": "From", "to_lbl": "To",
+        "doc_nr_lbl": "Invoice Number",
+        "date": "Date", "service_period": "Service Period",
+        "service_date": "Service Date", "project": "Project",
+        "order_nr": "Order No.", "position": "Role", "ref": "Reference",
+        "pos": "Item", "description": "Description / Service",
+        "qty": "Qty", "unit": "Unit",
+        "unit_price": "Unit Price", "total_col": "Total",
+        "expense_reimb": "Expense Reimbursement", "desc_short": "Description",
+        "amount": "Amount",
+        "net": "Net Amount", "vat": "VAT", "total_amount": "Total Amount",
+        "ku_note": "Pursuant to § 19 UStG (German VAT Act), no value-added tax is charged.",
+        "notes_lbl": "Notes",
+        "payment_received": "Payment Received",
+        "payment_body": lambda amt, date, ref: (
+            f"Payment of <strong>{amt}</strong> has been received."
+            + (f"<br>Payment Date: <strong>{date}</strong>" if date else "")
+            + f"<br>Reference: {ref}"
+        ),
+        "paid_badge": "✓ PAID", "paid_watermark": "PAID",
+        "payment_info": "Payment Information",
+        "please_pay": lambda amt, due: f"Please transfer <strong>{amt}</strong> by <strong>{due}</strong>.",
+        "usage": "Reference", "girocode": "GiroCode", "sepa": "SEPA Transfer",
+        "address": "Address", "contact": "Contact", "tax": "Tax", "bank": "Bank",
+        "enclosure": "Enclosure",
+    },
+}
+
+
 # ── PDF generation ────────────────────────────────────────────────────────────
 
 def make_pdf(invoice, client, cfg, project=None, anlage_nr=None):
@@ -543,10 +605,22 @@ def make_pdf(invoice, client, cfg, project=None, anlage_nr=None):
     logo_b64 = load_logo_b64(cfg)
     epc_qr   = make_epc_qr(cfg, invoice, totals) if invoice.get("type") == "invoice" else None
     inv_qr   = make_invoice_qr(invoice.get("id", ""))
+    lang     = invoice.get("language", "de")
+    t        = _TRANSLATIONS.get(lang, _TRANSLATIONS["de"])
 
     env = Environment(loader=FileSystemLoader(str(APP_DIR / "pdf_templates")))
     env.filters["eur"] = lambda v: fmt_eur(float(v or 0), cfg["invoice"]["currency_symbol"])
     env.filters["date_de"] = _date_de
+
+    # Pre-render the callable strings so the template stays simple
+    paid_date_fmt = _date_de(invoice.get("paid_date", ""))
+    total_fmt     = fmt_eur(totals["total"], cfg["invoice"]["currency_symbol"])
+    due_fmt       = _date_de(invoice.get("due_date", ""))
+    t_rendered    = dict(t)
+    t_rendered["payment_body_html"] = t["payment_body"](
+        total_fmt, paid_date_fmt, invoice.get("payment_ref") or invoice.get("id", "")
+    )
+    t_rendered["please_pay_html"] = t["please_pay"](total_fmt, due_fmt)
 
     tmpl = env.get_template("invoice.html")
     html = tmpl.render(
@@ -561,6 +635,8 @@ def make_pdf(invoice, client, cfg, project=None, anlage_nr=None):
         kleinunternehmer=cfg["tax"]["mode"] == "kleinunternehmer",
         now=datetime.now(),
         anlage_nr=anlage_nr,
+        t=t_rendered,
+        lang=lang,
     )
 
     if WEASYPRINT:
@@ -749,6 +825,7 @@ def invoice_new():
         "positions": [{"description": "", "quantity": 1, "unit": "Std.", "unit_price": ""}],
         "notes":              cfg["invoice"]["default_notes"],
         "mwst_rate":          cfg["tax"]["mwst_rate"],
+        "language":           "de",
     }
     return render_template("invoices/form.html", invoice=inv, clients=clients,
                            projects=projects, edit=False)
@@ -1027,6 +1104,7 @@ def _parse_invoice_form(form, cfg):
         "payment_ref":        form.get("payment_ref", ""),
         "mwst_rate":          float(form.get("mwst_rate") or cfg["tax"]["mwst_rate"]),
         "position_title":     form.get("position_title", ""),
+        "language":           form.get("language", "de"),
     }
     positions, i = [], 0
     while True:
@@ -1039,12 +1117,17 @@ def _parse_invoice_form(form, cfg):
         except ValueError:
             qty, price = 1.0, 0.0
         if desc.strip():  # skip blank rows
-            positions.append({
+            pos = {
                 "description": desc,
                 "quantity":    qty,
                 "unit":        form.get(f"positions[{i}][unit]", "Std."),
                 "unit_price":  price,
-            })
+            }
+            # Preserve Auslagenersatz metadata so receipt links survive edits
+            if form.get(f"positions[{i}][auslagenersatz]"):
+                pos["auslagenersatz"] = True
+                pos["expense_id"]     = form.get(f"positions[{i}][expense_id]", "")
+            positions.append(pos)
         i += 1
     data["positions"] = positions
     return data
