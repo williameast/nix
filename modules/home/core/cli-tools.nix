@@ -26,7 +26,6 @@
     rage
 
     # AI assistant
-    # TODO: claude-code 2.1.52 has packaging bug, keeping 2.0.55 from profile for now
-     inputs.claude-code.packages.${pkgs.system}.default
+    # inputs.claude-code.packages.${pkgs.system}.default
   ];
 }

@@ -23,7 +23,10 @@
     nix-flatpak.url = "github:gmodena/nix-flatpak";
 
     # Claude Code CLI
-    claude-code.url = "github:sadjow/claude-code-nix";
+    claude-code = {
+      url = "github:sadjow/claude-code-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
 
     # Claude Desktop (Linux) — pinned to last working build before 1.8089.1 tray patch broke
     claude-desktop.url = "github:aaddrick/claude-desktop-debian/ba2846c8b3e9";
