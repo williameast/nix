@@ -1,9 +1,11 @@
-# Firefox with WebGL and hardware acceleration for Pop!_OS (non-NixOS)
-# Uses nixGL wrapper for OpenGL support on AMD R9 290 (radeonsi driver)
+# Firefox with WebGL and hardware acceleration
+# Uses nixGL wrapper for OpenGL support on non-NixOS systems
 { config, pkgs, lib, inputs, ... }:
 
 let
   nixgl = inputs.nixgl.packages.${pkgs.system};
+  # Detect if we're on NixOS (where nixGL wrapper is not needed)
+  isNixOS = config.targets.genericLinux.enable == false;
 in {
   programs.firefox = {
     enable = true;
@@ -162,23 +164,25 @@ in {
     };
   };
 
-  # nixGL wrapper in ~/.local/bin takes precedence over ~/.nix-profile/bin
-  # This wraps the FINAL firefox (with all home-manager config) through nixGL
-  home.file.".local/bin/firefox" = {
+  # nixGL wrapper (only needed on non-NixOS systems like Pop!_OS)
+  # On NixOS, OpenGL works natively so we skip the wrapper
+  home.file.".local/bin/firefox" = lib.mkIf (!isNixOS) {
     executable = true;
     source = pkgs.writeShellScript "firefox-nixgl" ''
       exec ${nixgl.nixGLIntel}/bin/nixGLIntel ${config.programs.firefox.finalPackage}/bin/firefox "$@"
     '';
   };
 
-  # Keep nixGL available for wrapping other apps
-  home.packages = [ nixgl.nixGLIntel ];
+  # Keep nixGL available for wrapping other apps (non-NixOS only)
+  home.packages = lib.optionals (!isNixOS) [ nixgl.nixGLIntel ];
 
-  # Desktop entry that uses the nixGL wrapper (overrides the nix-profile one)
+  # Desktop entry - uses nixGL wrapper on non-NixOS, native binary on NixOS
   xdg.desktopEntries.firefox = {
     name = "Firefox";
     genericName = "Web Browser";
-    exec = "${config.home.homeDirectory}/.local/bin/firefox %U";
+    exec = if isNixOS
+      then "${config.programs.firefox.finalPackage}/bin/firefox %U"
+      else "${config.home.homeDirectory}/.local/bin/firefox %U";
     icon = "firefox";
     terminal = false;
     categories = [ "Network" "WebBrowser" ];
@@ -197,11 +201,15 @@ in {
     actions = {
       new-window = {
         name = "New Window";
-        exec = "${config.home.homeDirectory}/.local/bin/firefox --new-window %U";
+        exec = if isNixOS
+          then "${config.programs.firefox.finalPackage}/bin/firefox --new-window %U"
+          else "${config.home.homeDirectory}/.local/bin/firefox --new-window %U";
       };
       new-private-window = {
         name = "New Private Window";
-        exec = "${config.home.homeDirectory}/.local/bin/firefox --private-window %U";
+        exec = if isNixOS
+          then "${config.programs.firefox.finalPackage}/bin/firefox --private-window %U"
+          else "${config.home.homeDirectory}/.local/bin/firefox --private-window %U";
       };
     };
   };

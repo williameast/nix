@@ -28,14 +28,6 @@ in {
     ../../modules/home/machines/orr.nix
   ];
 
-  # Required for non-NixOS systems (Pop!_OS)
-  targets.genericLinux.enable = true;
-
-  # XDG data dirs for nix-installed apps to show in launcher
-  xdg.systemDirs.data = [
-    "${config.home.homeDirectory}/.nix-profile/share"
-  ];
-
   # AMD R9 290 specific settings
   home.sessionVariables = {
     # VA-API driver for hardware video acceleration

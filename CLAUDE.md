@@ -7,12 +7,12 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 ## Key Goals
 1. **XDG compliance** - Keep home directory clean, all config in `~/.config/`
 2. **Flakes only** - No channels, no `builtins.fetchTarball`
-3. **WebGL working** - Firefox must have hardware acceleration (AMD R9 290 + nixGL)
+3. **WebGL working** - Firefox with hardware acceleration (nixGL on Pop!_OS, native on NixOS)
 4. **Modular** - Self-contained modules, easy to enable/disable features
 
 ## Machines
 ### orr (desktop)
-- **OS:** Pop!_OS 22.04 (Ubuntu-based, NOT NixOS)
+- **OS:** NixOS 25.11
 - **GPU:** AMD Radeon R9 290 (radeonsi driver)
 - **Modules:** core, desktop, dev, media, games, modelling
 
@@ -22,7 +22,7 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 - **Modules:** core, desktop, dev, media
 
 ### milo (server)
-- **OS:** Pop!_OS 22.04 (Ubuntu-based, NOT NixOS)
+- **OS:** NixOS 25.11
 - **Role:** Headless server (Proxmox/Docker host)
 - **Modules:** core (minimal: shell, git, cli-tools, syncthing), secrets
 
@@ -30,20 +30,23 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 
 ## Commands
 ```bash
-# Build and switch (orr)
-home-manager switch --flake .#weast@orr
+# Build and switch (orr - NixOS)
+sudo nixos-rebuild switch --flake .#orr
 
-# Build and switch (yossarian)
+# Build and switch (yossarian - Home Manager standalone)
 home-manager switch --flake .#weast@yossarian
 
 # Build and switch (milo - NixOS)
 sudo nixos-rebuild switch --flake .#milo
 
-# Test build without switching
-home-manager build --flake .#weast@orr
+# Test build without switching (orr)
+sudo nixos-rebuild build --flake .#orr
+
+# Test build without switching (yossarian)
+home-manager build --flake .#weast@yossarian
 
 # Debug
-home-manager switch --flake .#weast@orr --show-trace
+sudo nixos-rebuild switch --flake .#orr --show-trace
 ```
 
 ## Syncthing Configuration
@@ -171,8 +174,9 @@ Phone connects to milo only — same security model as other spokes.
 - [x] Switched to new flake-based config
 - [x] Shell (zsh) working with XDG-compliant paths (~/.config/zsh/)
 - [x] Core packages available (firefox, emacs, bat, fzf, etc.)
-- [x] Firefox WebGL 1 & 2 working via nixGL wrapper (~/.local/bin/firefox)
+- [x] Firefox WebGL 1 & 2 working (nixGL on Pop!_OS, native on NixOS)
 - [x] Syncthing with declarative hub-and-spoke config (security-isolated, milo as ingress)
+- [x] Migrated orr from Pop!_OS to NixOS (nixGL wrappers now conditional)
 
 ### In Progress
 - [ ] Verify all packages from old config are migrated
