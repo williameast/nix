@@ -4,7 +4,7 @@
 {
   programs.rofi = {
     enable = true;
-    package = pkgs.rofi-wayland;  # Wayland-native rofi
+    package = pkgs.rofi;  # Wayland-native rofi
 
     terminal = "${pkgs.alacritty}/bin/alacritty";
 
