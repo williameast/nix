@@ -5,5 +5,7 @@
   imports = [
     ./firefox.nix
     ./scanning.nix
+    ./niri.nix
+    ./rofi.nix
   ];
 }

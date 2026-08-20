@@ -40,20 +40,8 @@
         config.allowUnfree = true;
       };
     in {
-      # Home Manager configurations (for non-NixOS systems: yossarian)
-      homeConfigurations."weast@yossarian" = home-manager.lib.homeManagerConfiguration {
-        inherit pkgs;
-
-        # Pass inputs to all modules
-        extraSpecialArgs = { inherit inputs; };
-
-        modules = [
-          ./hosts/yossarian/default.nix
-        ];
-      };
-
       # NixOS system configurations
-      # Note: NixOS hosts use home-manager as a NixOS module (config in hosts/*/home.nix)
+      # Note: All hosts use home-manager as a NixOS module (config in hosts/*/home.nix)
       nixosConfigurations.orr = nixpkgs.lib.nixosSystem {
         inherit system;
 
@@ -61,6 +49,16 @@
 
         modules = [
           ./hosts/orr/configuration.nix
+        ];
+      };
+
+      nixosConfigurations.yossarian = nixpkgs.lib.nixosSystem {
+        inherit system;
+
+        specialArgs = { inherit inputs; };
+
+        modules = [
+          ./hosts/yossarian/configuration.nix
         ];
       };
 

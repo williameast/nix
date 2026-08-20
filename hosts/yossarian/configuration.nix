@@ -1,4 +1,4 @@
-# NixOS configuration for orr (desktop workstation with AMD R9 290)
+# NixOS configuration for yossarian (laptop with Intel CometLake-U GT2)
 { config, pkgs, lib, inputs, ... }:
 
 {
@@ -13,16 +13,13 @@
     ../../modules/nixos/common.nix
     ../../modules/nixos/users.nix
 
-    # Desktop
-    ../../modules/nixos/desktop/niri.nix
-
     # Networking
     ../../modules/nixos/networking/tailscale.nix
     ../../modules/nixos/networking/avahi.nix
   ];
 
   # Hostname
-  networking.hostName = "orr";
+  networking.hostName = "yossarian";
 
   # Boot loader
   boot.loader.systemd-boot.enable = true;
@@ -32,15 +29,15 @@
   networking.networkmanager.enable = true;
 
   # Time zone
-  time.timeZone = "Europe/Berlin";
+  time.timeZone = "Europe/Amsterdam";
 
   # Locale
   i18n.defaultLocale = "en_US.UTF-8";
 
-  # AMD CPU microcode updates
-  hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
+  # Intel CPU microcode updates
+  hardware.cpu.intel.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 
-  # Graphics (AMD R9 290)
+  # Graphics (Intel integrated)
   hardware.graphics.enable = true;
 
   # Enable OpenSSH daemon

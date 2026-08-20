@@ -21,14 +21,6 @@ in {
     ../../modules/home/machines/yossarian.nix
   ];
 
-  # Required for non-NixOS systems
-  targets.genericLinux.enable = true;
-
-  # XDG data dirs for nix-installed apps to show in launcher
-  xdg.systemDirs.data = [
-    "${config.home.homeDirectory}/.nix-profile/share"
-  ];
-
   # Intel integrated GPU settings
   home.sessionVariables = {
     # VA-API driver for hardware video acceleration
