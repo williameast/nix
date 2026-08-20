@@ -14,12 +14,14 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 ### orr (desktop)
 - **OS:** NixOS 25.11
 - **GPU:** AMD Radeon R9 290 (radeonsi driver)
-- **Modules:** core, desktop, dev, media, games, modelling
+- **Desktop:** Niri (Wayland compositor)
+- **Modules:** core, desktop (niri, rofi), dev, media, games, modelling, work
 
 ### yossarian (laptop)
-- **OS:** Pop!_OS 22.04 (Ubuntu-based, NOT NixOS)
+- **OS:** NixOS 25.11
 - **GPU:** Intel CometLake-U GT2 (iHD driver)
-- **Modules:** core, desktop, dev, media
+- **Desktop:** Niri (Wayland compositor)
+- **Modules:** core, desktop (niri, rofi), dev, media, work
 
 ### milo (server)
 - **OS:** NixOS 25.11

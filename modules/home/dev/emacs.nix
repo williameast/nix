@@ -4,7 +4,7 @@
 
 let
   doomRepoUrl = "https://github.com/doomemacs/doomemacs";
-  doomConfigUrl = "git@github.com:williameast/doom.git";
+  doomConfigUrl = "https://github.com/williameast/doom.git";
   emacsDir = "${config.home.homeDirectory}/.config/emacs";
   doomDir = "${config.home.homeDirectory}/.config/doom";
 in {
