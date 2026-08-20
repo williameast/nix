@@ -26,6 +26,6 @@
     rage
 
     # AI assistant
-    # inputs.claude-code.packages.${pkgs.system}.default
+    inputs.claude-code.packages.${pkgs.system}.default
   ];
 }

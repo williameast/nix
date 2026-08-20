@@ -7,8 +7,9 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 ## Key Goals
 1. **XDG compliance** - Keep home directory clean, all config in `~/.config/`
 2. **Flakes only** - No channels, no `builtins.fetchTarball`
-3. **WebGL working** - Firefox with hardware acceleration (nixGL on Pop!_OS, native on NixOS)
+3. **WebGL working** - Firefox with native hardware acceleration on NixOS
 4. **Modular** - Self-contained modules, easy to enable/disable features
+5. **Pure NixOS** - All hosts fully migrated from Pop!_OS to NixOS
 
 ## Machines
 ### orr (desktop)
@@ -35,17 +36,14 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 # Build and switch (orr - NixOS)
 sudo nixos-rebuild switch --flake .#orr
 
-# Build and switch (yossarian - Home Manager standalone)
-home-manager switch --flake .#weast@yossarian
+# Build and switch (yossarian - NixOS)
+sudo nixos-rebuild switch --flake .#yossarian
 
 # Build and switch (milo - NixOS)
 sudo nixos-rebuild switch --flake .#milo
 
-# Test build without switching (orr)
+# Test build without switching
 sudo nixos-rebuild build --flake .#orr
-
-# Test build without switching (yossarian)
-home-manager build --flake .#weast@yossarian
 
 # Debug
 sudo nixos-rebuild switch --flake .#orr --show-trace
@@ -171,14 +169,17 @@ Phone connects to milo only — same security model as other spokes.
 **Last updated:** 2026-02-20
 
 ### Completed
-- [x] Phase 1: Bootstrap - flake.nix with inputs (nixpkgs, home-manager, nixgl, nur)
+- [x] Phase 1: Bootstrap - flake.nix with inputs (nixpkgs, home-manager, nur)
 - [x] Module structure created (core, desktop, dev, media, machines)
 - [x] Switched to new flake-based config
 - [x] Shell (zsh) working with XDG-compliant paths (~/.config/zsh/)
 - [x] Core packages available (firefox, emacs, bat, fzf, etc.)
-- [x] Firefox WebGL 1 & 2 working (nixGL on Pop!_OS, native on NixOS)
+- [x] Firefox WebGL 1 & 2 working with native hardware acceleration
 - [x] Syncthing with declarative hub-and-spoke config (security-isolated, milo as ingress)
-- [x] Migrated orr from Pop!_OS to NixOS (nixGL wrappers now conditional)
+- [x] Migrated all hosts (orr, yossarian, milo) to NixOS 25.11
+- [x] Removed all nixGL wrappers (pure NixOS now)
+- [x] Added Niri compositor with rofi launcher
+- [x] Fixed Doom Emacs config to use HTTPS clone
 
 ### In Progress
 - [ ] Verify all packages from old config are migrated
