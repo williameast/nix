@@ -15,7 +15,7 @@
         with inputs.nur.legacyPackages.${pkgs.system}.repos.rycee.firefox-addons; [
           ublock-origin
           keepassxc-browser
-          # darkreader
+          darkreader
           sidebery
           clearurls
         ];
@@ -137,6 +137,7 @@
 
         # Misc
         "devtools.theme" = "dark";
+        "ui.systemUsesDarkTheme" = 1;
         "browser.sessionstore.interval" = "1800000";
         "dom.battery.enabled" = false;
         "beacon.enabled" = false;

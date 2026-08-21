@@ -12,9 +12,6 @@
     # File browser
     sushi
 
-    # Communications
-    thunderbird
-
     # Utilities
     gnutls
     powertop
@@ -51,4 +48,5 @@
 
   # Syncthing service
   services.syncthing.enable = true;
+
 }

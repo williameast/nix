@@ -4,6 +4,7 @@
 {
   users.users.weast = {
     isNormalUser = true;
+    shell = pkgs.zsh;
     extraGroups = [ "wheel" ];  # wheel = sudo access
     initialPassword = "changeme";  # Change this after first login with 'passwd'
     openssh.authorizedKeys.keys = [

@@ -47,8 +47,9 @@ in {
   # Clone Doom Emacs and user config on activation
   home.activation = {
     installDoomEmacs = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      # Clone Doom Emacs if not present
-      if [ ! -d "${emacsDir}" ]; then
+      # Clone Doom Emacs if bin/doom is not present
+      if [ ! -f "${emacsDir}/bin/doom" ]; then
+        $DRY_RUN_CMD rm -rf "${emacsDir}"
         $DRY_RUN_CMD ${pkgs.git}/bin/git clone --depth 1 ${doomRepoUrl} "${emacsDir}"
         echo "Doom Emacs cloned. Run 'doom install' to complete setup."
       fi

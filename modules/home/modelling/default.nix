@@ -37,6 +37,7 @@
     blender
     printrun
     inkscape
+    orca-slicer
   ];
 
 }

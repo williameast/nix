@@ -4,15 +4,62 @@
 {
   home.packages = with pkgs; [
     niri
-    alacritty       # Terminal emulator
     # Niri utilities
-    waybar          # Status bar
-    mako            # Notification daemon
-    swaylock        # Screen locker
-    grim            # Screenshot tool
-    slurp           # Region selector
-    wl-clipboard    # Clipboard utilities
+    noctalia-shell       # Desktop shell (bar, notifications, dock, control centre)
+    xwayland-satellite   # XWayland support (auto-integrated by niri 25.08+)
+    swaylock             # Screen locker
+    grim                 # Screenshot tool
+    slurp                # Region selector
+    wl-clipboard         # Clipboard utilities
+    # File manager
+    thunar
+    thunar-archive-plugin
+    thunar-volman
+    file-roller  # Archive GUI + backend for thunar-archive-plugin
+    unzip        # CLI zip extraction
   ];
+
+  # Terminal with transparency
+  programs.alacritty = {
+    enable = true;
+    settings = {
+      window = {
+        opacity = 0.85;
+        padding = { x = 8; y = 8; };
+      };
+      font = {
+        normal.family = "JetBrains Mono";
+        size = 12;
+      };
+    };
+  };
+
+  # GTK theme and icons
+  gtk = {
+    enable = true;
+    theme = {
+      name = "Adwaita-dark";
+      package = pkgs.gnome-themes-extra;
+    };
+    iconTheme = {
+      name = "Papirus-Dark";
+      package = pkgs.papirus-icon-theme;
+    };
+    cursorTheme = {
+      name = "Adwaita";
+      size = 24;
+    };
+  };
+
+  # Qt theme (for KeePassXC and other Qt apps)
+  qt = {
+    enable = true;
+    platformTheme.name = "adwaita";
+    style = {
+      name = "adwaita-dark";
+      package = pkgs.adwaita-qt;
+    };
+  };
 
   # Niri configuration
   xdg.configFile."niri/config.kdl".text = ''
@@ -23,6 +70,7 @@
         keyboard {
             xkb {
                 layout "us"
+                options "caps:escape"
             }
         }
 
@@ -71,6 +119,8 @@
 
     screenshot-path "~/Pictures/Screenshots/screenshot-%Y-%m-%d_%H-%M-%S.png"
 
+    spawn-at-startup "noctalia-shell"
+
     // Hotkey mod is Super
     hotkey-overlay {
         skip-at-startup
@@ -80,6 +130,7 @@
         // Mod key
         Mod+Return { spawn "alacritty"; }
         Mod+D { spawn "rofi" "-show" "drun"; }
+        Mod+E { spawn "thunar"; }
         Mod+Q { close-window; }
 
         // Screenshots
@@ -188,18 +239,6 @@
     ring-wrong-color=f38ba8
     inside-wrong-color=1e1e2e
   '';
-
-  # Mako notification daemon config
-  services.mako = {
-    enable = true;
-    backgroundColor = "#1e1e2e";
-    textColor = "#cdd6f4";
-    borderColor = "#89b4fa";
-    borderRadius = 8;
-    borderSize = 2;
-    defaultTimeout = 5000;
-    font = "Inter 11";
-  };
 
   # Create screenshots directory
   home.file."Pictures/Screenshots/.keep".text = "";

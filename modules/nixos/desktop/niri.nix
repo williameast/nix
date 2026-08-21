@@ -10,7 +10,7 @@
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.greetd.tuigreet}/bin/tuigreet --time --cmd niri-session";
+        command = "${pkgs.tuigreet}/bin/tuigreet --time --cmd niri-session";
         user = "greeter";
       };
     };
@@ -24,6 +24,12 @@
     config.common.default = "*";
   };
 
+  # GVFS (trash, network shares, MTP for Thunar)
+  services.gvfs.enable = true;
+
+  # Tumbler (thumbnail service for Thunar)
+  services.tumbler.enable = true;
+
   # Enable sound
   services.pipewire = {
     enable = true;
@@ -35,6 +41,7 @@
   # Fonts
   fonts.packages = with pkgs; [
     inter
+    jetbrains-mono
     noto-fonts
     noto-fonts-color-emoji
     font-awesome

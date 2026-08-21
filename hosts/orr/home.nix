@@ -25,6 +25,7 @@ in {
     ../../modules/home/games
     ../../modules/home/modelling
     ../../modules/home/work
+    ../../modules/home/comms
     ../../modules/home/machines/orr.nix
   ];
 

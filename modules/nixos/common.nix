@@ -35,6 +35,9 @@
     tmux
   ];
 
+  # Zsh as login shell
+  programs.zsh.enable = true;
+
   # Enable SSH
   services.openssh = {
     enable = true;

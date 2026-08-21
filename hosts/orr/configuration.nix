@@ -40,8 +40,19 @@
   # AMD CPU microcode updates
   hardware.cpu.amd.updateMicrocode = lib.mkDefault config.hardware.enableRedistributableFirmware;
 
+  # Flatpak (system-level, needed for XDG_DATA_DIRS so launchers see Flatpak apps)
+  services.flatpak.enable = true;
+
+  # Bluetooth
+  hardware.bluetooth.enable = true;
+  services.blueman.enable = true;  # GUI manager (blueman-manager / system tray)
+
   # Graphics (AMD R9 290)
   hardware.graphics.enable = true;
+  hardware.graphics.enable32Bit = true;  # Required for Steam 32-bit games
+
+  # Steam (must be at NixOS level for proper runtime/OpenGL setup)
+  programs.steam.enable = true;
 
   # Enable OpenSSH daemon
   services.openssh.enable = true;

@@ -18,6 +18,7 @@ in {
     ../../modules/home/media
     # ../../modules/home/games       # Uncomment if you want games on laptop
     # ../../modules/home/modelling   # Uncomment if you want CAD on laptop
+    ../../modules/home/comms
     ../../modules/home/machines/yossarian.nix
   ];
 

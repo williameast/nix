@@ -35,18 +35,11 @@
         self=$(hostname -s)
 
         case "$target" in
-          orr|yossarian)
+          orr|yossarian|milo)
             if [[ "$self" == "$target" ]]; then
-              home-manager switch --flake "$flake#weast@$target"
+              sudo nixos-rebuild switch --flake "$flake#$target"
             else
-              ssh "$target" "home-manager switch --flake ~/.config/nix-config#weast@$target"
-            fi
-            ;;
-          milo)
-            if [[ "$self" == "milo" ]]; then
-              sudo nixos-rebuild switch --flake "$flake#milo"
-            else
-              ssh milo "sudo nixos-rebuild switch --flake ~/.config/nix-config#milo"
+              ssh "$target" "sudo nixos-rebuild switch --flake ~/.config/nix-config#$target"
             fi
             ;;
           *)
