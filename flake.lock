@@ -223,86 +223,6 @@
         "type": "github"
       }
     },
-    "freecad-fasteners": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1789064160,
-        "narHash": "sha256-5Thrf7AnyXZJfn2nguEmCT+Q0wXNcnKvWzOtwsnIeHI=",
-        "owner": "shaise",
-        "repo": "FreeCAD_FastenersWB",
-        "rev": "fddd07af422b7d3a69098b32333711c5eeae184c",
-        "type": "github"
-      },
-      "original": {
-        "owner": "shaise",
-        "repo": "FreeCAD_FastenersWB",
-        "type": "github"
-      }
-    },
-    "freecad-opentheme": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1779747123,
-        "narHash": "sha256-1f0E2C4/KfA/wNh2xUYpFMfW6cTcyDMLhPOZ4i/9yU4=",
-        "owner": "obelisk79",
-        "repo": "OpenTheme",
-        "rev": "76c8655bf8d17f5870f365aefa6dd84e871b2810",
-        "type": "github"
-      },
-      "original": {
-        "owner": "obelisk79",
-        "repo": "OpenTheme",
-        "type": "github"
-      }
-    },
-    "freecad-parts-library": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1785449210,
-        "narHash": "sha256-TSpq6A+H3NIfDieuEZ3lWdmKVGabfj04njHqv6CEj+Y=",
-        "owner": "FreeCAD",
-        "repo": "FreeCAD-library",
-        "rev": "be5e71491051cef75da46831b6fd77c6313cb497",
-        "type": "github"
-      },
-      "original": {
-        "owner": "FreeCAD",
-        "repo": "FreeCAD-library",
-        "type": "github"
-      }
-    },
-    "freecad-sheetmetal": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1789895232,
-        "narHash": "sha256-Edb7UVc5yqRzejT2e+uRfVx1Kta0vit/MJJ8MRPdpo4=",
-        "owner": "shaise",
-        "repo": "FreeCAD_SheetMetal",
-        "rev": "3141e205ea340d68e69ff0e257a44e27d9bcb591",
-        "type": "github"
-      },
-      "original": {
-        "owner": "shaise",
-        "repo": "FreeCAD_SheetMetal",
-        "type": "github"
-      }
-    },
-    "freecad-woodworking": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1785579320,
-        "narHash": "sha256-i5MwrIAncimR+7TRT6L0CQuQqpBWrENdN8v9DGZ0Yo0=",
-        "owner": "dprojects",
-        "repo": "Woodworking",
-        "rev": "5dd233266db8fc90c18c88a5db8d92fe97ed9660",
-        "type": "github"
-      },
-      "original": {
-        "owner": "dprojects",
-        "repo": "Woodworking",
-        "type": "github"
-      }
-    },
     "git-hooks": {
       "inputs": {
         "flake-compat": "flake-compat_2",
@@ -562,11 +482,6 @@
         "affinity-nix": "affinity-nix",
         "claude-code": "claude-code",
         "claude-desktop": "claude-desktop",
-        "freecad-fasteners": "freecad-fasteners",
-        "freecad-opentheme": "freecad-opentheme",
-        "freecad-parts-library": "freecad-parts-library",
-        "freecad-sheetmetal": "freecad-sheetmetal",
-        "freecad-woodworking": "freecad-woodworking",
         "home-manager": "home-manager",
         "nixgl": "nixgl",
         "nixpkgs": "nixpkgs_5",

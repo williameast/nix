@@ -30,14 +30,6 @@
 
     # Affinity suite for Linux
     affinity-nix.url = "github:mrshmllow/affinity-nix";
-
-    # FreeCAD addons (symlinked into ~/.local/share/FreeCAD/Mod/)
-    freecad-sheetmetal = { url = "github:shaise/FreeCAD_SheetMetal"; flake = false; };
-    freecad-fasteners = { url = "github:shaise/FreeCAD_FastenersWB"; flake = false; };
-    freecad-woodworking = { url = "github:dprojects/Woodworking"; flake = false; };
-    freecad-opentheme = { url = "github:obelisk79/OpenTheme"; flake = false; };
-    # Parts Library (several GB)
-    freecad-parts-library = { url = "github:FreeCAD/FreeCAD-library"; flake = false; };
   };
 
   outputs = { self, nixpkgs, home-manager, nixgl, nur, ... }@inputs:

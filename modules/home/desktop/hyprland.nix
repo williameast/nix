@@ -126,7 +126,12 @@
 
       # ── Autostart ──
       exec-once = [
-        "hyprpaper"
+        "${pkgs.writeShellScript "start-hyprpaper" ''
+          hyprpaper &
+          sleep 1
+          hyprctl hyprpaper preload ~/.config/hypr/wallpaper.jpg
+          hyprctl hyprpaper wallpaper ,~/.config/hypr/wallpaper.jpg
+        ''}"
         "waybar"
         "swaync"
         "nm-applet --indicator"
@@ -856,7 +861,7 @@
     wp = "${config.home.homeDirectory}/.config/hypr/wallpaper.jpg";
   in ''
     preload = ${wp}
-    wallpaper = DP-2,${wp}
+    wallpaper = ,${wp}
     splash = false
   '';
 
