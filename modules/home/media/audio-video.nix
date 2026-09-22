@@ -12,5 +12,6 @@
     vlc
     yt-dlp
     ffmpeg
+    davinci-resolve
   ];
 }

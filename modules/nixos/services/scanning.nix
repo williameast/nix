@@ -12,7 +12,7 @@
       enable = true;
       netDevices."Brother-L2520DW" = {
         model = "DCP-L2520DW";
-        ip = "192.168.178.39";
+        ip = "192.168.178.52";
       };
     };
   };

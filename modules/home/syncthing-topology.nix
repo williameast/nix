@@ -15,7 +15,7 @@ let
 
   machines = {
     orr = {
-      deviceId = "6CAAUBX-ZWSS2NP-UB24GXN-376QXI3-XLGYUEU-X6MP2TQ-GBZRKDJ-EKAOIAT";
+      deviceId = "IH45LKL-MI7ROYF-SDMN6RO-6DCJIX7-PMC4FBN-W7IOTKP-JNYOLOE-SUSNDQ5";
       addresses = [ "tcp://orr:22000" "dynamic" ];
     };
     yossarian = {

@@ -5,7 +5,6 @@
 {
   home.packages = with pkgs; [
     # 42 Berlin specific tools
-    norminette
     valgrind
     gdb
 
@@ -16,7 +15,6 @@
     gnutls
     powertop
     ddrescue # Data recovery from failing drives
-    wine
     autokey
 
     # Network
@@ -37,14 +35,7 @@
 
     # Claude Desktop
     inputs.claude-desktop.packages.${pkgs.system}.claude-desktop-fhs
-
   ];
-
-  # 42-specific shell aliases
-  programs.zsh.shellAliases = {
-    ccw = "cc -Wextra -Werror -Wall";
-    norm = "norminette";
-  };
 
   # Syncthing service
   services.syncthing.enable = true;

@@ -8,11 +8,8 @@
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
-  # Auto-upgrade
-  system.autoUpgrade = {
-    enable = true;
-    allowReboot = false;  # Set to true if you want automatic reboots
-  };
+  # Auto-upgrade disabled - managed manually via the rebuild alias
+  # system.autoUpgrade.enable = true;
 
   # Automatic garbage collection
   nix.gc = {

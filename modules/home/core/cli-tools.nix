@@ -21,6 +21,7 @@
 
     # System monitoring
     htop
+    psmisc  # killall, fuser, pstree
 
     # Secrets
     rage

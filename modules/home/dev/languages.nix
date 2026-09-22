@@ -13,10 +13,10 @@
 
     # JavaScript/TypeScript
     nodejs
-    nodePackages.js-beautify
-    nodePackages.vscode-langservers-extracted
-    nodePackages.bash-language-server
-    nodePackages.prettier
+    js-beautify
+    vscode-langservers-extracted
+    bash-language-server
+    prettier
 
     # HTML/CSS
     html-tidy
@@ -29,7 +29,7 @@
     # nixfmt TODO not working?
 
     # LaTeX
-    texlive.combined.scheme-full
+    texliveSmall
     pandoc
 
     # R

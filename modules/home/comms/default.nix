@@ -2,6 +2,10 @@
 { config, pkgs, lib, ... }:
 
 {
+  home.packages = with pkgs; [
+    external-editor-revived  # Native messaging host for editing emails in Emacs
+  ];
+
   programs.thunderbird = {
     enable = true;
     profiles.default.isDefault = true;

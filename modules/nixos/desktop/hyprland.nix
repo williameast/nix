@@ -1,16 +1,16 @@
-# NixOS-level configuration for Niri compositor
+# NixOS-level configuration for Hyprland compositor
 { config, pkgs, lib, ... }:
 
 {
-  # Enable Niri
-  programs.niri.enable = true;
+  # Enable Hyprland
+  programs.hyprland.enable = true;
 
-  # Required services for Wayland compositors
+  # Greeter - launches Hyprland session
   services.greetd = {
     enable = true;
     settings = {
       default_session = {
-        command = "${pkgs.tuigreet}/bin/tuigreet --time --cmd niri-session";
+        command = "${pkgs.tuigreet}/bin/tuigreet --time --cmd start-hyprland";
         user = "greeter";
       };
     };
@@ -19,8 +19,10 @@
   # Enable XDG portal for screen sharing, etc.
   xdg.portal = {
     enable = true;
-    wlr.enable = true;
-    extraPortals = [ pkgs.xdg-desktop-portal-gtk ];
+    extraPortals = [
+      pkgs.xdg-desktop-portal-hyprland
+      pkgs.xdg-desktop-portal-gtk
+    ];
     config.common.default = "*";
   };
 

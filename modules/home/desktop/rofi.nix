@@ -4,11 +4,10 @@
 {
   programs.rofi = {
     enable = true;
-    package = pkgs.rofi;  # Wayland-native rofi
+    package = pkgs.rofi;  # Wayland-native rofi (rofi-wayland merged upstream)
 
-    terminal = "${pkgs.alacritty}/bin/alacritty";
-
-    extraConfig = {
+    settings = {
+      terminal = "${pkgs.alacritty}/bin/alacritty";
       modi = "drun,run,window,ssh";
       show-icons = true;
       drun-display-format = "{name}";
@@ -25,14 +24,14 @@
       inherit (config.lib.formats.rasi) mkLiteral;
     in {
       "*" = {
-        bg-col = mkLiteral "#1e1e2e";
-        bg-col-light = mkLiteral "#313244";
-        border-col = mkLiteral "#89b4fa";
-        selected-col = mkLiteral "#45475a";
-        blue = mkLiteral "#89b4fa";
-        fg-col = mkLiteral "#cdd6f4";
-        fg-col2 = mkLiteral "#f38ba8";
-        grey = mkLiteral "#6c7086";
+        bg-col = mkLiteral "#141118";
+        bg-col-light = mkLiteral "#3d2a42";
+        border-col = mkLiteral "#d4434a";
+        selected-col = mkLiteral "#5a3a50";
+        accent = mkLiteral "#d4434a";
+        fg-col = mkLiteral "#c0b8c8";
+        fg-col2 = mkLiteral "#e06c75";
+        grey = mkLiteral "#7a6880";
         width = 600;
       };
 
@@ -61,7 +60,7 @@
       };
 
       "prompt" = {
-        background-color = mkLiteral "@blue";
+        background-color = mkLiteral "@accent";
         padding = mkLiteral "6px";
         text-color = mkLiteral "@bg-col";
         border-radius = mkLiteral "3px";
@@ -117,7 +116,7 @@
 
       "button selected" = {
         background-color = mkLiteral "@bg-col";
-        text-color = mkLiteral "@blue";
+        text-color = mkLiteral "@accent";
       };
 
       "message" = {

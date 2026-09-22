@@ -8,36 +8,23 @@
 }:
 
 {
-  imports = [
-    inputs.nix-flatpak.homeManagerModules.nix-flatpak
-  ];
-
-  # Flatpak configuration
-  services.flatpak = {
-    enable = true;
-    remotes = [
-      {
-        name = "flathub";
-        location = "https://dl.flathub.org/repo/flathub.flatpakrepo";
-      }
-    ];
-    packages = [
-      "org.freecadweb.FreeCAD"
-      "com.bambulab.BambuStudio"
-    ];
-    update.auto = {
-      enable = true;
-      onCalendar = "weekly";
-    };
-  };
-
-  # Nix packages (OpenSCAD still works from nixpkgs)
   home.packages = with pkgs; [
+    freecad-wayland
+    bambu-studio
     openscad
     blender
     printrun
     inkscape
     orca-slicer
   ];
+
+  # FreeCAD addons (symlinked into Mod/ so they're always available)
+  home.file = {
+    ".local/share/FreeCAD/Mod/SheetMetal".source = inputs.freecad-sheetmetal;
+    ".local/share/FreeCAD/Mod/Fasteners".source = inputs.freecad-fasteners;
+    ".local/share/FreeCAD/Mod/Woodworking".source = inputs.freecad-woodworking;
+    ".local/share/FreeCAD/Mod/OpenTheme".source = inputs.freecad-opentheme;
+    ".local/share/FreeCAD/Mod/PartsLibrary".source = inputs.freecad-parts-library;
+  };
 
 }

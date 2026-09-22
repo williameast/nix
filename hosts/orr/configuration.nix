@@ -14,18 +14,25 @@
     ../../modules/nixos/users.nix
 
     # Desktop
-    ../../modules/nixos/desktop/niri.nix
+    ../../modules/nixos/desktop/hyprland.nix
 
     # Networking
     ../../modules/nixos/networking/tailscale.nix
     ../../modules/nixos/networking/avahi.nix
+
+    # Scanning (Brother DCP-L2520DW on LAN)
+    ../../modules/nixos/services/scanning.nix
   ];
+
+  # Affinity overlay (adds affinity-designer, affinity-photo, affinity-publisher to pkgs)
+  nixpkgs.overlays = [ inputs.affinity-nix.overlays.default ];
 
   # Hostname
   networking.hostName = "orr";
 
   # Boot loader
   boot.loader.systemd-boot.enable = true;
+  boot.loader.systemd-boot.configurationLimit = 5;
   boot.loader.efi.canTouchEfiVariables = true;
 
   # Network manager for easy network config
@@ -53,6 +60,18 @@
 
   # Steam (must be at NixOS level for proper runtime/OpenGL setup)
   programs.steam.enable = true;
+
+  # Printing (Brother DCP-L2520DW on LAN)
+  services.printing = {
+    enable = true;
+    drivers = [ pkgs.brlaser ];
+  };
+
+  # Swap (swapfile — no repartitioning needed)
+  swapDevices = [{
+    device = "/swapfile";
+    size = 32 * 1024;  # 32GB — matches RAM for hibernate support
+  }];
 
   # Enable OpenSSH daemon
   services.openssh.enable = true;

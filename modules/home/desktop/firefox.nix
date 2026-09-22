@@ -4,6 +4,7 @@
 {
   programs.firefox = {
     enable = true;
+    configPath = ".mozilla/firefox";  # keep legacy path
 
     # Use NUR for Firefox extensions
     profiles.default = {
