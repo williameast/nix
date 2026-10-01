@@ -125,6 +125,13 @@
               icon = "syncthing";
             };
           }
+          {
+            "ntfy" = {
+              href = "http://milo:2586";
+              description = "Push notifications";
+              icon = "ntfy";
+            };
+          }
           { "Scanner" = { description = "Brother DCP-L2520DW — use simple-scan on desktop"; }; }
         ];
       }

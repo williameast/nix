@@ -78,5 +78,4 @@ in {
     "d '${dataDir}/uploads'        0750 buero buero -"
   ];
 
-  networking.firewall.allowedTCPPorts = [ 5055 ];
 }
