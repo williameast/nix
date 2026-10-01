@@ -7,5 +7,6 @@
     ./scanning.nix
     ./hyprland.nix
     ./rofi.nix
+    ./ntfy-subscribe.nix
   ];
 }

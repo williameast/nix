@@ -33,7 +33,7 @@
       # ── Input ──
       input = {
         kb_layout = "gb,de";
-        kb_options = "caps:escape,grp:alt_shift_toggle";
+        kb_options = "caps:escape,grp:win_space_toggle";
 
         touchpad = {
           tap-to-click = true;
