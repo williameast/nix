@@ -8,5 +8,6 @@
     ./git.nix
     ./cli-tools.nix
     ./syncthing.nix
+    ./torrent-watcher.nix
   ];
 }
