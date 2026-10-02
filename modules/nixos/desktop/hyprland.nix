@@ -47,5 +47,6 @@
     noto-fonts
     noto-fonts-color-emoji
     font-awesome
+    nerd-fonts.symbols-only  # Waybar icons
   ];
 }

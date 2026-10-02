@@ -6,6 +6,7 @@
     ./firefox.nix
     ./scanning.nix
     ./hyprland.nix
+    ./waybar.nix
     ./rofi.nix
     ./ntfy-subscribe.nix
   ];

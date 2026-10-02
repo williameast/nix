@@ -10,7 +10,7 @@
     wl-clipboard         # Clipboard utilities
     google-chrome        # Browser
     pavucontrol          # Volume control GUI (click from waybar)
-    networkmanagerapplet # nm-applet tray (wifi management)
+    networkmanagerapplet # nm-connection-editor (advanced network settings)
     # Power menu is handled via rofi (see keybind Super+X)
     # File manager
     thunar
@@ -134,8 +134,7 @@
         ''}"
         "waybar"
         "swaync"
-        "nm-applet --indicator"
-        "blueman-applet"
+        "blueman-applet"  # pairing agent only (tray icon disabled below)
       ];
 
       # ── Keybindings ──
@@ -242,16 +241,11 @@
         "$mod, N, exec, swaync-client -t -sw"
 
         # Power menu (rofi)
-        "$mod, X, exec, ${pkgs.writeShellScript "rofi-power" ''
-          choice=$(printf "Lock\nSuspend\nLogout\nReboot\nShutdown" | rofi -dmenu -i -p "Power" -theme-str 'window {width: 200px;} listview {lines: 5;}')
-          case "$choice" in
-            Lock)     swaylock -f ;;
-            Suspend)  systemctl suspend ;;
-            Logout)   hyprctl dispatch exit ;;
-            Reboot)   systemctl reboot ;;
-            Shutdown) systemctl poweroff ;;
-          esac
-        ''}"
+        "$mod, X, exec, power-menu"
+
+        # Wi-Fi / Bluetooth menus (rofi)
+        "$mod, W, exec, networkmanager_dmenu"
+        "$mod SHIFT, B, exec, bluetooth-menu"
 
         # Alt-Tab window cycling
         "ALT, Tab, cyclenext"
@@ -311,326 +305,7 @@
     '';
   };
 
-  # ── Waybar ──
-  programs.waybar = {
-    enable = true;
-
-    settings = [{
-      layer = "top";
-      position = "top";
-      height = 28;
-      spacing = 0;
-
-      modules-left = [ "custom/logo" "hyprland/workspaces" "hyprland/window" ];
-      modules-center = [ "clock" ];
-      modules-right = [
-        "custom/notification"
-        "cpu"
-        "memory"
-        "temperature"
-        "disk"
-        "pulseaudio"
-        "bluetooth"
-        "network"
-        "hyprland/language"
-        "tray"
-        "custom/power"
-      ];
-
-      "custom/logo" = {
-        format = " ";
-        tooltip = false;
-      };
-
-      "hyprland/workspaces" = {
-        format = "{id}";
-        on-click = "activate";
-        persistent-workspaces = { "*" = 5; };
-      };
-
-      "hyprland/window" = {
-        max-length = 40;
-        format = "{}";
-        rewrite = { "" = "Desktop"; };
-      };
-
-      "hyprland/language" = {
-        format = " {}";
-        format-en = "EN";
-        format-gb = "GB";
-        format-de = "DE";
-      };
-
-      cpu = {
-        format = " {usage}%";
-        interval = 3;
-        tooltip-format = "CPU: {usage}% @ {avg_frequency}GHz\n{cores} cores";
-      };
-
-      memory = {
-        format = " {percentage}%";
-        format-alt = " {used:0.1f}G/{total:0.1f}G";
-        interval = 5;
-        tooltip-format = "RAM: {used:0.1f}GiB / {total:0.1f}GiB ({percentage}%)\nSwap: {swapUsed:0.1f}GiB / {swapTotal:0.1f}GiB";
-      };
-
-      temperature = {
-        format = " {temperatureC}°C";
-        critical-threshold = 85;
-        format-critical = " {temperatureC}°C";
-        interval = 5;
-      };
-
-      disk = {
-        format = " {percentage_used}%";
-        path = "/";
-        interval = 30;
-        tooltip-format = "Disk: {used} / {total} ({percentage_used}%)";
-      };
-
-      clock = {
-        format = " {:%H:%M}";
-        format-alt = " {:%A, %d %B %Y  %H:%M:%S}";
-        tooltip-format = "<tt>{calendar}</tt>";
-        interval = 1;
-      };
-
-      bluetooth = {
-        format = " {status}";
-        format-connected = " {device_alias}";
-        format-connected-battery = " {device_alias} {device_battery_percentage}%";
-        format-disabled = "";
-        format-off = "";
-        tooltip-format = "{controller_alias}\t{controller_address}\n{num_connections} connected";
-        tooltip-format-connected = "{controller_alias}\t{controller_address}\n{num_connections} connected\n\n{device_enumerate}";
-        tooltip-format-enumerate-connected = "{device_alias}\t{device_address}";
-        tooltip-format-enumerate-connected-battery = "{device_alias}\t{device_address}\t{device_battery_percentage}%";
-        on-click = "blueman-manager";
-      };
-
-      network = {
-        format-wifi = " {essid} {signalStrength}%";
-        format-ethernet = " {ipaddr}";
-        format-disconnected = " down";
-        tooltip-format = "{ifname}: {ipaddr}/{cidr}\n {bandwidthUpBits}  {bandwidthDownBits}";
-        interval = 5;
-        on-click = "nm-connection-editor";
-      };
-
-      pulseaudio = {
-        format = "{icon} {volume}%";
-        format-muted = " mute";
-        format-icons = {
-          default = [ "" "" "" ];
-        };
-        on-click = "pavucontrol";
-        on-click-right = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
-        scroll-step = 5;
-      };
-
-      "custom/notification" = {
-        tooltip = false;
-        format = "{icon} {}";
-        format-icons = {
-          notification = "";
-          none = "";
-          dnd-notification = "";
-          dnd-none = "";
-          inhibited-notification = "";
-          inhibited-none = "";
-          dnd-inhibited-notification = "";
-          dnd-inhibited-none = "";
-        };
-        return-type = "json";
-        exec = "swaync-client -swb";
-        on-click = "swaync-client -t -sw";
-        on-click-right = "swaync-client -d -sw";
-        escape = true;
-      };
-
-      "custom/power" = {
-        format = "";
-        tooltip = false;
-        on-click = "${pkgs.writeShellScript "rofi-power" ''
-          choice=$(printf "Lock\nSuspend\nLogout\nReboot\nShutdown" | rofi -dmenu -i -p "Power" -theme-str 'window {width: 200px;} listview {lines: 5;}')
-          case "$choice" in
-            Lock)     swaylock -f ;;
-            Suspend)  systemctl suspend ;;
-            Logout)   hyprctl dispatch exit ;;
-            Reboot)   systemctl reboot ;;
-            Shutdown) systemctl poweroff ;;
-          esac
-        ''}";
-      };
-
-      tray = {
-        spacing = 8;
-      };
-    }];
-
-    style = ''
-      * {
-        font-family: "JetBrains Mono", "Font Awesome 6 Free";
-        font-size: 12px;
-        min-height: 0;
-      }
-
-      window#waybar {
-        background-color: rgba(20, 17, 24, 0.95);
-        color: #c0b8c8;
-        border-bottom: 1px solid #3d2a42;
-      }
-
-      /* ── Logo ── */
-      #custom-logo {
-        color: #d4434a;
-        font-size: 15px;
-        padding: 0 10px 0 8px;
-      }
-
-      /* ── Workspaces ── */
-      #workspaces button {
-        padding: 0 6px;
-        color: #584960;
-        border-bottom: 2px solid transparent;
-        border-radius: 0;
-        margin: 0 1px;
-      }
-
-      #workspaces button.active {
-        color: #d4434a;
-        border-bottom: 2px solid #d4434a;
-        background: rgba(212, 67, 74, 0.1);
-      }
-
-      #workspaces button.urgent {
-        color: #e06c75;
-        background: rgba(224, 108, 117, 0.2);
-      }
-
-      #workspaces button:hover {
-        background: rgba(90, 60, 100, 0.3);
-        color: #c0b8c8;
-      }
-
-      /* ── Window title ── */
-      #window {
-        color: #7a6880;
-        font-style: italic;
-        padding: 0 12px;
-      }
-
-      /* ── Clock ── */
-      #clock {
-        color: #d4434a;
-        font-weight: bold;
-        padding: 0 12px;
-      }
-
-      /* ── Common module styling ── */
-      #cpu, #memory, #temperature, #disk, #pulseaudio, #bluetooth, #network,
-      #tray, #language, #custom-notification, #custom-power {
-        padding: 0 8px;
-      }
-
-      /* ── Notifications ── */
-      #custom-notification {
-        color: #e06c75;
-        padding: 0 10px;
-      }
-
-      /* ── System monitors ── */
-      #cpu {
-        color: #cc6666;
-      }
-
-      #memory {
-        color: #c97b4a;
-      }
-
-      #temperature {
-        color: #b87333;
-      }
-
-      #temperature.critical {
-        color: #ff4444;
-        animation: blink 0.5s alternate infinite;
-      }
-
-      #disk {
-        color: #8a6576;
-      }
-
-      /* ── Audio ── */
-      #pulseaudio {
-        color: #a85070;
-      }
-
-      #pulseaudio.muted {
-        color: #504050;
-      }
-
-      /* ── Bluetooth ── */
-      #bluetooth {
-        color: #8a5070;
-      }
-
-      #bluetooth.disabled, #bluetooth.off {
-        color: #403040;
-      }
-
-      /* ── Network ── */
-      #network {
-        color: #7a6070;
-      }
-
-      #network.disconnected {
-        color: #cc4444;
-      }
-
-      /* ── Language ── */
-      #language {
-        color: #6a5a6a;
-      }
-
-      /* ── Power ── */
-      #custom-power {
-        color: #d4434a;
-        padding: 0 12px 0 8px;
-      }
-
-      #custom-power:hover {
-        color: #ff5555;
-        background: rgba(212, 67, 74, 0.15);
-      }
-
-      /* ── Tray ── */
-      #tray > .passive {
-        -gtk-icon-effect: dim;
-      }
-
-      /* ── Separators between modules ── */
-      #cpu, #memory, #temperature, #disk, #pulseaudio, #bluetooth, #network, #language {
-        border-right: 1px solid rgba(80, 50, 70, 0.4);
-        margin-right: 1px;
-      }
-
-      /* ── Tooltip ── */
-      tooltip {
-        background: #141118;
-        border: 1px solid #3d2a42;
-        border-radius: 6px;
-      }
-
-      tooltip label {
-        color: #c0b8c8;
-      }
-
-      @keyframes blink {
-        to { color: #ff0000; }
-      }
-    '';
-  };
+  # Waybar lives in waybar.nix
 
   # ── SwayNotificationCenter (replaces mako) ──
   services.swaync = {
@@ -867,4 +542,8 @@
 
   # Create screenshots directory
   home.file."Pictures/Screenshots/.keep".text = "";
+
+  # blueman-applet stays running as the Bluetooth pairing agent (PIN prompts),
+  # but the bar's Bluetooth module replaces its tray icon
+  dconf.settings."org/blueman/general".plugin-list = [ "!StatusIcon" ];
 }

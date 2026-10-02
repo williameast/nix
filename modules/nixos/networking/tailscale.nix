@@ -2,7 +2,11 @@
 { config, pkgs, lib, ... }:
 
 {
-  services.tailscale.enable = true;
+  services.tailscale = {
+    enable = true;
+    # Let weast run `tailscale up/down` without sudo (Waybar toggle)
+    extraSetFlags = [ "--operator=weast" ];
+  };
 
   # Open firewall for Tailscale
   networking.firewall = {
