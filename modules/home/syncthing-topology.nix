@@ -63,28 +63,33 @@ let
     # Media ingress from ultracc → milo. Spokes access media via Jellyfin/Navidrome.
     # On ultracc: configure as Send Only.
     music-staging = {
+      type = "receiveonly";  # milo never pushes changes back to ultracc
       path = "staging/music";
       devices = [ "ultracc" "milo" ];
       pathOverrides.milo = "/mnt/vault-new/staging/music";
     };
     tv-shows = {
+      type = "receiveonly";  # milo never pushes changes back to ultracc
       path = "tv-shows";
       devices = [ "ultracc" "milo" ];
       pathOverrides.milo = "/mnt/bulk/tv-shows";
       # On ultracc: path = ~/media/TV Shows
     };
     movies = {
+      type = "receiveonly";  # milo never pushes changes back to ultracc
       path = "movies";
       devices = [ "ultracc" "milo" ];
       pathOverrides.milo = "/mnt/bulk/movies";
       # On ultracc: path = ~/media/Movies
     };
     program-staging = {
+      type = "receiveonly";  # milo never pushes changes back to ultracc
       path = "staging/programs";
       devices = [ "ultracc" "milo" ];
       pathOverrides.milo = "/mnt/vault-new/staging/programs";
     };
     misc = {
+      type = "receiveonly";  # milo never pushes changes back to ultracc
       path = "misc";
       devices = [ "ultracc" "milo" ];
       pathOverrides.milo = "/mnt/vault-new/misc";

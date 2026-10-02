@@ -1,7 +1,7 @@
 # Nix Home Manager Config - Claude Context
 
 ## Quick Context
-This is weast's flake-based Home Manager configuration for Pop!_OS (non-NixOS).
+This is weast's flake-based NixOS + Home Manager configuration (orr and milo on NixOS; yossarian still on Pop!_OS).
 See `AGENT_PROMPT.md` for full details on principles, structure, and preferences.
 
 ## Key Goals
@@ -9,20 +9,20 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 2. **Flakes only** - No channels, no `builtins.fetchTarball`
 3. **WebGL working** - Firefox with native hardware acceleration on NixOS
 4. **Modular** - Self-contained modules, easy to enable/disable features
-5. **Pure NixOS** - All hosts fully migrated from Pop!_OS to NixOS
+5. **NixOS** - orr and milo migrated; yossarian's NixOS config is a draft until the config is ready
 
 ## Machines
 ### orr (desktop)
 - **OS:** NixOS 25.11
 - **GPU:** AMD Radeon R9 290 (radeonsi driver)
-- **Desktop:** Niri (Wayland compositor)
-- **Modules:** core, desktop (niri, rofi), dev, media, games, modelling, work
+- **Desktop:** Hyprland (Wayland compositor)
+- **Modules:** core, desktop (hyprland, rofi), dev, media, games, modelling, work
 
 ### yossarian (laptop)
-- **OS:** NixOS 25.11
+- **OS:** Pop!_OS with Nix (not yet migrated; `hosts/yossarian/` is a draft NixOS config with a placeholder hardware-configuration.nix)
 - **GPU:** Intel CometLake-U GT2 (iHD driver)
-- **Desktop:** Niri (Wayland compositor)
-- **Modules:** core, desktop (niri, rofi), dev, media, work
+- **Desktop (planned):** Hyprland (Wayland compositor)
+- **Modules:** core, desktop (hyprland, rofi), dev, media, comms
 
 ### milo (server)
 - **OS:** NixOS 25.11
@@ -79,8 +79,8 @@ sudo nixos-rebuild switch --flake .#orr --show-trace
 | `org` | orr, yossarian, milo, phone | Personal notes/org files |
 | `torrent-metainfo` | orr, yossarian, milo, ultracc | `.torrent` files only; spokes → milo → ultracc |
 | `music-staging` | ultracc, milo | Incoming music; milo path: `/mnt/vault-new/staging/music` |
-| `tv-shows` | ultracc, milo | Incoming TV; milo path: `/mnt/vault-new/tv-shows` |
-| `movies` | ultracc, milo | Incoming movies; milo path: `/mnt/vault-new/movies` |
+| `tv-shows` | ultracc, milo | Incoming TV; milo path: `/mnt/bulk/tv-shows` |
+| `movies` | ultracc, milo | Incoming movies; milo path: `/mnt/bulk/movies` |
 | `program-staging` | ultracc, milo | Incoming software; milo path: `/mnt/vault-new/staging/programs` |
 | `misc` | ultracc, milo | Other files; milo path: `/mnt/vault-new/misc` |
 
@@ -89,7 +89,7 @@ sudo nixos-rebuild switch --flake .#orr --show-trace
 1. Drop `.torrent` file into `~/torrentfiles/` on orr or yossarian
 2. Syncs to milo (hub routing)
 3. Milo forwards to ultracc — torrent client picks it up
-4. Completed download syncs back: ultracc → milo (`/mnt/vault-new/`)
+4. Completed download syncs back: ultracc → milo (`/mnt/vault-new/` or `/mnt/bulk/`, receive-only on milo)
 5. Jellyfin / Navidrome serve the media from milo
 
 ### How It Works
@@ -107,10 +107,9 @@ This means orr's Syncthing config is completely unaware ultracc exists — it ca
 syncthing --device-id
 
 # Rebuild after editing topology
-home-manager switch --flake .#weast@orr       # or yossarian
-sudo nixos-rebuild switch --flake .#milo      # for milo (NixOS)
+sudo nixos-rebuild switch --flake .#orr       # or milo (Home Manager runs as a NixOS module)
 
-# Access web UI
+# Access web UI (milo's is only reachable over Tailscale)
 http://localhost:8384
 ```
 
@@ -176,9 +175,9 @@ Phone connects to milo only — same security model as other spokes.
 - [x] Core packages available (firefox, emacs, bat, fzf, etc.)
 - [x] Firefox WebGL 1 & 2 working with native hardware acceleration
 - [x] Syncthing with declarative hub-and-spoke config (security-isolated, milo as ingress)
-- [x] Migrated all hosts (orr, yossarian, milo) to NixOS 25.11
+- [x] Migrated orr and milo to NixOS 25.11
 - [x] Removed all nixGL wrappers (pure NixOS now)
-- [x] Added Niri compositor with rofi launcher
+- [x] Added Hyprland compositor with rofi launcher
 - [x] Fixed Doom Emacs config to use HTTPS clone
 
 ### In Progress

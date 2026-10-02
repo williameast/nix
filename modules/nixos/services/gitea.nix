@@ -12,7 +12,7 @@
         ROOT_URL = "http://milo:3000";
       };
       service = {
-        DISABLE_REGISTRATION = false;
+        DISABLE_REGISTRATION = true;
       };
     };
 

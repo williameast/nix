@@ -28,7 +28,7 @@
     #   Immich:    User Settings → API Keys → New API Key
     #   Gitea:     User Settings → Applications → Generate New Token
     #   Paperless: Admin → Token → Create token (or via API)
-    environmentFile = "/etc/homepage-secrets.env";
+    environmentFiles = [ "/etc/homepage-secrets.env" ];
 
     settings = {
 

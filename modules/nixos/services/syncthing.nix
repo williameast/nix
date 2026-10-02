@@ -28,7 +28,8 @@ in {
     dataDir = homeDir;
     configDir = "${homeDir}/.config/syncthing";
 
-    # Web UI (accessible from LAN)
+    # Web UI - port 8384 is NOT opened in the firewall, so it's only reachable
+    # over Tailscale (tailscale0 is a trusted interface) or localhost
     guiAddress = "0.0.0.0:8384";
 
     # Declarative configuration
@@ -42,7 +43,7 @@ in {
 
   # Open firewall for syncthing
   networking.firewall = {
-    allowedTCPPorts = [ 8384 22000 ];
+    allowedTCPPorts = [ 22000 ];
     allowedUDPPorts = [ 22000 21027 ];
   };
 

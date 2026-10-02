@@ -1,4 +1,4 @@
-# Common NixOS configuration for all servers
+# Common NixOS configuration for all hosts
 { config, pkgs, lib, ... }:
 
 {
@@ -19,8 +19,9 @@
   };
 
   # Time zone and locale
-  time.timeZone = "Europe/Berlin";  # Adjust to your timezone
-  i18n.defaultLocale = "en_US.UTF-8";
+  # mkDefault so hosts can override (e.g. yossarian)
+  time.timeZone = lib.mkDefault "Europe/Berlin";
+  i18n.defaultLocale = lib.mkDefault "en_US.UTF-8";
 
   # Basic system packages
   environment.systemPackages = with pkgs; [

@@ -12,42 +12,29 @@
     compsize  # Check compression stats
   ];
 
+  # NOTE: /mnt/vault and /mnt/vault-new are the SAME filesystem (the pool on
+  # vault-new carries the label "vault"). Scrub/snapshot it once, via vault-new.
+
   # Automatic Btrfs scrub (data integrity check)
   services.btrfs.autoScrub = {
     enable = true;
-    fileSystems = [ "/mnt/vault" ];
+    fileSystems = [ "/mnt/vault-new" ];
     interval = "weekly";
   };
 
   # Automatic snapshots with snapper
-  services.snapper = {
-    configs = {
-      vault = {
-        SUBVOLUME = "/mnt/vault";
-        ALLOW_USERS = [ "weast" ];
-        TIMELINE_CREATE = true;
-        TIMELINE_CLEANUP = true;
-        # Snapshot retention
-        TIMELINE_MIN_AGE = "1800";  # Keep snapshots for at least 30 minutes
-        TIMELINE_LIMIT_HOURLY = "24";
-        TIMELINE_LIMIT_DAILY = "7";
-        TIMELINE_LIMIT_WEEKLY = "4";
-        TIMELINE_LIMIT_MONTHLY = "12";
-        TIMELINE_LIMIT_YEARLY = "0";
-      };
-      vault-new = {
-        SUBVOLUME = "/mnt/vault-new";
-        ALLOW_USERS = [ "weast" ];
-        TIMELINE_CREATE = true;
-        TIMELINE_CLEANUP = true;
-        TIMELINE_MIN_AGE = "1800";
-        TIMELINE_LIMIT_HOURLY = "24";
-        TIMELINE_LIMIT_DAILY = "7";
-        TIMELINE_LIMIT_WEEKLY = "4";
-        TIMELINE_LIMIT_MONTHLY = "12";
-        TIMELINE_LIMIT_YEARLY = "0";
-      };
-    };
+  services.snapper.configs.vault-new = {
+    SUBVOLUME = "/mnt/vault-new";
+    ALLOW_USERS = [ "weast" ];
+    TIMELINE_CREATE = true;
+    TIMELINE_CLEANUP = true;
+    # Snapshot retention
+    TIMELINE_MIN_AGE = "1800";  # Keep snapshots for at least 30 minutes
+    TIMELINE_LIMIT_HOURLY = "24";
+    TIMELINE_LIMIT_DAILY = "7";
+    TIMELINE_LIMIT_WEEKLY = "4";
+    TIMELINE_LIMIT_MONTHLY = "12";
+    TIMELINE_LIMIT_YEARLY = "0";
   };
 
   # Mount point will be created automatically
@@ -74,6 +61,8 @@
   systemd.tmpfiles.rules = [
     "d /mnt/vault 0755 root root -"
     "d /mnt/vault-new 0755 root root -"
+    # Snapper needs .snapshots to exist as a subvolume ("v" creates one)
+    "v /mnt/vault-new/.snapshots 0750 root root -"
   ];
 
   # Mount vault filesystem (sdc, ~1TB SSD)

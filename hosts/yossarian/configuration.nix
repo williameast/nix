@@ -1,4 +1,6 @@
 # NixOS configuration for yossarian (laptop with Intel CometLake-U GT2)
+# DRAFT: yossarian still runs Pop!_OS. hardware-configuration.nix is a placeholder
+# until the real migration (generate it on the laptop with nixos-generate-config).
 { config, pkgs, lib, inputs, ... }:
 
 {
@@ -12,6 +14,9 @@
     # Base system configuration
     ../../modules/nixos/common.nix
     ../../modules/nixos/users.nix
+
+    # Desktop
+    ../../modules/nixos/desktop/hyprland.nix
 
     # Networking
     ../../modules/nixos/networking/tailscale.nix

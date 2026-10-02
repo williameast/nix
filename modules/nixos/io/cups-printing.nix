@@ -36,16 +36,17 @@
         Allow all
       </Location>
 
+      # Admin pages: localhost only (ssh -L 631:localhost:631 milo)
       <Location /admin>
         Order allow,deny
-        Allow all
+        Allow localhost
       </Location>
 
       <Location /admin/conf>
         AuthType Default
         Require user @SYSTEM
         Order allow,deny
-        Allow all
+        Allow localhost
       </Location>
     '';
   };
