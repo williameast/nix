@@ -80,7 +80,7 @@ in
           User = "immich";
           ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p /mnt/vault-new/backups/immich";
           ExecStart = ''
-            ${config.services.postgresql.package}/bin/pg_dump -Fc immich > /mnt/vault-new/backups/immich/immich.pgdump
+            ${config.services.postgresql.package}/bin/pg_dump -Fc -f /mnt/vault-new/backups/immich/immich.pgdump immich
           '';
           ExecStartPost = ntfyNotify "backups" "Immich DB dump completed";
         };
@@ -197,7 +197,7 @@ in
 
   # Ensure backup directories exist
   systemd.tmpfiles.rules = [
-    "d /mnt/vault-new/backups 0750 root root -"
+    "d /mnt/vault-new/backups 0755 root root -"
     "d /mnt/vault-new/backups/paperless 0750 root root -"
     "d /mnt/vault-new/backups/immich 0750 immich immich -"
   ];
