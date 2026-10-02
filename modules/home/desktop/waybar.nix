@@ -51,13 +51,29 @@ let
     fi
   '';
 
-  # Middle-click on volume: cycle the default output between sinks
-  cycleSink = pkgs.writeShellScript "cycle-sink" ''
+  # Click on volume: pick the output device in rofi (current one highlighted)
+  outputMenu = pkgs.writeShellScriptBin "output-menu" ''
     pactl=${pkgs.pulseaudio}/bin/pactl
     current=$($pactl get-default-sink)
-    sinks=$($pactl list short sinks | cut -f2)
-    next=$(printf '%s\n%s\n' "$sinks" "$sinks" | grep -A1 -x -F "$current" | sed -n 2p)
-    [ -n "$next" ] && $pactl set-default-sink "$next"
+    # name<TAB>label, with a short friendly label and an icon per device type
+    sinks=$($pactl -f json list sinks | ${pkgs.jq}/bin/jq -r '.[] |
+      (.description
+        | if test("\\[.*\\]") then capture("\\[(?<m>.*)\\]").m else . end
+        | sub(" (Digital|Analog) Stereo"; "")) as $label
+      | (if (.name | startswith("bluez")) then "\uf025"
+         elif (.name | test("hdmi")) then "\uf108"
+         else "\uf028" end) as $icon
+      | "\(.name)\t\($icon)  \($label)"')
+    [ -z "$sinks" ] && exit 0
+    active=$(printf '%s\n' "$sinks" | cut -f1 | grep -n -x -F "$current" | cut -d: -f1)
+    choice=$(printf '%s\n' "$sinks" | cut -f2 | rofi -dmenu -i -p Output -theme menu -format i -selected-row "$((''${active:-1} - 1))")
+    [ -z "$choice" ] && exit 0
+    name=$(printf '%s\n' "$sinks" | sed -n "$((choice + 1))p" | cut -f1)
+    $pactl set-default-sink "$name"
+    # Move anything already playing to the new output
+    for input in $($pactl list short sink-inputs | cut -f1); do
+      $pactl move-sink-input "$input" "$name"
+    done
   '';
 
   # swaync emits "0" when empty; hide the count in that case
@@ -73,7 +89,7 @@ let
   '';
 in
 {
-  home.packages = [ powerMenu bluetoothMenu pkgs.networkmanager_dmenu pkgs.btop ];
+  home.packages = [ powerMenu bluetoothMenu outputMenu pkgs.networkmanager_dmenu pkgs.btop ];
 
   # Menu theme: the launcher theme, a bit wider. A theme file rather than
   # -theme-str because rofi-bluetooth word-splits its arguments.
@@ -125,7 +141,13 @@ in
       "group/sys" = { orientation = "horizontal"; modules = [ "cpu" "memory" "temperature" "disk" ]; };
       "group/net" = { orientation = "horizontal"; modules = [ "custom/tailscale" "custom/milo" "network" ]; };
       "group/toggles" = { orientation = "horizontal"; modules = [ "idle_inhibitor" "custom/notification" ]; };
-      "group/io" = { orientation = "horizontal"; modules = [ "privacy" "pulseaudio" "bluetooth" "hyprland/language" ]; };
+      "group/io" = { orientation = "horizontal"; modules = [ "privacy" "group/audio" "bluetooth" "hyprland/language" ]; };
+      # Hovering the volume slides out a slider
+      "group/audio" = {
+        orientation = "horizontal";
+        drawer = { transition-duration = 250; transition-left-to-right = false; children-class = "audio-child"; };
+        modules = [ "pulseaudio" "pulseaudio/slider" ];
+      };
 
       # ── Left ──
       "custom/logo" = {
@@ -302,15 +324,25 @@ in
       };
 
       pulseaudio = {
-        format = "{icon} {volume}%";
-        format-bluetooth = "&#xf025; {volume}%";
-        format-muted = "&#xf0581; mute";
-        format-icons = { headphone = "&#xf025;"; default = [ "&#xf026;" "&#xf027;" "&#xf028;" ]; };
-        on-click = "pavucontrol";
+        # {format_source} only shows something when the mic is muted
+        format = "{format_source}{icon} {volume}%";
+        format-bluetooth = "{format_source}&#xf025; {volume}%";
+        format-muted = "{format_source}&#xf0581; mute";
+        format-source = "";
+        format-source-muted = "&#xf131;  ";
+        format-icons = { headphone = "&#xf025;"; hdmi = "&#xf108;"; default = [ "&#xf026;" "&#xf027;" "&#xf028;" ]; };
+        on-click = "output-menu";
         on-click-right = "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle";
-        on-click-middle = "${cycleSink}";
+        on-click-middle = "pavucontrol";  # per-app volumes, inputs
         scroll-step = 5;
+        max-volume = 100;
         tooltip = false;
+      };
+
+      "pulseaudio/slider" = {
+        min = 0;
+        max = 100;
+        orientation = "horizontal";
       };
 
       bluetooth = {
@@ -422,6 +454,30 @@ in
 
       #privacy-item { color: @crit; padding: 0 4px; }
       #pulseaudio.muted, #bluetooth.off { color: @dim; }
+      #pulseaudio.source-muted { color: @warn; }
+
+      /* Volume slider (slides out on hover) */
+      #pulseaudio-slider { padding: 0 8px 0 4px; }
+      #pulseaudio-slider trough {
+        min-height: 6px;
+        min-width: 90px;
+        border-radius: 3px;
+        background-color: alpha(@fg, 0.15);
+      }
+      #pulseaudio-slider highlight {
+        min-height: 6px;
+        border-radius: 3px;
+        background-color: @accent;
+      }
+      #pulseaudio-slider slider {
+        min-height: 10px;
+        min-width: 10px;
+        margin: -3px 0;
+        border-radius: 5px;
+        background-color: @fg;
+        box-shadow: none;
+        border: none;
+      }
       #bluetooth.connected { color: @fg; }
       #language { color: @dim; }
 
