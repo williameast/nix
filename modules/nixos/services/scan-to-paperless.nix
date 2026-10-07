@@ -56,11 +56,11 @@ let
     dev=''${2:-${device}}
     echo "button: mode=$mode args=''${*:2}"
 
-    part="${batchDir}/.page-$(date +%s%N).png.part"
+    part="${batchDir}/.page-$(date +%s%N).jpg.part"
     scan() {
       ${pkgs.sane-backends}/bin/scanimage --device-name "$dev" \
-        --mode "True Gray" --resolution 300 -x 210 -y 297 \
-        --format=png --output-file "$part"
+        --mode "24bit Color[Fast]" --resolution 300 -x 210 -y 297 \
+        --format=jpeg --output-file "$part"
     }
     # Brother's own scripts wait a moment and retry once for network scanners
     sleep 1
@@ -92,7 +92,7 @@ let
       # first, so every page belonging to this submit is already present.
       submit=0
       mv "${batchDir}/submit" "${batchDir}/.submit" 2>/dev/null && submit=1
-      pages=("${batchDir}"/page-*.png)
+      pages=("${batchDir}"/page-*.jpg)
       if (( ''${#pages[@]} == 0 )); then rm -f "${batchDir}/.submit"; continue; fi
 
       newest=$(stat -c %Y "''${pages[-1]}")
