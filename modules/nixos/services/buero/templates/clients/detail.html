@@ -34,6 +34,19 @@
   </div>
 </div>
 
+<div class="stat-grid" style="margin-top:1.5rem">
+  <div class="stat-card"><div class="stat-label">Berechnet</div><div class="stat-value">{{ summary.billed | eur }}</div></div>
+  <div class="stat-card"><div class="stat-label">Bezahlt</div><div class="stat-value accent">{{ summary.paid | eur }}</div></div>
+  <div class="stat-card"><div class="stat-label">Offen</div><div class="stat-value {% if summary.outstanding %}danger{% endif %}">{{ summary.outstanding | eur }}</div></div>
+  <div class="stat-card">
+    <div class="stat-label">Auslagen noch abzurechnen</div>
+    <div class="stat-value">{{ summary.unbilled_expenses | eur }}</div>
+    {% if summary.unbilled_count %}
+    <div class="stat-hint"><a href="{{ url_for('expenses_list', client_id=client.id, state='open') }}">{{ summary.unbilled_count }} Ausgabe(n) ansehen →</a></div>
+    {% endif %}
+  </div>
+</div>
+
 <div class="section">
   <h2>Rechnungen</h2>
   {% if invoices %}
@@ -47,7 +60,7 @@
         <td><code>{{ inv.id }}</code></td>
         <td>{{ inv.type | type_de }}</td>
         <td>{{ inv.date | date_de }}</td>
-        <td class="num">—</td>
+        <td class="num">{{ inv._totals.total | eur }}</td>
         <td><span class="badge badge-{{ inv.status }}">{{ inv.status | status_de }}</span></td>
       </tr>
       {% endfor %}

@@ -7,44 +7,13 @@
     <span class="badge badge-{{ invoice.status }} badge-lg">{{ invoice.status | status_de }}</span>
   </div>
   <div class="header-actions">
-    <!-- Plain PDF -->
-    <a href="{{ url_for('invoice_pdf', iid=invoice.id) }}" class="btn btn-outline" target="_blank">↓ PDF</a>
-
-    <!-- PDF mit Anlagen — compact dropdown -->
-    <div class="pdf-anlagen-wrap" style="position:relative;display:inline-block">
-      <button type="button" class="btn btn-outline"
-              onclick="this.closest('.pdf-anlagen-wrap').querySelector('.pdf-anlagen-panel').classList.toggle('open')">
-        ↓ PDF mit Anlagen ▾
-      </button>
-      <div class="pdf-anlagen-panel" style="display:none;position:absolute;top:calc(100% + 6px);right:0;
-           background:#fff;border:1.5px solid var(--border);border-radius:6px;padding:1rem;
-           min-width:320px;z-index:50;box-shadow:0 4px 16px rgba(0,0,0,.10)">
-        <form method="POST" action="{{ url_for('invoice_pdf_with_anlagen', iid=invoice.id) }}" id="anlagen-form">
-          {% if other_invoices %}
-          <p style="font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:.5rem;text-transform:uppercase;letter-spacing:.05em">Anlagen wählen</p>
-          <table style="width:100%;font-size:.85rem;border-collapse:collapse">
-            {% for i in other_invoices %}
-            <tr>
-              <td style="padding:3px 6px 3px 0">
-                <input type="checkbox" name="anlage_ids" value="{{ i.id }}" id="anl-{{ i.id }}" checked>
-              </td>
-              <td style="padding:3px 4px"><label for="anl-{{ i.id }}" style="cursor:pointer"><code>{{ i.id }}</code></label></td>
-              <td style="padding:3px 4px;color:var(--muted)">{{ i.date | date_de }}</td>
-              <td style="padding:3px 0 3px 4px;text-align:right">{{ i._totals.total | eur }}</td>
-            </tr>
-            {% endfor %}
-          </table>
-          {% else %}
-          <p style="font-size:.85rem;color:var(--muted);margin-bottom:.75rem">Keine weiteren Rechnungen für diesen Kunden.</p>
-          {% endif %}
-          <div style="margin-top:.75rem;display:flex;gap:.5rem">
-            <button type="submit" class="btn btn-primary" style="flex:1">↓ PDF generieren</button>
-            <button type="button" class="btn btn-outline"
-                    onclick="this.closest('.pdf-anlagen-panel').classList.remove('open')">Abbrechen</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    {% if n_receipts %}
+    <a href="{{ url_for('invoice_pdf', iid=invoice.id) }}" class="btn btn-primary"
+       title="Rechnung und alle {{ n_receipts }} Belege in einer PDF">↓ PDF mit {{ n_receipts }} Beleg{{ 'en' if n_receipts > 1 }}</a>
+    <a href="{{ url_for('invoice_pdf', iid=invoice.id, receipts=0) }}" class="btn btn-outline">↓ nur Rechnung</a>
+    {% else %}
+    <a href="{{ url_for('invoice_pdf', iid=invoice.id) }}" class="btn btn-primary">↓ PDF</a>
+    {% endif %}
 
     <a href="{{ url_for('invoice_edit', iid=invoice.id) }}" class="btn btn-outline">Bearbeiten</a>
     {% if invoice.type == 'quote' %}
@@ -55,15 +24,11 @@
   </div>
 </div>
 
-<style>
-  .pdf-anlagen-panel { display: none; }
-  .pdf-anlagen-panel.open { display: block !important; }
-</style>
 
 <!-- Status actions -->
 <div class="status-bar">
   <span class="muted">Status ändern:</span>
-  {% for s, label in [('draft','Entwurf'),('sent','Versendet'),('paid','Bezahlt'),('cancelled','Storniert')] %}
+  {% for s, label in [('draft','Entwurf'),('sent','Versendet'),('cancelled','Storniert')] %}
   {% if s != invoice.status %}
   <form method="POST" action="{{ url_for('invoice_status', iid=invoice.id) }}" style="display:inline">
     <input type="hidden" name="status" value="{{ s }}">
@@ -71,6 +36,17 @@
   </form>
   {% endif %}
   {% endfor %}
+  {% if invoice.type != 'quote' %}
+  <form method="POST" action="{{ url_for('invoice_status', iid=invoice.id) }}" class="paid-form">
+    <input type="hidden" name="status" value="paid">
+    <label class="muted" for="paid-date">Bezahlt am</label>
+    <input type="text" name="paid_date" id="paid-date" class="date-input" placeholder="TT.MM.JJJJ"
+           value="{{ (invoice.paid_date or today) | date_de }}" style="width:7.5rem">
+    <button type="submit" class="btn btn-xs {% if invoice.status != 'paid' %}btn-primary{% endif %}">
+      {{ 'Zahlungsdatum ändern' if invoice.status == 'paid' else 'Als bezahlt markieren' }}
+    </button>
+  </form>
+  {% endif %}
 </div>
 
 <!-- Meta grid -->
@@ -128,6 +104,7 @@
 {% set regular_items  = (invoice.positions or []) | rejectattr("auslagenersatz", "equalto", true) | list %}
 {% set auslagen_items = (invoice.positions or []) | selectattr("auslagenersatz", "equalto", true) | list %}
 
+{% if regular_items %}
 <table class="table" style="margin-top:2rem">
   <thead>
     <tr>
@@ -149,16 +126,44 @@
     </tr>
     {% endfor %}
   </tbody>
-  <tfoot>
-    {% if not kleinunternehmer %}
-    <tr><td colspan="4" class="num">Netto</td><td class="num">{{ totals.subtotal | eur }}</td></tr>
-    <tr><td colspan="4" class="num">MwSt. {{ totals.mwst_rate | int }} %</td><td class="num">{{ totals.mwst | eur }}</td></tr>
-    {% endif %}
-    <tr class="totals-total">
-      <td colspan="4" class="num"><strong>Gesamt</strong></td>
-      <td class="num"><strong>{{ totals.total | eur }}</strong></td>
+  {% if auslagen_items %}
+  <tfoot><tr class="subtotal"><td colspan="4" class="num">Zwischensumme Leistungen</td><td class="num">{{ totals.services | eur }}</td></tr></tfoot>
+  {% endif %}
+</table>
+{% endif %}
+
+{% if auslagen_items %}
+<table class="table" style="margin-top:{{ '1rem' if regular_items else '2rem' }}">
+  <thead>
+    <tr><th>Auslagenersatz</th><th class="num">Betrag</th><th style="width:6rem"></th></tr>
+  </thead>
+  <tbody>
+    {% for item in auslagen_items %}
+    <tr>
+      <td>{{ item.description }}</td>
+      <td class="num">{{ (item.quantity * item.unit_price) | eur }}</td>
+      <td>{% if item.expense_id %}<a href="{{ url_for('expense_detail', eid=item.expense_id) }}" class="btn btn-xs" title="Beleg anzeigen">Beleg →</a>{% endif %}</td>
     </tr>
-  </tfoot>
+    {% endfor %}
+  </tbody>
+  {% if regular_items %}
+  <tfoot><tr class="subtotal"><td class="num">Zwischensumme Auslagen</td><td class="num">{{ totals.auslagen | eur }}</td><td></td></tr></tfoot>
+  {% endif %}
+</table>
+{% endif %}
+
+{% if not regular_items and not auslagen_items %}
+<p class="muted" style="margin-top:2rem">Noch keine Positionen.</p>
+{% endif %}
+
+<table class="table totals-only">
+  <tbody>
+    {% if not kleinunternehmer %}
+    <tr><td class="num">Netto</td><td class="num" style="width:10rem">{{ totals.subtotal | eur }}</td></tr>
+    <tr><td class="num">MwSt. {{ totals.mwst_rate | int }} %</td><td class="num">{{ totals.mwst | eur }}</td></tr>
+    {% endif %}
+    <tr class="totals-total"><td class="num"><strong>Gesamt</strong></td><td class="num" style="width:10rem"><strong>{{ totals.total | eur }}</strong></td></tr>
+  </tbody>
 </table>
 
 {% if kleinunternehmer %}
@@ -180,36 +185,6 @@
     <tr><td>IBAN</td><td><code>{{ cfg.invoice.iban }}</code></td></tr>
     {% if cfg.invoice.bic %}<tr><td>BIC</td><td>{{ cfg.invoice.bic }}</td></tr>{% endif %}
     {% if invoice.payment_ref %}<tr><td>Verwendungszweck</td><td>{{ invoice.payment_ref }}</td></tr>{% endif %}
-  </table>
-</div>
-{% endif %}
-
-<!-- ── Attached Auslagenersatz ──────────────────────────────────────────────── -->
-{% if auslagen_items %}
-<div class="detail-section">
-  <div class="meta-label">Auslagenersatz ({{ auslagen_items | length }})</div>
-  <table class="table" style="margin-top:.5rem">
-    <thead>
-      <tr>
-        <th>Beschreibung</th>
-        <th class="num">Betrag</th>
-        <th style="width:6rem"></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item in auslagen_items %}
-      {% set eid = item.expense_id %}
-      <tr>
-        <td>{{ item.description }}</td>
-        <td class="num">{{ (item.quantity * item.unit_price) | eur }}</td>
-        <td>
-          {% if eid %}
-          <a href="{{ url_for('expense_detail', eid=eid) }}" class="btn btn-xs" title="Beleg anzeigen">Beleg →</a>
-          {% endif %}
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
   </table>
 </div>
 {% endif %}
@@ -253,13 +228,4 @@
   </form>
 </div>
 
-<script>
-  // Close panel when clicking outside
-  document.addEventListener('click', function(e) {
-    const wrap = document.querySelector('.pdf-anlagen-wrap');
-    if (wrap && !wrap.contains(e.target)) {
-      wrap.querySelector('.pdf-anlagen-panel').classList.remove('open');
-    }
-  });
-</script>
 {% endblock %}

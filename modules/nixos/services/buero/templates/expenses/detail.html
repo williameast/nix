@@ -4,6 +4,13 @@
 <div class="page-header">
   <h1>{{ expense.description or 'Ausgabe' }}</h1>
   <div class="header-actions">
+    {% if expense.client_id and not expense.invoice_id %}
+    <form method="POST" action="{{ url_for('invoice_from_expenses') }}" style="display:inline">
+      <input type="hidden" name="expense_ids" value="{{ expense.id }}">
+      <input type="hidden" name="next" value="{{ request.path }}">
+      <button type="submit" class="btn btn-primary">Erstattung abrechnen →</button>
+    </form>
+    {% endif %}
     <a href="{{ url_for('expense_edit', eid=expense.id) }}" class="btn btn-outline">Bearbeiten</a>
     <a href="{{ url_for('expenses_list') }}" class="btn btn-outline">← Zurück</a>
   </div>

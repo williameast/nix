@@ -350,6 +350,11 @@ code { font-family: 'Menlo', 'Consolas', monospace; font-size: .85em; }
   gap: 2rem;
 }
 
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
 .form-row-3 {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -439,6 +444,38 @@ code { font-family: 'Menlo', 'Consolas', monospace; font-size: .85em; }
   .nav-links { display: flex; flex-wrap: wrap; padding: .5rem; }
   .nav-links li a { padding: .4rem .6rem; font-size: .8rem; }
   .content { padding: 1rem; }
-  .form-grid-2, .form-row-3 { grid-template-columns: 1fr; }
+  .form-grid-2, .form-row-2, .form-row-3 { grid-template-columns: 1fr; }
   .detail-meta { grid-template-columns: 1fr; }
 }
+
+/* ── Dashboard: limits, monthly bars ─────────────────────────────────────── */
+.stat-hint { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
+.card-section { padding: 1.25rem; background: var(--bg); border-radius: 6px; margin-bottom: 1.5rem; }
+.limit-row { display: grid; grid-template-columns: 22rem 1fr 4rem; gap: 1rem; align-items: center; margin: .6rem 0; font-size: .9rem; }
+.limit-pct { text-align: right; font-variant-numeric: tabular-nums; }
+.bar { background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); border-radius: 4px; }
+.bar-fill.bar-warn { background: var(--warning); }
+.bar-fill.bar-danger { background: var(--danger); }
+.mini-bar { display: inline-block; height: 6px; border-radius: 3px; margin-right: .5rem; vertical-align: middle; opacity: .55; }
+.mini-bar.inc { background: var(--accent); }
+.mini-bar.exp { background: var(--warning); }
+.month-table tr.muted td { color: var(--muted); }
+td.danger, span.danger, strong.danger { color: var(--danger); }
+tfoot tr.subtotal td { color: var(--muted); font-size: .9rem; }
+@media (max-width: 768px) { .limit-row { grid-template-columns: 1fr; gap: .3rem; } }
+
+/* ── Expense list: selection bar, state badges ───────────────────────────── */
+.select-bar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; padding: .75rem 1rem;
+              background: var(--bg); border-radius: 6px; margin-bottom: 1rem; }
+.select-bar select { width: auto; }
+.badge-open  { background: #fff3e0; color: var(--warning); }
+.badge-own   { background: #f0f0f0; color: var(--muted); }
+.badge-billed { background: #e8f5e9; color: var(--success); }
+.filter-group { display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; margin-bottom: .5rem; }
+.filter-group .meta-label { margin: 0 .35rem 0 0; }
+.chip-sum { opacity: .7; font-size: .75rem; margin-left: .25rem; }
+.paid-form { display: inline-flex; gap: .4rem; align-items: center; margin-left: .75rem; }
+.paid-form input { padding: .2rem .4rem; font-size: .85rem; }
+.totals-only { margin-top: .5rem; }
+.totals-only td { border-bottom: none; }

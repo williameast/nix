@@ -46,6 +46,7 @@
     <div>
       <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">Berechnet</div>
       <div style="font-size:1.25rem;font-weight:700">{{ total_invoiced | eur }}</div>
+      <div class="stat-hint">versendet &amp; bezahlt, ohne Angebote/Entwürfe</div>
     </div>
     <div>
       <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">Ausgaben</div>
@@ -61,12 +62,12 @@
     {% if budget %}
     <div style="flex:1;min-width:200px">
       <div style="font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem">
-        Budget {{ budget | float | eur }} — {{ budget_pct }}% abgerechnet
+        Budget {{ budget | float | eur }} — {{ budget_pct }}% der Honorare abgerechnet
       </div>
       <div style="background:#e5e7eb;border-radius:4px;height:8px;overflow:hidden;margin-bottom:.35rem">
         <div style="height:100%;width:{{ budget_pct }}%;background:{% if budget_pct >= 90 %}#dc2626{% elif budget_pct >= 70 %}#f59e0b{% else %}var(--accent){% endif %};border-radius:4px;transition:width .3s"></div>
       </div>
-      <div style="font-size:.8rem;color:var(--muted)">Restbudget: {{ (budget - total_invoiced) | eur }}</div>
+      <div style="font-size:.8rem;color:var(--muted)">Restbudget: {{ (budget - billed_fees) | eur }}</div>
     </div>
     {% endif %}
   </div>
@@ -106,21 +107,35 @@
     <h2>Ausgaben</h2>
     <a href="{{ url_for('expense_new') }}?project_id={{ project.id }}{% if project.client_id %}&client_id={{ project.client_id }}{% endif %}" class="btn btn-xs btn-outline">+ Ausgabe</a>
   </div>
+  {% if unbilled %}
+  <form method="POST" action="{{ url_for('invoice_from_expenses') }}" class="select-bar">
+    <input type="hidden" name="next" value="{{ request.path }}">
+    {% for e in unbilled %}<input type="hidden" name="expense_ids" value="{{ e.id }}">{% endfor %}
+    <strong>{{ unbilled | length }} Ausgabe(n) noch abzurechnen · {{ unbilled_total | eur }}</strong>
+    <button type="submit" class="btn btn-primary btn-xs">Erstattungsrechnung erstellen →</button>
+  </form>
+  {% endif %}
   {% if expenses %}
   <table class="table table-hover">
     <thead>
-      <tr><th>Datum</th><th>Beschreibung</th><th>Kategorie</th><th class="num">Betrag</th></tr>
+      <tr><th>Datum</th><th>Beschreibung</th><th>Kategorie</th><th class="num">Betrag</th><th>Status</th></tr>
     </thead>
     <tbody>
       {% for e in expenses %}
-      <tr>
+      <tr onclick="location.href='{{ url_for('expense_detail', eid=e.id) }}'" style="cursor:pointer">
         <td>{{ e.date | date_de }}</td>
         <td>{{ e.description or '—' }}</td>
         <td>{{ e.category or '—' }}</td>
         <td class="num">{{ e.amount | float | eur }}</td>
+        <td>
+          {% if e._state == 'billed' %}<span class="badge badge-billed">{{ e.invoice_id }}</span>
+          {% elif e._state == 'open' %}<span class="badge badge-open">offen</span>
+          {% else %}<span class="badge badge-own">eigene</span>{% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>
+    <tfoot><tr class="totals-total"><td colspan="3">Summe</td><td class="num">{{ total_expenses | eur }}</td><td></td></tr></tfoot>
   </table>
   {% else %}
   <p class="muted" style="padding:1rem">Noch keine Ausgaben für dieses Projekt.</p>

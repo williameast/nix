@@ -50,6 +50,21 @@
         <input type="text" name="ust_idnr" value="{{ client.ust_idnr or '' }}" placeholder="DE123456789">
         <div class="field-hint">Erforderlich bei EU-Auslandsrechnungen</div>
       </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Rechnungssprache</label>
+          <select name="language">
+            <option value="de" {% if (client.language or 'de') == 'de' %}selected{% endif %}>Deutsch</option>
+            <option value="en" {% if client.language == 'en' %}selected{% endif %}>English</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Zahlungsziel (Tage)</label>
+          <input type="number" name="payment_terms_days" value="{{ client.payment_terms_days or '' }}"
+                 min="0" step="1" placeholder="{{ cfg.invoice.payment_terms_days }}">
+          <div class="field-hint">Leer = Standard aus den Einstellungen</div>
+        </div>
+      </div>
       <div class="form-group">
         <label>Interne Notizen</label>
         <textarea name="notes" rows="3">{{ client.notes or '' }}</textarea>

@@ -15,11 +15,11 @@
       </div>
       <div class="form-group">
         <label>Betrag (€) *</label>
-        <input type="number" name="amount" value="{{ expense.amount or '' }}" step="0.01" min="0" required>
+        <input type="number" name="amount" value="{{ expense.amount or '' }}" step="any" min="0" inputmode="decimal" required autofocus>
       </div>
       <div class="form-group">
         <label>Datum *</label>
-        <input type="text" name="date" value="{{ expense.date | date_de }}" required placeholder="TT.MM.JJJJ">
+        <input type="text" name="date" value="{{ expense.date | date_de }}" required placeholder="TT.MM.JJJJ" class="date-input">
       </div>
       <div class="form-group">
         <label>Kategorie</label>
@@ -31,13 +31,16 @@
       </div>
       <div class="form-group">
         <label>Lieferant / Auftragnehmer</label>
-        <input type="text" name="vendor" value="{{ expense.vendor or '' }}">
+        <input type="text" name="vendor" value="{{ expense.vendor or '' }}" list="vendor-list" autocomplete="off">
+        <datalist id="vendor-list">
+          {% for v in vendors %}<option value="{{ v }}">{% endfor %}
+        </datalist>
       </div>
     </div>
     <div>
       <div class="form-group">
         <label>Kunde</label>
-        <select name="client_id">
+        <select name="client_id" id="client-select">
           <option value="">— Kein Kunde —</option>
           {% for c in clients %}
           <option value="{{ c.id }}" {% if c.id == expense.client_id %}selected{% endif %}>{{ c.name }}</option>
@@ -46,20 +49,26 @@
       </div>
       <div class="form-group">
         <label>Projekt</label>
-        <select name="project_id">
+        <select name="project_id" id="project-select">
           <option value="">— Kein Projekt —</option>
           {% for p in projects %}
-          <option value="{{ p.id }}" {% if p.id == expense.project_id %}selected{% endif %}>
+          <option value="{{ p.id }}" data-client="{{ p.client_id or '' }}" {% if p.id == expense.project_id %}selected{% endif %}>
             {{ p.name }}{% if p.project_number %} ({{ p.project_number }}){% endif %}
           </option>
           {% endfor %}
         </select>
       </div>
+      {% if cfg.tax.mode == 'regelbesteuerung' %}
       <div class="form-group">
         <label>MwSt. im Beleg (%)</label>
-        <input type="number" name="vat_rate" value="{{ expense.vat_rate or '' }}" step="1" min="0" placeholder="19">
-        <div class="field-hint">Für Vorsteuerabzug (nur bei Regelbesteuerung relevant)</div>
+        <select name="vat_rate">
+          {% for r in [cfg.tax.mwst_rate, cfg.tax.mwst_rate_reduced, 0] %}
+          <option value="{{ r }}" {% if (expense.vat_rate or cfg.tax.mwst_rate) | string == r | string %}selected{% endif %}>{{ r }} %</option>
+          {% endfor %}
+        </select>
+        <div class="field-hint">Für den Vorsteuerabzug</div>
       </div>
+      {% endif %}
       <div class="form-group">
         <label>Beleg hochladen</label>
         {% if edit and expense.receipt_file %}

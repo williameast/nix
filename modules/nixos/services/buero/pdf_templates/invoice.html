@@ -146,12 +146,8 @@
     white-space: nowrap; pointer-events: none; z-index: 0;
   }
 
-  /* ── ANLAGE STAMP ──────────────────────────────────────── */
-  .anlage-stamp {
-    text-align: right; font-size: 9pt; font-weight: 700;
-    color: var(--accent); text-transform: uppercase; letter-spacing: 0.12em;
-    margin-bottom: 3mm; border-bottom: 1.5pt solid var(--accent); padding-bottom: 1.5mm;
-  }
+  .items tr.subtotal td { border-top: 0.75pt solid #999; border-bottom: none; color: #555; font-weight: 600; }
+  .receipts-note { font-size: 8pt; color: #666; margin: 1mm 0 0; }
 
   /* ── §19 NOTE ───────────────────────────────────────────── */
   .ku-note { font-size: 8pt; color: #666; font-style: italic; margin-bottom: 4mm; }
@@ -206,9 +202,6 @@
 <div class="bezahlt-watermark">{{ t.paid_watermark }}</div>
 {% endif %}
 
-{% if anlage_nr %}
-<div class="anlage-stamp">{{ t.enclosure }} {{ anlage_nr }}</div>
-{% endif %}
 
 <!-- ── HEADER ── -->
 <table class="hdr">
@@ -331,6 +324,7 @@
 {% set regular_items  = (invoice.positions or []) | rejectattr("auslagenersatz", "equalto", true) | list %}
 {% set auslagen_items = (invoice.positions or []) | selectattr("auslagenersatz", "equalto", true) | list %}
 
+{% if regular_items %}
 <table class="items">
   <thead>
     <tr>
@@ -354,7 +348,13 @@
     </tr>
     {% endfor %}
   </tbody>
+  {% if auslagen_items %}
+  <tfoot>
+    <tr class="subtotal"><td></td><td colspan="4">{{ t.subtotal_services }}</td><td class="r">{{ totals.services | eur }}</td></tr>
+  </tfoot>
+  {% endif %}
 </table>
+{% endif %}
 
 {% if auslagen_items %}
 <div class="auslagen-section">
@@ -376,7 +376,13 @@
       </tr>
       {% endfor %}
     </tbody>
+    {% if regular_items %}
+    <tfoot>
+      <tr class="subtotal"><td></td><td>{{ t.subtotal_expenses }}</td><td class="r">{{ totals.auslagen | eur }}</td></tr>
+    </tfoot>
+    {% endif %}
   </table>
+  <p class="receipts-note">{{ t.receipts_attached }}</p>
 </div>
 {% endif %}
 

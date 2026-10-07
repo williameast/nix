@@ -3,26 +3,100 @@
 {% block content %}
 <div class="page-header">
   <h1>Dashboard</h1>
-  <span class="muted">{{ stats.year }}</span>
+  <div class="filter-bar" style="margin:0">
+    {% for y in stats.years %}
+    <a href="?year={{ y }}" class="filter-chip {% if y | int == stats.year %}active{% endif %}">{{ y }}</a>
+    {% endfor %}
+  </div>
 </div>
 
 <div class="stat-grid">
   <div class="stat-card">
-    <div class="stat-label">Einnahmen YTD</div>
-    <div class="stat-value accent">{{ stats.ytd_revenue | eur }}</div>
+    <div class="stat-label">Einnahmen {{ stats.year }}</div>
+    <div class="stat-value accent">{{ stats.income | eur }}</div>
+    <div class="stat-hint">nach Zahlungseingang</div>
   </div>
   <div class="stat-card">
-    <div class="stat-label">Ausgaben YTD</div>
-    <div class="stat-value">{{ stats.ytd_expenses | eur }}</div>
+    <div class="stat-label">Ausgaben {{ stats.year }}</div>
+    <div class="stat-value">{{ stats.expenses | eur }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Gewinn {{ stats.year }}</div>
+    <div class="stat-value {% if stats.profit < 0 %}danger{% endif %}">{{ stats.profit | eur }}</div>
+    <div class="stat-hint">Einnahmen − Ausgaben (EÜR)</div>
   </div>
   <div class="stat-card">
     <div class="stat-label">Offen</div>
     <div class="stat-value {% if stats.overdue %}danger{% endif %}">{{ stats.outstanding | eur }}</div>
-    {% if stats.overdue %}<div class="stat-sub">{{ stats.overdue }} überfällig</div>{% endif %}
+    <div class="stat-hint">{{ stats.unpaid }} Rechnung(en){% if stats.overdue %} · <span class="danger">{{ stats.overdue }} überfällig</span>{% endif %}</div>
   </div>
-  <div class="stat-card">
-    <div class="stat-label">Kunden</div>
-    <div class="stat-value">{{ stats.client_count }}</div>
+</div>
+
+{% if cfg.tax.mode == 'kleinunternehmer' %}
+{% set curr_pct = (stats.income / stats.ku_limit_curr * 100) | round(1) %}
+{% set prev_pct = (stats.prev_income / stats.ku_limit_prev * 100) | round(1) %}
+<div class="section card-section">
+  <div class="meta-label">Kleinunternehmergrenze (§ 19 UStG)</div>
+  <div class="limit-row">
+    <div class="limit-label">{{ stats.year }}: {{ stats.income | eur }} von {{ stats.ku_limit_curr | eur }}</div>
+    <div class="bar"><div class="bar-fill {% if curr_pct >= 90 %}bar-danger{% elif curr_pct >= 70 %}bar-warn{% endif %}" style="width:{{ [curr_pct, 100] | min }}%"></div></div>
+    <div class="limit-pct">{{ curr_pct }} %</div>
+  </div>
+  <div class="limit-row">
+    <div class="limit-label">{{ stats.year - 1 }}: {{ stats.prev_income | eur }} von {{ stats.ku_limit_prev | eur }}</div>
+    <div class="bar"><div class="bar-fill {% if prev_pct > 100 %}bar-danger{% elif prev_pct >= 80 %}bar-warn{% endif %}" style="width:{{ [prev_pct, 100] | min }}%"></div></div>
+    <div class="limit-pct">{{ prev_pct }} %</div>
+  </div>
+  <div class="field-hint">
+    Gerechnet nach vereinnahmten Entgelten. Über 100.000 € im laufenden Jahr endet die Steuerbefreiung sofort;
+    über 25.000 € im Vorjahr gilt sie im Folgejahr nicht mehr.
+    {% if stats.prev_income > stats.ku_limit_prev %}<strong class="danger">Vorjahresgrenze überschritten – bitte mit dem Steuerberater klären.</strong>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="form-grid-2" style="align-items:start">
+  <div class="section">
+    <h2>Monate {{ stats.year }}</h2>
+    <table class="table month-table">
+      <thead><tr><th>Monat</th><th class="num">Einnahmen</th><th class="num">Ausgaben</th><th class="num">Saldo</th></tr></thead>
+      <tbody>
+        {% set names = ['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'] %}
+        {% for m in stats.months %}
+        <tr class="{% if not m.income and not m.expenses %}muted{% endif %}">
+          <td>{{ names[loop.index0] }}</td>
+          <td class="num">
+            {% if m.income %}<span class="mini-bar inc" style="width:{{ (m.income / stats.month_peak * 60) | round }}px"></span>{{ m.income | eur }}{% else %}—{% endif %}
+          </td>
+          <td class="num">
+            {% if m.expenses %}<span class="mini-bar exp" style="width:{{ (m.expenses / stats.month_peak * 60) | round }}px"></span>{{ m.expenses | eur }}{% else %}—{% endif %}
+          </td>
+          <td class="num {% if m.income - m.expenses < 0 %}danger{% endif %}">{% if m.income or m.expenses %}{{ (m.income - m.expenses) | eur }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="totals-total"><td>Summe</td><td class="num">{{ stats.income | eur }}</td><td class="num">{{ stats.expenses | eur }}</td><td class="num">{{ stats.profit | eur }}</td></tr>
+      </tfoot>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Ausgaben nach Kategorie</h2>
+    {% if stats.by_category %}
+    <table class="table">
+      <tbody>
+        {% for cat, amt in stats.by_category %}
+        <tr onclick="location.href='{{ url_for('expenses_list', year=stats.year, category=cat) }}'" style="cursor:pointer">
+          <td>{{ cat }}</td><td class="num">{{ amt | eur }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot><tr class="totals-total"><td>Summe</td><td class="num">{{ stats.expenses | eur }}</td></tr></tfoot>
+    </table>
+    {% else %}
+    <p class="muted">Keine Ausgaben in {{ stats.year }}.</p>
+    {% endif %}
   </div>
 </div>
 
@@ -44,7 +118,7 @@
         <th>Kunde</th>
         <th>Datum</th>
         <th>Fällig</th>
-        <th>Betrag</th>
+        <th class="num">Betrag</th>
         <th>Status</th>
       </tr>
     </thead>

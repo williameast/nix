@@ -9,12 +9,25 @@
   </div>
 </div>
 
-<div class="filter-bar">
-  <a href="{{ url_for('invoices_list') }}" class="filter-chip {% if not status_filter %}active{% endif %}">Alle</a>
-  <a href="?status=draft"     class="filter-chip {% if status_filter == 'draft' %}active{% endif %}">Entwurf</a>
-  <a href="?status=sent"      class="filter-chip {% if status_filter == 'sent' %}active{% endif %}">Versendet</a>
-  <a href="?status=overdue"   class="filter-chip {% if status_filter == 'overdue' %}active{% endif %}">Überfällig</a>
-  <a href="?status=paid"      class="filter-chip {% if status_filter == 'paid' %}active{% endif %}">Bezahlt</a>
+{% macro q() -%}{{ url_with('invoices_list', {'year': year_filter, 'status': status_filter}, **kwargs) }}{%- endmacro %}
+
+<div class="filter-group">
+  <span class="meta-label">Jahr</span>
+  <a href="{{ q(year='') }}" class="filter-chip {% if not year_filter %}active{% endif %}">Alle</a>
+  {% for y in years %}
+  <a href="{{ q(year=y) }}" class="filter-chip {% if year_filter == y %}active{% endif %}">{{ y }}</a>
+  {% endfor %}
+</div>
+<div class="filter-group" style="margin-bottom:1.25rem">
+  <span class="meta-label">Status</span>
+  <a href="{{ q(status='') }}" class="filter-chip {% if not status_filter %}active{% endif %}">Alle</a>
+  {% for s in ['draft', 'sent', 'overdue', 'paid', 'cancelled'] %}
+  {% if chips.get(s) or status_filter == s %}
+  <a href="{{ q(status=s) }}" class="filter-chip {% if status_filter == s %}active{% endif %}">
+    {{ s | status_de }} <span class="chip-sum">{{ chips[s].count if chips.get(s) else 0 }}{% if chips.get(s) and s != 'cancelled' %} · {{ chips[s].sum | eur }}{% endif %}</span>
+  </a>
+  {% endif %}
+  {% endfor %}
 </div>
 
 {% if invoices %}
@@ -39,10 +52,20 @@
       <td>{{ inv.date | date_de }}</td>
       <td class="{% if inv.status == 'overdue' %}danger{% endif %}">{{ inv.due_date | date_de }}</td>
       <td class="num">{{ inv._totals.total | eur }}</td>
-      <td><span class="badge badge-{{ inv.status }}">{{ inv.status | status_de }}</span></td>
+      <td>
+        <span class="badge badge-{{ inv.status }}">{{ inv.status | status_de }}</span>
+        {% if inv.paid_date %}<span class="muted" style="font-size:.8rem">{{ inv.paid_date | date_de }}</span>{% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
+  <tfoot>
+    <tr class="totals-total">
+      <td colspan="5">Summe berechnet <span class="muted" style="font-weight:400;font-size:.8rem">(ohne Angebote, Entwürfe, Stornos)</span></td>
+      <td class="num">{{ total | eur }}</td>
+      <td></td>
+    </tr>
+  </tfoot>
 </table>
 {% else %}
 <div class="empty">

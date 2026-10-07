@@ -26,13 +26,17 @@
         <span class="muted">{{ doc.created[:10] if doc.created else '' }}</span>
       </div>
       {% if doc.correspondent %}
-      <div class="tag">{{ doc.correspondent }}</div>
+      <div class="tag">{{ correspondents.get(doc.correspondent, doc.correspondent) }}</div>
       {% endif %}
       <div class="doc-actions">
-        <a href="{{ cfg.paperless.base_url }}/documents/{{ doc.id }}/" target="_blank" class="btn btn-xs">Öffnen ↗</a>
+        <a href="{{ paperless_doc_url(doc.id) }}" target="_blank" class="btn btn-xs">Öffnen ↗</a>
+        {% if doc.id in imported %}
+        <a href="{{ url_for('expense_detail', eid=imported[doc.id]) }}" class="btn btn-xs btn-outline">✓ Erfasst</a>
+        {% else %}
         <form method="POST" action="{{ url_for('paperless_import', did=doc.id) }}" style="display:inline">
           <button type="submit" class="btn btn-xs btn-accent">→ Als Ausgabe</button>
         </form>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
