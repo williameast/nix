@@ -5,6 +5,11 @@
   <div>
     <h1>{{ invoice.type | type_de }} <code>{{ invoice.id }}</code></h1>
     <span class="badge badge-{{ invoice.status }} badge-lg">{{ invoice.status | status_de }}</span>
+    {% if locked %}
+    <span class="badge badge-lg badge-locked" title="Versendete Rechnungen sind unveränderlich (GoBD)">
+      🔒 festgeschrieben{% if invoice.snapshot %} am {{ invoice.snapshot.date | date_de }}{% endif %}
+    </span>
+    {% endif %}
   </div>
   <div class="header-actions">
     {% if n_receipts %}
@@ -15,8 +20,13 @@
     <a href="{{ url_for('invoice_pdf', iid=invoice.id) }}" class="btn btn-primary">↓ PDF</a>
     {% endif %}
 
+    {% if invoice.status == 'paid' %}
+    <a href="{{ url_for('invoice_pdf', iid=invoice.id, current=1) }}" class="btn btn-outline" title="Mit Zahlungsvermerk „Bezahlt“">↓ Zahlungsbestätigung</a>
+    {% endif %}
+    {% if not locked %}
     <a href="{{ url_for('invoice_edit', iid=invoice.id) }}" class="btn btn-outline">Bearbeiten</a>
-    {% if invoice.type == 'quote' %}
+    {% endif %}
+    {% if invoice.type == 'quote' and invoice.status != 'accepted' %}
     <form method="POST" action="{{ url_for('quote_to_invoice', iid=invoice.id) }}" style="display:inline">
       <button type="submit" class="btn btn-primary">→ In Rechnung umwandeln</button>
     </form>
@@ -26,17 +36,21 @@
 
 
 <!-- Status actions -->
+{% set labels = {'draft': 'Zurück zu Entwurf', 'sent': 'Als versendet markieren', 'accepted': 'Angenommen',
+                 'cancelled': ('Abgelehnt' if invoice.type == 'quote' else 'Verwerfen')} %}
+{% if allowed or invoice.status == 'paid' or (invoice.type in ('invoice', 'receipt') and invoice.status == 'sent') %}
 <div class="status-bar">
-  <span class="muted">Status ändern:</span>
-  {% for s, label in [('draft','Entwurf'),('sent','Versendet'),('cancelled','Storniert')] %}
-  {% if s != invoice.status %}
-  <form method="POST" action="{{ url_for('invoice_status', iid=invoice.id) }}" style="display:inline">
+  {% for s in allowed if s != 'paid' %}
+  <form method="POST" action="{{ url_for('invoice_status', iid=invoice.id) }}" style="display:inline"
+        {% if s == 'sent' and invoice.type != 'quote' %}onsubmit="return confirm('Rechnung als versendet markieren? Danach ist sie festgeschrieben und kann nur noch storniert werden.')"{% endif %}
+        {% if s == 'draft' and invoice.status == 'paid' %}{% endif %}>
     <input type="hidden" name="status" value="{{ s }}">
-    <button type="submit" class="btn btn-xs">{{ label }}</button>
+    <button type="submit" class="btn btn-xs {% if s == 'sent' %}btn-primary{% endif %}">
+      {{ 'Zahlung zurücknehmen' if (s == 'sent' and invoice.status == 'paid') else labels[s] }}
+    </button>
   </form>
-  {% endif %}
   {% endfor %}
-  {% if invoice.type != 'quote' %}
+  {% if 'paid' in allowed or invoice.status == 'paid' %}
   <form method="POST" action="{{ url_for('invoice_status', iid=invoice.id) }}" class="paid-form">
     <input type="hidden" name="status" value="paid">
     <label class="muted" for="paid-date">Bezahlt am</label>
@@ -47,7 +61,20 @@
     </button>
   </form>
   {% endif %}
+  {% if invoice.type in ('invoice', 'receipt') and invoice.status == 'sent' %}
+  <span class="status-sep"></span>
+  <form method="POST" action="{{ url_for('invoice_storno', iid=invoice.id) }}" style="display:inline"
+        onsubmit="return confirm('Rechnung {{ invoice.id }} stornieren? Es wird eine Stornorechnung erstellt.')">
+    <button type="submit" class="btn btn-xs btn-danger">Stornieren</button>
+  </form>
+  <form method="POST" action="{{ url_for('invoice_storno', iid=invoice.id) }}" style="display:inline"
+        onsubmit="return confirm('Rechnung {{ invoice.id }} stornieren und als neuen Entwurf zum Korrigieren kopieren?')">
+    <input type="hidden" name="correct" value="1">
+    <button type="submit" class="btn btn-xs btn-outline">Stornieren &amp; korrigieren</button>
+  </form>
+  {% endif %}
 </div>
+{% endif %}
 
 <!-- Meta grid -->
 <div class="detail-meta">
@@ -89,6 +116,11 @@
       {% endif %}
       {% if invoice.due_date %}<tr><td>Fällig</td><td>{{ invoice.due_date | date_de }}</td></tr>{% endif %}
       {% if invoice.paid_date %}<tr><td>Bezahlt am</td><td>{{ invoice.paid_date | date_de }}</td></tr>{% endif %}
+      {% for key, label in [('storno_ref', 'Storniert'), ('storno_id', 'Stornorechnung'),
+                             ('correction_of', 'Korrektur von'), ('corrected_by', 'Korrigiert durch'),
+                             ('invoice_ref', 'Rechnung')] %}
+      {% if invoice[key] %}<tr><td>{{ label }}</td><td><a href="{{ url_for('invoice_detail', iid=invoice[key]) }}">{{ invoice[key] }}</a></td></tr>{% endif %}
+      {% endfor %}
       {% if invoice.quote_ref %}<tr><td>Angebot Ref.</td><td><a href="{{ url_for('invoice_detail', iid=invoice.quote_ref) }}">{{ invoice.quote_ref }}</a></td></tr>{% endif %}
       {% if project %}
       <tr><td>Projekt</td><td><a href="{{ url_for('project_detail', pid=project.id) }}">{{ project.name }}</a>{% if project.project_number %} · <code>{{ project.project_number }}</code>{% endif %}</td></tr>
@@ -190,7 +222,7 @@
 {% endif %}
 
 <!-- ── Auslagenersatz hinzufügen ─────────────────────────────────────────────── -->
-{% if available_auslagen %}
+{% if available_auslagen and not locked and invoice.type != 'storno' %}
 <div class="detail-section">
   <div class="meta-label">Auslagenersatz hinzufügen</div>
   <form method="POST" action="{{ url_for('invoice_add_auslagen', iid=invoice.id) }}">
@@ -221,11 +253,13 @@
 </div>
 {% endif %}
 
+{% if can_delete %}
 <div class="danger-zone">
   <form method="POST" action="{{ url_for('invoice_delete', iid=invoice.id) }}"
-        onsubmit="return confirm('Rechnung wirklich löschen?')">
+        onsubmit="return confirm('{{ invoice.type | type_de }} {{ invoice.id }} wirklich löschen?')">
     <button type="submit" class="btn btn-danger">Löschen</button>
   </form>
 </div>
+{% endif %}
 
 {% endblock %}

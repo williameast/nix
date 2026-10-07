@@ -159,6 +159,61 @@
     </div>
   </div>
 
+  <!-- Steuerschätzung -->
+  <div class="settings-section">
+    <h2 id="steuer">Steuerschätzung (Auswertung)</h2>
+    <p class="field-hint" style="margin-bottom:1rem">Nur für die Rücklagen-Planung – ersetzt keine Steuerberatung.</p>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label>Weiteres zu versteuerndes Einkommen (€/Jahr)</label>
+        <input type="number" name="f_other_income" value="{{ cfg.forecast.other_income }}" step="any" min="0">
+        <div class="field-hint">z. B. aus Anstellung (Brutto − Werbungskosten)</div>
+      </div>
+      <div class="form-group">
+        <label>Sonstige Abzüge (€/Jahr)</label>
+        <input type="number" name="f_deductions" value="{{ cfg.forecast.deductions }}" step="any" min="0">
+        <div class="field-hint">Sonderausgaben, Altersvorsorge …</div>
+      </div>
+      <div class="form-group">
+        <label>Kranken-/Pflegeversicherung (% vom Gewinn)</label>
+        <input type="number" name="f_health_rate" value="{{ cfg.forecast.health_rate }}" step="any" min="0">
+        <div class="field-hint">0 wenn über Anstellung/Familie versichert; freiwillig GKV ca. 19–20 %, KSK ca. 9–10 %</div>
+      </div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label>Kirchensteuer</label>
+        <select name="f_church_rate">
+          {% for r, l in [(0, 'keine'), (8, '8 % (BY, BW)'), (9, '9 %')] %}
+          <option value="{{ r }}" {% if (cfg.forecast.church_rate | int) == r %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="checkbox-label" style="margin-top:1.6rem">
+          <input type="checkbox" name="f_gewerbe" {% if cfg.forecast.gewerbe %}checked{% endif %}>
+          Gewerbetreibend (Gewerbesteuer)
+        </label>
+        <div class="field-hint">Aus bei Freiberuflern</div>
+      </div>
+      <div class="form-group">
+        <label>Hebesatz (%)</label>
+        <input type="number" name="f_hebesatz" value="{{ cfg.forecast.hebesatz }}" step="1" min="0">
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-group">
+        <label>Bereits gezahlte Vorauszahlungen dieses Jahr (€)</label>
+        <input type="number" name="f_prepaid" value="{{ cfg.forecast.prepaid }}" step="any" min="0">
+      </div>
+      <div class="form-group">
+        <label>Paperless-Dokumenttyp für Belege</label>
+        <input type="text" name="f_pl_type" value="{{ cfg.forecast.paperless_expense_type }}">
+        <div class="field-hint">Zählt noch nicht erfasste Belege in der Auswertung</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Paperless -->
   <div class="settings-section">
     <h2>Paperless-ngx Integration</h2>

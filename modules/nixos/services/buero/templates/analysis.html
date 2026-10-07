@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Auswertung{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Auswertung</h1>
+  <div class="filter-bar" style="margin:0">
+    {% for y in stats.years %}
+    <a href="?year={{ y }}" class="filter-chip {% if y | int == year %}active{% endif %}">{{ y }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ── To-do ───────────────────────────────────────────────────────────────── -->
+<div class="stat-grid">
+  <a class="stat-card stat-link" href="{{ url_for('expenses_list', state='open') }}">
+    <div class="stat-label">Auslagen noch abzurechnen</div>
+    <div class="stat-value {% if todo.open_reimbursable %}warn{% endif %}">{{ todo.open_reimbursable_sum | eur }}</div>
+    <div class="stat-hint">{{ todo.open_reimbursable | length }} Ausgabe(n)</div>
+  </a>
+  <a class="stat-card stat-link" href="{{ url_for('invoices_list', status='overdue') }}">
+    <div class="stat-label">Überfällige Rechnungen</div>
+    <div class="stat-value {% if todo.overdue %}danger{% endif %}">{{ todo.overdue | length }}</div>
+    <div class="stat-hint">{{ todo.overdue | sum(attribute='_totals.total') | eur }}</div>
+  </a>
+  <a class="stat-card stat-link" href="{{ url_for('paperless_browser') }}">
+    <div class="stat-label">Belege in Paperless, nicht erfasst</div>
+    <div class="stat-value {% if todo.paperless_unimported %}warn{% endif %}">
+      {{ '—' if todo.paperless_unimported is none else todo.paperless_unimported }}
+    </div>
+    <div class="stat-hint">Dokumenttyp „{{ cfg.forecast.paperless_expense_type }}“</div>
+  </a>
+  <a class="stat-card stat-link" href="{{ url_for('expenses_list') }}">
+    <div class="stat-label">Ausgaben unvollständig</div>
+    <div class="stat-value {% if todo.no_amount or todo.no_receipt %}warn{% endif %}">
+      {{ (todo.no_amount | length) + (todo.no_receipt | length) }}
+    </div>
+    <div class="stat-hint">{{ todo.no_amount | length }} ohne Betrag · {{ todo.no_receipt | length }} ohne Beleg · {{ todo.uncategorised | length }} „Sonstiges“</div>
+  </a>
+</div>
+{% if todo.no_amount or todo.no_receipt %}
+<details class="section card-section">
+  <summary><strong>Unvollständige Ausgaben anzeigen</strong></summary>
+  <table class="table" style="margin-top:.75rem">
+    {% for e in (todo.no_amount + todo.no_receipt) | unique(attribute='id') %}
+    <tr onclick="location.href='{{ url_for('expense_edit', eid=e.id) }}'" style="cursor:pointer">
+      <td>{{ e.date | date_de }}</td><td>{{ e.description or '—' }}</td>
+      <td>{% if not (e.amount | float) %}<span class="badge badge-open">ohne Betrag</span>{% endif %}
+          {% if not e.receipt_file and not e.paperless_id %}<span class="badge badge-own">ohne Beleg</span>{% endif %}</td>
+      <td class="num">{{ e.amount | eur }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</details>
+{% endif %}
+
+<!-- ── Forecast & tax ──────────────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-header">
+    <h2>Prognose &amp; Steuerlast {{ year }}</h2>
+    <a href="{{ url_for('settings') }}#steuer" class="btn btn-xs btn-outline">Annahmen ändern</a>
+  </div>
+  <table class="table forecast-table">
+    <thead>
+      <tr>
+        <th></th>
+        {% for s in scenarios %}<th class="num">{{ s.label }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Einnahmen</td>{% for s in scenarios %}<td class="num">{{ s.income | eur }}</td>{% endfor %}</tr>
+      <tr><td>Ausgaben</td>{% for s in scenarios %}<td class="num">− {{ s.expenses | eur }}</td>{% endfor %}</tr>
+      <tr class="totals-total"><td>Gewinn</td>{% for s in scenarios %}<td class="num">{{ s.profit | eur }}</td>{% endfor %}</tr>
+      {% if cfg.forecast.health_rate | float %}
+      <tr><td>Kranken-/Pflegeversicherung ({{ cfg.forecast.health_rate }} %)</td>{% for s in scenarios %}<td class="num">{{ s.tax.health | eur }}</td>{% endfor %}</tr>
+      {% endif %}
+      <tr><td>Einkommensteuer</td>{% for s in scenarios %}<td class="num">{{ s.tax.est | eur }}</td>{% endfor %}</tr>
+      <tr><td>Solidaritätszuschlag</td>{% for s in scenarios %}<td class="num">{{ s.tax.soli | eur }}</td>{% endfor %}</tr>
+      {% if cfg.forecast.church_rate | float %}
+      <tr><td>Kirchensteuer ({{ cfg.forecast.church_rate | int }} %)</td>{% for s in scenarios %}<td class="num">{{ s.tax.church | eur }}</td>{% endfor %}</tr>
+      {% endif %}
+      {% if cfg.forecast.gewerbe %}
+      <tr><td>Gewerbesteuer (Hebesatz {{ cfg.forecast.hebesatz | int }} %)</td>{% for s in scenarios %}<td class="num">{{ s.tax.gewst | eur }}</td>{% endfor %}</tr>
+      {% endif %}
+      <tr class="totals-total"><td>Geschätzte Abgaben</td>{% for s in scenarios %}<td class="num">{{ s.tax.total | eur }}</td>{% endfor %}</tr>
+      <tr><td class="muted">Anteil am Gewinn</td>{% for s in scenarios %}<td class="num muted">{{ s.tax.rate | round(1) }} %</td>{% endfor %}</tr>
+      {% if cfg.forecast.prepaid | float %}
+      <tr><td>abzgl. Vorauszahlungen</td>{% for s in scenarios %}<td class="num">− {{ s.tax.prepaid | eur }}</td>{% endfor %}</tr>
+      {% endif %}
+      <tr class="totals-total"><td>Zurücklegen</td>{% for s in scenarios %}<td class="num accent">{{ [s.tax.remaining, 0] | max | eur }}</td>{% endfor %}</tr>
+      <tr><td class="muted">Netto nach Abgaben</td>{% for s in scenarios %}<td class="num muted">{{ (s.profit - s.tax.total) | eur }}</td>{% endfor %}</tr>
+    </tbody>
+  </table>
+  <p class="field-hint">
+    Schätzung nach § 32a EStG (Grundtarif, Tarif {{ [[year, tariff_years[0]] | max, tariff_years[-1]] | min }})
+    {% if cfg.forecast.other_income | float %}· inkl. {{ cfg.forecast.other_income | eur }} weiterem Einkommen – gezeigt ist nur der Anteil, der auf die Selbstständigkeit entfällt{% endif %}.
+    {% if 0.08 < frac < 1 %}Hochrechnung: Ist-Werte ÷ {{ (frac * 100) | round | int }} % des Jahres.{% endif %}
+    Kein Ersatz für die Steuerberatung.
+  </p>
+</div>
+
+<!-- ── Pipeline ────────────────────────────────────────────────────────────── -->
+<div class="stat-grid">
+  <a class="stat-card stat-link" href="{{ url_for('invoices_list', status='sent') }}">
+    <div class="stat-label">Offene Rechnungen</div>
+    <div class="stat-value">{{ stats.outstanding | eur }}</div>
+    <div class="stat-hint">{{ stats.unpaid }} versendet, unbezahlt</div>
+  </a>
+  <div class="stat-card">
+    <div class="stat-label">Versendete Angebote</div>
+    <div class="stat-value accent">{{ pipeline_sums.quotes_sent | eur }}</div>
+    <div class="stat-hint">{{ pipeline.quotes_sent | length }} offen, noch nicht angenommen</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Angebotsentwürfe</div>
+    <div class="stat-value">{{ pipeline_sums.quotes_draft | eur }}</div>
+    <div class="stat-hint">{{ pipeline.quotes_draft | length }} Entwurf/Entwürfe</div>
+  </div>
+  <a class="stat-card stat-link" href="{{ url_for('invoices_list', status='draft') }}">
+    <div class="stat-label">Rechnungsentwürfe</div>
+    <div class="stat-value">{{ pipeline_sums.invoice_drafts | eur }}</div>
+    <div class="stat-hint">{{ pipeline.invoice_drafts | length }} noch nicht versendet</div>
+  </a>
+</div>
+{% if pipeline.quotes_sent %}
+<table class="table" style="margin-bottom:2rem">
+  <thead><tr><th>Angebot</th><th>Kunde</th><th>Datum</th><th class="num">Betrag</th></tr></thead>
+  <tbody>
+    {% for q in pipeline.quotes_sent %}
+    <tr onclick="location.href='{{ url_for('invoice_detail', iid=q.id) }}'" style="cursor:pointer">
+      <td><code>{{ q.id }}</code></td><td>{{ q._client.get('name', '—') }}</td><td>{{ q.date | date_de }}</td><td class="num">{{ q._totals.total | eur }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<!-- ── Income vs. expenses ─────────────────────────────────────────────────── -->
+{% macro margin_table(rows, first_col, link) %}
+<table class="table">
+  <thead>
+    <tr><th>{{ first_col }}</th><th class="num">Berechnet</th><th class="num">davon bezahlt</th>
+        <th class="num">Ausgaben</th><th class="num">davon erstattet</th><th class="num">Ergebnis</th><th class="num">Marge</th></tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr {% if r.id %}onclick="location.href='{{ url_for(link, **{('pid' if link == 'project_detail' else 'cid'): r.id}) }}'" style="cursor:pointer"{% endif %}>
+      <td>{{ r.name }}{% if r.client %} <span class="muted">· {{ r.client }}</span>{% endif %}</td>
+      <td class="num">{{ r.billed | eur }}</td>
+      <td class="num muted">{{ r.paid | eur }}</td>
+      <td class="num">{{ r.expenses | eur }}</td>
+      <td class="num muted">{{ r.reimbursed | eur }}</td>
+      <td class="num {% if r.margin < 0 %}danger{% endif %}">{{ r.margin | eur }}</td>
+      <td class="num">{{ (r.margin_pct | round | int ~ ' %') if r.margin_pct is not none else '—' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+<div class="section">
+  <h2>Einnahmen vs. Ausgaben – gesamt</h2>
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-label">Berechnet (alle Jahre)</div><div class="stat-value">{{ overall.billed | eur }}</div></div>
+    <div class="stat-card"><div class="stat-label">Bezahlt</div><div class="stat-value accent">{{ overall.paid | eur }}</div></div>
+    <div class="stat-card"><div class="stat-label">Ausgaben</div><div class="stat-value">{{ overall.expenses | eur }}</div></div>
+    <div class="stat-card">
+      <div class="stat-label">Ergebnis</div>
+      <div class="stat-value {% if overall.margin < 0 %}danger{% endif %}">{{ overall.margin | eur }}</div>
+      {% if overall.margin_pct is not none %}<div class="stat-hint">{{ overall.margin_pct | round(1) }} % Marge</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Nach Projekt</h2>
+  {{ margin_table(project_rows, 'Projekt', 'project_detail') }}
+</div>
+
+<div class="section">
+  <h2>Nach Kunde</h2>
+  {{ margin_table(client_rows, 'Kunde', 'client_detail') }}
+  <p class="field-hint">„Berechnet“ = versendete und bezahlte Rechnungen inkl. Auslagenersatz, ohne Angebote, Entwürfe und Stornos.</p>
+</div>
+{% endblock %}

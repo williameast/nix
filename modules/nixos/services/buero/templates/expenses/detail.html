@@ -33,10 +33,12 @@
         <td>Rechnung</td>
         <td>
           <a href="{{ url_for('invoice_detail', iid=expense.invoice_id) }}">{{ expense.invoice_id }}</a>
+          {% if not invoice_locked %}
           <form method="POST" action="{{ url_for('expense_unassign', eid=expense.id) }}" style="display:inline;margin-left:.75rem"
                 onsubmit="return confirm('Ausgabe von Rechnung {{ expense.invoice_id }} trennen?')">
             <button type="submit" class="btn btn-outline" style="font-size:.75rem;padding:.2rem .5rem">Trennen</button>
           </form>
+          {% endif %}
         </td>
       </tr>
       {% endif %}

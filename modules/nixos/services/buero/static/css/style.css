@@ -479,3 +479,14 @@ tfoot tr.subtotal td { color: var(--muted); font-size: .9rem; }
 .paid-form input { padding: .2rem .4rem; font-size: .85rem; }
 .totals-only { margin-top: .5rem; }
 .totals-only td { border-bottom: none; }
+.badge-locked   { background: #ede7f6; color: #4527a0; }
+.badge-accepted { background: #e8f5e9; color: var(--success); }
+.status-sep { display: inline-block; width: 1px; height: 1.2rem; background: var(--border); margin: 0 .5rem; vertical-align: middle; }
+
+/* ── Auswertung ──────────────────────────────────────────────────────────── */
+a.stat-link { text-decoration: none; color: inherit; transition: border-color .15s; }
+a.stat-link:hover { border-color: var(--accent); }
+.stat-value.warn { color: var(--warning); }
+td.accent { color: var(--accent); font-weight: 700; }
+.forecast-table td:first-child { white-space: nowrap; }
+details.card-section summary { cursor: pointer; }

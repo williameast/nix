@@ -100,6 +100,16 @@ DEFAULTS = {
         "accent_color": "#1400FF",
         "logo_path": "",
     },
+    "forecast": {
+        "other_income": 0,       # zvE from other sources (e.g. employment), per year
+        "deductions": 0,         # Sonderausgaben/Vorsorge not covered by health_rate
+        "health_rate": 0,        # % of profit paid as KV/PV (self-employed)
+        "church_rate": 0,        # 0, 8 or 9 % of ESt
+        "gewerbe": False,        # Gewerbetreibend (True) or Freiberufler (False)
+        "hebesatz": 410,         # Gewerbesteuer-Hebesatz (Berlin 410 %)
+        "prepaid": 0,            # Vorauszahlungen already paid this year
+        "paperless_expense_type": "Expense",  # Paperless document type for receipts
+    },
 }
 
 
@@ -414,7 +424,8 @@ def year_stats(cfg, year):
             by_cat[e.get("category") or "Sonstiges"] += amt
             months[int(e["date"][5:7]) - 1]["expenses"] += amt
 
-    open_invoices = [i for i in invoices if i["status"] in ("sent", "overdue")]
+    open_invoices = [i for i in invoices if i["status"] in ("sent", "overdue")
+                     and i.get("type", "invoice") in REVENUE_TYPES]
     peak = max([m["income"] for m in months] + [m["expenses"] for m in months] + [1])
     return {
         "year":          year,
@@ -446,6 +457,81 @@ def fmt_eur(v, sym="€"):
         return f"{sym} {s}"
     except Exception:
         return str(v)
+
+
+# ── Tax estimate (Einkommensteuer, Soli, Kirchensteuer, Gewerbesteuer) ────────
+#
+# A planning aid, not a tax return: it ignores Sonderausgaben beyond what is
+# configured, splitting tables, Verlustvorträge etc. Tariffs per §32a EStG.
+
+# year: (Grundfreibetrag, zone-2 end, zone-3 end, zone-4 end,
+#        zone-2 a, zone-3 a, zone-3 c, zone-4 c, zone-5 c, Soli-Freigrenze)
+EST_TARIFFS = {
+    2025: (12096, 17443, 68480, 277825, 932.30, 176.64, 1015.13, 10911.92, 19246.67, 19950),
+    2026: (12348, 17799, 69878, 277825, 914.51, 173.10, 1034.87, 11135.63, 19470.38, 20350),
+}
+
+
+def _tariff(year):
+    known = sorted(EST_TARIFFS)
+    return EST_TARIFFS[min(max(int(year), known[0]), known[-1])]
+
+
+def income_tax(zve, year):
+    """Einkommensteuer (Grundtarif) for a zu versteuerndes Einkommen."""
+    gfb, z2, z3, z4, a2, a3, c3, c4, c5, _ = _tariff(year)
+    x = int(max(zve, 0))
+    if x <= gfb:
+        return 0.0
+    if x <= z2:
+        y = (x - gfb) / 10000
+        return int((a2 * y + 1400) * y)
+    if x <= z3:
+        z = (x - z2) / 10000
+        return int((a3 * z + 2397) * z + c3)
+    if x <= z4:
+        return int(0.42 * x - c4)
+    return int(0.45 * x - c5)
+
+
+def solidarity(est, year):
+    free = _tariff(year)[-1]
+    if est <= free:
+        return 0.0
+    return round(min(0.055 * est, 0.119 * (est - free)), 2)  # Milderungszone
+
+
+def tax_estimate(cfg, profit, year):
+    """Taxes attributable to the business profit: ESt on (profit + other income)
+    minus ESt on the other income alone, so a salaried job isn't double-counted."""
+    f = cfg["forecast"]
+    profit = max(profit, 0.0)
+    other  = float(f.get("other_income") or 0)
+    deduct = float(f.get("deductions") or 0)
+    health = profit * float(f.get("health_rate") or 0) / 100     # KV/PV on profit, deductible
+
+    zve_all   = max(profit + other - deduct - health, 0)
+    zve_other = max(other - deduct, 0)
+    est = income_tax(zve_all, year) - income_tax(zve_other, year)
+
+    gewst = gewst_credit = 0.0
+    if f.get("gewerbe"):
+        base = max(int(profit // 100 * 100) - 24500, 0)          # Freibetrag Einzelunternehmer
+        mess = base * 0.035
+        gewst = round(mess * float(f.get("hebesatz") or 410) / 100, 2)
+        gewst_credit = min(4.0 * mess, gewst, est)                 # §35 EStG Anrechnung
+    est_net = max(est - gewst_credit, 0)
+
+    soli   = solidarity(income_tax(zve_all, year), year) - solidarity(income_tax(zve_other, year), year)
+    church = round(est_net * float(f.get("church_rate") or 0) / 100, 2)
+    total  = est_net + soli + church + gewst + health
+    prepaid = float(f.get("prepaid") or 0)
+    return {
+        "zve": zve_all, "est": est_net, "soli": max(soli, 0), "church": church,
+        "gewst": gewst, "health": round(health, 2), "total": round(total, 2),
+        "prepaid": prepaid, "remaining": round(total - prepaid, 2),
+        "rate": (total / profit * 100) if profit else 0.0,
+    }
 
 
 # ── Paperless-ngx client ──────────────────────────────────────────────────────
@@ -655,7 +741,7 @@ def append_receipts_to_writer(writer, invoice, cfg=None):
 
 _TRANSLATIONS = {
     "de": {
-        "invoice": "Rechnung", "quote": "Angebot", "receipt": "Quittung",
+        "invoice": "Rechnung", "quote": "Angebot", "receipt": "Quittung", "storno": "Stornorechnung",
         "from_lbl": "Von", "to_lbl": "An",
         "doc_nr_lbl": "Rechnungsnummer",
         "date": "Datum", "service_period": "Leistungszeitraum",
@@ -684,7 +770,7 @@ _TRANSLATIONS = {
         "receipts_attached": "Die Belege sind dieser Rechnung angehängt.",
     },
     "en": {
-        "invoice": "Invoice", "quote": "Quote", "receipt": "Receipt",
+        "invoice": "Invoice", "quote": "Quote", "receipt": "Receipt", "storno": "Cancellation Invoice",
         "from_lbl": "From", "to_lbl": "To",
         "doc_nr_lbl": "Invoice Number",
         "date": "Date", "service_period": "Service Period",
@@ -763,6 +849,122 @@ def make_pdf(invoice, client, cfg, project=None):
         return html.encode("utf-8"), "text/html"
 
 
+# ── Issued invoices: lock, snapshot, archive (GoBD) ───────────────────────────
+#
+# Once an invoice is sent it must stay exactly as the client received it.
+# Sending snapshots the client/business data into the invoice and stores the
+# PDF in archive/. Mistakes are corrected with a Stornorechnung, not edits.
+
+ARCHIVE_DIR = DATA_DIR / "archive"
+ARCHIVE_DIR.mkdir(parents=True, exist_ok=True)
+LOCKABLE_TYPES = ("invoice", "receipt", "storno")
+
+
+def is_locked(inv):
+    return (inv.get("type", "invoice") in LOCKABLE_TYPES
+            and (inv.get("status") in ("sent", "paid") or bool(inv.get("snapshot"))))
+
+
+def allowed_statuses(inv):
+    """Status changes the detail page offers."""
+    if inv.get("type") == "quote":
+        return [s for s in ("draft", "sent", "accepted", "cancelled") if s != inv.get("status")]
+    if inv.get("type") == "storno":
+        return []
+    return {
+        "draft":     ["sent", "paid", "cancelled"],
+        "sent":      ["paid"],          # anything else goes through a Storno
+        "paid":      ["sent"],          # undo a payment recorded by mistake
+        "cancelled": [] if inv.get("snapshot") else ["draft"],
+    }.get(inv.get("status", "draft"), [])
+
+
+def render_context(inv, cfg):
+    """cfg/client/project as the invoice was issued (snapshot), else current data."""
+    snap = inv.get("snapshot")
+    if snap:
+        return deep_merge(cfg, snap.get("cfg", {})), snap.get("client") or {}, snap.get("project")
+    client  = get_client(inv.get("client_id", "")) or {}
+    project = get_project(inv.get("project_id", "")) if inv.get("project_id") else None
+    return cfg, client, project
+
+
+def build_invoice_pdf(inv, cfg, receipts=True):
+    cfg_, client, project = render_context(inv, cfg)
+    data, _ = make_pdf(inv, client, cfg_, project=project)
+    if not (receipts and PYPDF):
+        return data
+    writer = _pypdf.PdfWriter()
+    for page in _pypdf.PdfReader(BytesIO(data)).pages:
+        writer.add_page(page)
+    append_receipts_to_writer(writer, inv, cfg)
+    out = BytesIO()
+    writer.write(out)
+    return out.getvalue()
+
+
+def archive_path(iid):
+    return ARCHIVE_DIR / f"{_safe(iid)}.pdf"
+
+
+def archive_invoice(inv, cfg):
+    """Freeze an issued invoice: snapshot its data and keep the PDF as sent.
+    Returns True if the invoice dict changed and needs saving."""
+    changed = False
+    if not inv.get("snapshot"):
+        inv["snapshot"] = {
+            "date":    date.today().isoformat(),
+            "client":  get_client(inv.get("client_id", "")) or {},
+            "project": get_project(inv.get("project_id", "")) if inv.get("project_id") else None,
+            "cfg":     {k: deepcopy(cfg[k]) for k in ("business", "tax", "invoice", "design")},
+        }
+        changed = True
+    p = archive_path(inv["id"])
+    if WEASYPRINT and not p.exists():
+        tmp = p.with_name(f".{p.name}.tmp")
+        tmp.write_bytes(build_invoice_pdf(inv, cfg))
+        os.replace(tmp, p)
+    return changed
+
+
+def _after_save(inv, cfg):
+    """Archive invoices the moment they become issued."""
+    if is_locked(inv):
+        archive_invoice(inv, cfg)
+
+
+def can_delete(inv):
+    """Quotes always; invoices only as unsent drafts holding the latest number,
+    so deleting never leaves a gap in the sequence (§14 UStG)."""
+    if inv.get("type") == "quote":
+        return True
+    if is_locked(inv) or inv.get("status") != "draft":
+        return False
+    return inv["id"] == _latest_number(inv.get("type", "invoice"))
+
+
+def _counter_key(doc_type):
+    return f"{'invoice' if doc_type == 'storno' else doc_type}_{datetime.now().year}"
+
+
+def _latest_number(doc_type):
+    cfg = load_config()
+    counters = _load(COUNTERS_FILE) if COUNTERS_FILE.exists() else {}
+    seq = int(counters.get(_counter_key(doc_type), 0))
+    if not seq:
+        return None
+    prefix = {"quote": "A", "receipt": "Q"}.get(doc_type, "")
+    return prefix + cfg["invoice"]["number_format"].format(YEAR=datetime.now().year, SEQ=seq)
+
+
+def _release_latest_number(doc_type):
+    counters = _load(COUNTERS_FILE) if COUNTERS_FILE.exists() else {}
+    key = _counter_key(doc_type)
+    if int(counters.get(key, 0)) > 0:
+        counters[key] = int(counters[key]) - 1
+        _save(COUNTERS_FILE, counters)
+
+
 # ── Template helpers ──────────────────────────────────────────────────────────
 
 def _date_de(v):
@@ -790,14 +992,14 @@ def tpl_status(s):
     return {
         "draft": "Entwurf", "sent": "Versendet",
         "paid": "Bezahlt", "overdue": "Überfällig",
-        "cancelled": "Storniert",
+        "cancelled": "Storniert", "accepted": "Angenommen",
     }.get(s, s or "—")
 
 
 @app.template_filter("type_de")
 def tpl_type(t):
     return {"invoice": "Rechnung", "quote": "Angebot",
-            "receipt": "Quittung"}.get(t, t or "Rechnung")
+            "receipt": "Quittung", "storno": "Stornorechnung"}.get(t, t or "Rechnung")
 
 
 @app.context_processor
@@ -984,6 +1186,7 @@ def invoice_new():
                 flash(e, "error")
             return _render_invoice_form(data, edit=False, status=400)
         _apply_status(data, data["status"], data.pop("paid_date", ""))
+        _after_save(data, cfg)
         put_invoice(data["id"], data)
         flash(f'{tpl_type(data["type"])} {data["id"]} gespeichert.', "success")
         return redirect(url_for("invoice_detail", iid=data["id"]))
@@ -1019,8 +1222,7 @@ def invoice_detail(iid):
     # migrate old "items" key
     if "items" in inv and "positions" not in inv:
         inv["positions"] = inv.pop("items")
-    client  = get_client(inv.get("client_id", "")) or {}
-    project = get_project(inv.get("project_id", "")) if inv.get("project_id") else None
+    cfg_, client, project = render_context(inv, cfg)
     totals  = calc_totals(inv, cfg)
 
     # Unbilled expenses of this client; on a project invoice, other projects' are left out
@@ -1037,6 +1239,10 @@ def invoice_detail(iid):
                            kleinunternehmer=cfg["tax"]["mode"] == "kleinunternehmer",
                            available_auslagen=available_auslagen,
                            n_receipts=n_receipts,
+                           locked=is_locked(inv),
+                           archived=archive_path(iid).exists(),
+                           allowed=allowed_statuses(inv),
+                           can_delete=can_delete(inv),
                            today=date.today().isoformat(),
                            cfg=cfg)
 
@@ -1050,6 +1256,9 @@ def invoice_edit(iid):
     # migrate old "items" key on load
     if "items" in inv and "positions" not in inv:
         inv["positions"] = inv.pop("items")
+    if is_locked(inv):
+        flash("Versendete Rechnungen sind festgeschrieben. Fehler über „Stornieren & korrigieren“ beheben.", "warning")
+        return redirect(url_for("invoice_detail", iid=iid))
     if request.method == "POST":
         parsed, errors = _parse_invoice_form(request.form, cfg)
         # Keep fields the form doesn't carry (paid_date, quote_ref, …).
@@ -1061,6 +1270,7 @@ def invoice_edit(iid):
                 flash(e, "error")
             return _render_invoice_form(data, edit=True, status=400)
         _apply_status(data, data["status"], data.pop("paid_date", "") or inv.get("paid_date", ""))
+        _after_save(data, cfg)
         put_invoice(iid, data)
         flash(f'{tpl_type(data["type"])} aktualisiert.', "success")
         return redirect(url_for("invoice_detail", iid=iid))
@@ -1069,26 +1279,26 @@ def invoice_edit(iid):
 
 @app.route("/invoices/<path:iid>/pdf")
 def invoice_pdf(iid):
-    """The invoice, followed by the receipt of every Auslagenersatz line (?receipts=0 to skip)."""
+    """Invoice plus all receipts. Issued invoices are served exactly as archived;
+    ?current=1 re-renders from the snapshot (e.g. with the BEZAHLT stamp),
+    ?receipts=0 leaves the receipts off."""
     cfg = load_config()
     inv = get_invoice(iid)
     if not inv:
         abort(404)
-    client  = get_client(inv.get("client_id", "")) or {}
-    project = get_project(inv.get("project_id", "")) if inv.get("project_id") else None
-    data, mimetype = make_pdf(inv, client, cfg, project=project)
     if not WEASYPRINT:
-        return send_file(BytesIO(data), mimetype=mimetype, download_name=f"{_safe(iid)}.html")
+        cfg_, client, project = render_context(inv, cfg)
+        html, mimetype = make_pdf(inv, client, cfg_, project=project)
+        return send_file(BytesIO(html), mimetype=mimetype, download_name=f"{_safe(iid)}.html")
 
     fname = f"{tpl_type(inv.get('type', 'invoice'))}-{_safe(iid)}.pdf"
-    if PYPDF and request.args.get("receipts", "1") != "0":
-        writer = _pypdf.PdfWriter()
-        for page in _pypdf.PdfReader(BytesIO(data)).pages:
-            writer.add_page(page)
-        append_receipts_to_writer(writer, inv, cfg)
-        out = BytesIO()
-        writer.write(out)
-        data = out.getvalue()
+    receipts = request.args.get("receipts", "1") != "0"
+    if is_locked(inv) and receipts and request.args.get("current") != "1":
+        if archive_invoice(inv, cfg):   # legacy invoices get archived on first download
+            put_invoice(iid, inv)
+        return send_file(archive_path(iid), mimetype="application/pdf",
+                         download_name=fname, as_attachment=True)
+    data = build_invoice_pdf(inv, cfg, receipts=receipts)
     return send_file(BytesIO(data), mimetype="application/pdf", download_name=fname, as_attachment=True)
 
 
@@ -1121,6 +1331,9 @@ def invoice_add_auslagen(iid):
     inv = get_invoice(iid)
     if not inv:
         abort(404)
+    if is_locked(inv):
+        flash("Versendete Rechnungen können nicht mehr geändert werden.", "error")
+        return redirect(url_for("invoice_detail", iid=iid))
     expenses = [e for e in map(get_expense, request.form.getlist("expense_ids"))
                 if e and not e.get("invoice_id")]
     _attach_expenses(inv, expenses)
@@ -1192,14 +1405,17 @@ def invoice_status(iid):
     if not inv:
         abort(404)
     new = request.form.get("status", "")
-    if new not in ("draft", "sent", "paid", "cancelled"):
-        abort(400)
+    changing_paid_date = new == "paid" == inv.get("status")
+    if new not in allowed_statuses(inv) and not changing_paid_date:
+        flash(f"Statuswechsel zu „{tpl_status(new)}“ ist hier nicht möglich.", "error")
+        return redirect(url_for("invoice_detail", iid=iid))
     try:
         paid_date = _parse_date_input(request.form.get("paid_date", ""), "Zahlungsdatum")
     except FormError as e:
         flash(str(e), "error")
         return redirect(url_for("invoice_detail", iid=iid))
     _apply_status(inv, new, paid_date)
+    _after_save(inv, load_config())
     put_invoice(iid, inv)
     msg = f"Status: {tpl_status(new)}"
     if new == "paid":
@@ -1212,30 +1428,107 @@ def _apply_status(inv, status, paid_date=""):
     """Set status and keep the dates that go with it consistent."""
     today = date.today().isoformat()
     inv["status"] = status
-    if status == "paid":
+    if status == "paid" and inv.get("type") != "quote":
         # The date the money arrived decides the tax year (§11 EStG), not the click
         inv["paid_date"] = paid_date or inv.get("paid_date") or today
     else:
         inv.pop("paid_date", None)
-    if status in ("sent", "paid"):
+    if status in ("sent", "paid") and inv.get("type") != "quote":
         inv.setdefault("sent_date", today)
 
 
 @app.route("/invoices/<path:iid>/delete", methods=["POST"])
 def invoice_delete(iid):
-    # Free any expenses that were attached to this invoice
     inv = get_invoice(iid)
-    if inv:
-        for pos in (inv.get("positions") or []):
-            eid = pos.get("expense_id")
-            if eid:
-                exp = get_expense(eid)
-                if exp and exp.get("invoice_id") == iid:
-                    exp.pop("invoice_id", None)
-                    put_expense(eid, exp)
+    if not inv:
+        abort(404)
+    if not can_delete(inv):
+        flash("Nur der jüngste Rechnungsentwurf kann gelöscht werden, sonst entsteht eine Lücke "
+              "in den Rechnungsnummern. Entwürfe stattdessen „Verwerfen“, versendete Rechnungen stornieren.",
+              "error")
+        return redirect(url_for("invoice_detail", iid=iid))
+    # Free any expenses that were attached to this invoice
+    for pos in (inv.get("positions") or []):
+        eid = pos.get("expense_id")
+        exp = get_expense(eid) if eid else None
+        if exp and exp.get("invoice_id") == iid:
+            exp.pop("invoice_id", None)
+            put_expense(eid, exp)
     del_invoice(iid)
-    flash("Gelöscht.", "success")
+    if inv.get("type") != "quote":
+        _release_latest_number(inv.get("type", "invoice"))
+    flash(f"{tpl_type(inv.get('type'))} {iid} gelöscht.", "success")
     return redirect(url_for("invoices_list"))
+
+
+@app.route("/invoices/<path:iid>/storno", methods=["POST"])
+def invoice_storno(iid):
+    """Cancel an issued invoice with a Stornorechnung; optionally start a corrected copy."""
+    cfg = load_config()
+    inv = get_invoice(iid)
+    if not inv:
+        abort(404)
+    if inv.get("type") not in ("invoice", "receipt") or inv.get("status") != "sent":
+        flash("Stornieren geht nur bei versendeten, unbezahlten Rechnungen. "
+              "Bei bezahlten zuerst die Zahlung zurücknehmen.", "error")
+        return redirect(url_for("invoice_detail", iid=iid))
+    if archive_invoice(inv, cfg):
+        put_invoice(iid, inv)
+
+    today = date.today().isoformat()
+    sid = next_number(cfg, "invoice")
+    lang = inv.get("language", "de")
+    storno = {
+        **{k: deepcopy(v) for k, v in inv.items()
+           if k in ("client_id", "project_id", "language", "position_title", "mwst_rate",
+                    "service_date", "service_period_end", "snapshot")},
+        "id":         sid,
+        "type":       "storno",
+        "status":     "sent",
+        "date":       today,
+        "sent_date":  today,
+        "storno_ref": iid,
+        "payment_ref": sid,
+        "positions": [{**{k: v for k, v in p.items() if k != "expense_id"},
+                       "unit_price": -float(p.get("unit_price") or 0)}
+                      for p in inv.get("positions") or []],
+        "notes": (f"Stornierung der Rechnung {iid} vom {_date_de(inv.get('date'))}."
+                  if lang == "de" else
+                  f"Cancellation of invoice {iid} dated {_date_de(inv.get('date'))}."),
+    }
+    storno["snapshot"] = {**storno["snapshot"], "date": today}
+    put_invoice(sid, storno)
+    archive_invoice(storno, cfg)
+
+    inv["status"] = "cancelled"
+    inv["storno_id"] = sid
+    linked = [e for e in all_expenses() if e.get("invoice_id") == iid]
+
+    if request.form.get("correct"):
+        cid = next_number(cfg, "invoice")
+        terms = invoice_defaults(cfg, inv.get("client_id", ""))["payment_terms_days"]
+        correction = {
+            **{k: deepcopy(v) for k, v in inv.items()
+               if k not in ("snapshot", "sent_date", "paid_date", "storno_id", "status")},
+            "id": cid, "status": "draft", "date": today, "payment_ref": cid,
+            "due_date": (date.today() + timedelta(days=terms)).isoformat(),
+            "correction_of": iid,
+        }
+        put_invoice(cid, correction)
+        for e in linked:              # the receipts belong to the corrected invoice now
+            e["invoice_id"] = cid
+            put_expense(e["id"], e)
+        inv["corrected_by"] = cid
+        put_invoice(iid, inv)
+        flash(f"{iid} storniert (Stornorechnung {sid}). Korrektur-Entwurf {cid} angelegt.", "success")
+        return redirect(url_for("invoice_edit", iid=cid))
+
+    for e in linked:                  # back to "noch abzurechnen"
+        e.pop("invoice_id", None)
+        put_expense(e["id"], e)
+    put_invoice(iid, inv)
+    flash(f"{iid} storniert. Stornorechnung {sid} erstellt – bitte an den Kunden senden.", "success")
+    return redirect(url_for("invoice_detail", iid=sid))
 
 
 @app.route("/expenses/<eid>/unassign", methods=["POST"])
@@ -1244,10 +1537,14 @@ def expense_unassign(eid):
     exp = get_expense(eid)
     if not exp:
         abort(404)
-    iid = exp.pop("invoice_id", None)
+    iid = exp.get("invoice_id")
+    inv = get_invoice(iid) if iid else None
+    if inv and is_locked(inv):
+        flash(f"Rechnung {iid} ist versendet und kann nicht mehr geändert werden.", "error")
+        return redirect(url_for("expense_detail", eid=eid))
+    exp.pop("invoice_id", None)
     # Also remove the corresponding position from the invoice, if it still exists
     if iid:
-        inv = get_invoice(iid)
         if inv:
             inv["positions"] = [p for p in (inv.get("positions") or []) if p.get("expense_id") != eid]
             put_invoice(iid, inv)
@@ -1281,6 +1578,9 @@ def quote_to_invoice(iid):
         "positions": [p for p in quote.get("positions") or [] if not p.get("auslagenersatz")],
     })
     put_invoice(new_id, inv)
+    quote["status"] = "accepted"
+    quote["invoice_ref"] = new_id
+    put_invoice(iid, quote)
     flash(f"Angebot in Rechnung {new_id} umgewandelt – bitte Leistungsdatum prüfen.", "success")
     return redirect(url_for("invoice_detail", iid=new_id))
 
@@ -1406,7 +1706,9 @@ def expense_detail(eid):
         # Proxy through our own route so auth is handled server-side
         receipt_url    = url_for("expense_paperless_receipt", eid=eid)
         receipt_is_pdf = True
+    inv = get_invoice(exp["invoice_id"]) if exp.get("invoice_id") else None
     return render_template("expenses/detail.html", expense=exp,
+                           invoice_locked=bool(inv and is_locked(inv)),
                            receipt_url=receipt_url, receipt_is_pdf=receipt_is_pdf)
 
 
@@ -1727,7 +2029,127 @@ def paperless_import(did):
     return redirect(url_for("expense_edit", eid=eid))
 
 
+# ── Routes: Auswertung (analysis & forecast) ──────────────────────────────────
+
+def _unimported_paperless(cfg, imported_ids):
+    """Receipts in Paperless (by document type) that aren't expenses yet; None if unknown."""
+    if not cfg["paperless"]["enabled"]:
+        return None
+    try:
+        pl = Paperless(cfg["paperless"]["base_url"], cfg["paperless"]["token"])
+        r = req_lib.get(f"{pl.base}/api/documents/", headers=pl.h, timeout=5, params={
+            "document_type__name__iexact": cfg["forecast"].get("paperless_expense_type") or "Expense",
+            "page_size": 1000, "fields": "id"})
+        r.raise_for_status()
+        return sum(1 for d in r.json().get("results", []) if d["id"] not in imported_ids)
+    except Exception as e:
+        app.logger.warning("Paperless count failed: %s", e)
+        return None
+
+
+@app.route("/auswertung")
+def analysis():
+    cfg   = load_config()
+    today = date.today()
+    year  = request.args.get("year", "")
+    year  = int(year) if year.isdigit() else today.year
+    stats = year_stats(cfg, year)
+
+    invoices = decorate_invoices(all_invoices(), cfg)
+    expenses = all_expenses()
+    projects = {p["id"]: p for p in all_projects()}
+    clients  = {c["id"]: c for c in all_clients() if "id" in c}
+
+    # ── Forecast for the year: actual so far, + open invoices, + linear run rate
+    elapsed = (min(today, date(year, 12, 31)) - date(year, 1, 1)).days + 1 if year <= today.year else 0
+    frac    = min(max(elapsed / 365, 0), 1)
+    open_inv = sum(i["_totals"]["total"] for i in invoices
+                   if i["status"] in ("sent", "overdue") and i.get("type", "invoice") in REVENUE_TYPES)
+    scenarios = []
+    for label, income, exp in [
+        ("Bisher (Ist)", stats["income"], stats["expenses"]),
+        ("Ist + offene Rechnungen", stats["income"] + (open_inv if year == today.year else 0), stats["expenses"]),
+        ("Hochrechnung Jahresende", stats["income"] / frac if 0 < frac < 1 else stats["income"],
+         stats["expenses"] / frac if 0 < frac < 1 else stats["expenses"]),
+    ]:
+        if label.startswith("Hochrechnung") and not (0.08 < frac < 1):
+            continue   # too early in the year to extrapolate, or the year is over
+        profit = income - exp
+        scenarios.append({"label": label, "income": income, "expenses": exp,
+                          "profit": profit, "tax": tax_estimate(cfg, profit, year)})
+
+    # ── All-time and per-project / per-client income vs. expenses
+    def bucket():
+        return {"billed": 0.0, "paid": 0.0, "expenses": 0.0, "reimbursed": 0.0, "count": 0}
+    overall, by_project, by_client = bucket(), {}, {}
+    for i in invoices:
+        if not is_billed(i):
+            continue
+        for key, table in ((i.get("project_id") or "", by_project), (i.get("client_id") or "", by_client)):
+            b = table.setdefault(key, bucket())
+            b["billed"] += i["_totals"]["total"]
+            b["paid"]   += i["_totals"]["total"] if i["status"] == "paid" else 0
+            b["reimbursed"] += i["_totals"]["auslagen"]
+            b["count"]  += 1
+        overall["billed"] += i["_totals"]["total"]
+        overall["paid"]   += i["_totals"]["total"] if i["status"] == "paid" else 0
+    for e in expenses:
+        amt = float(e.get("amount") or 0)
+        overall["expenses"] += amt
+        by_project.setdefault(e.get("project_id") or "", bucket())["expenses"] += amt
+        by_client.setdefault(e.get("client_id") or "", bucket())["expenses"] += amt
+    for table in (overall, *by_project.values(), *by_client.values()):
+        table["margin"] = table["billed"] - table["expenses"]
+        table["margin_pct"] = table["margin"] / table["billed"] * 100 if table["billed"] else None
+
+    project_rows = sorted(
+        ({"id": k, "name": projects.get(k, {}).get("name", "Ohne Projekt") if k else "Ohne Projekt",
+          "client": clients.get(projects.get(k, {}).get("client_id", ""), {}).get("name", ""), **v}
+         for k, v in by_project.items()),
+        key=lambda r: -r["billed"])
+    client_rows = sorted(
+        ({"id": k, "name": clients.get(k, {}).get("name", "Ohne Kunde") if k else "Ohne Kunde", **v}
+         for k, v in by_client.items()),
+        key=lambda r: -r["billed"])
+
+    # ── Pipeline: quotes and drafts
+    quotes = [i for i in invoices if i.get("type") == "quote"]
+    pipeline = {
+        "quotes_sent":   [q for q in quotes if q["status"] == "sent"],
+        "quotes_draft":  [q for q in quotes if q["status"] == "draft"],
+        "invoice_drafts": [i for i in invoices if i.get("type", "invoice") in REVENUE_TYPES
+                           and i["status"] == "draft"],
+    }
+    pipeline_sums = {k: sum(i["_totals"]["total"] for i in v) for k, v in pipeline.items()}
+
+    # ── To-do: things that need sorting out
+    imported = {e["paperless_id"] for e in expenses if e.get("paperless_id")}
+    open_exp = [e for e in expenses if expense_state(e) == "open"]
+    todo = {
+        "no_amount":   [e for e in expenses if not float(e.get("amount") or 0)],
+        "no_receipt":  [e for e in expenses if not e.get("receipt_file") and not e.get("paperless_id")],
+        "uncategorised": [e for e in expenses if (e.get("category") or "Sonstiges") == "Sonstiges"],
+        "open_reimbursable": open_exp,
+        "open_reimbursable_sum": sum(float(e.get("amount") or 0) for e in open_exp),
+        "overdue": [i for i in invoices if i["status"] == "overdue"],
+        "paperless_unimported": _unimported_paperless(cfg, imported),
+    }
+
+    return render_template("analysis.html", stats=stats, year=year, scenarios=scenarios,
+                           frac=frac, overall=overall, project_rows=project_rows,
+                           client_rows=client_rows, pipeline=pipeline,
+                           pipeline_sums=pipeline_sums, todo=todo,
+                           tariff_years=sorted(EST_TARIFFS))
+
+
 # ── Routes: settings ─────────────────────────────────────────────────────────
+
+def _num(v, default=0):
+    try:
+        return float(str(v).replace(",", ".")) if str(v).strip() else default
+    except ValueError:
+        return default
+
 
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
@@ -1772,6 +2194,16 @@ def settings():
                 "accent_color": f.get("d_color", "#1400FF"),
                 "logo_path":    cfg["design"].get("logo_path", ""),
             },
+            "forecast": {
+                "other_income": _num(f.get("f_other_income")),
+                "deductions":   _num(f.get("f_deductions")),
+                "health_rate":  _num(f.get("f_health_rate")),
+                "church_rate":  _num(f.get("f_church_rate")),
+                "gewerbe":      f.get("f_gewerbe") == "on",
+                "hebesatz":     _num(f.get("f_hebesatz"), 410),
+                "prepaid":      _num(f.get("f_prepaid")),
+                "paperless_expense_type": f.get("f_pl_type", "Expense"),
+            },
         }
         logo_file = request.files.get("logo_file")
         if logo_file and logo_file.filename:
@@ -1780,7 +2212,7 @@ def settings():
             logo_file.save(UPLOADS_DIR / f"logo{ext}")
             new_cfg["design"]["logo_path"] = f"logo{ext}"
 
-        save_config(new_cfg)
+        save_config(deep_merge(cfg, new_cfg))  # keep keys this form doesn't know
         flash("Einstellungen gespeichert.", "success")
         return redirect(url_for("settings"))
     return render_template("settings.html", cfg=cfg)

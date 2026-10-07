@@ -382,7 +382,7 @@
     </tfoot>
     {% endif %}
   </table>
-  <p class="receipts-note">{{ t.receipts_attached }}</p>
+  {% if invoice.type != 'storno' %}<p class="receipts-note">{{ t.receipts_attached }}</p>{% endif %}
 </div>
 {% endif %}
 
