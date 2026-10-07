@@ -107,6 +107,8 @@
         force_default_wallpaper = 0;
         disable_hyprland_logo = true;
         background_color = "rgb(141118)";
+        mouse_move_enables_dpms = true;
+        key_press_enables_dpms = true;
       };
 
       # ── XWayland ──
@@ -525,7 +527,7 @@
     };
     timeouts = [
       { timeout = 300;  command = "${pkgs.swaylock}/bin/swaylock -f"; }
-      { timeout = 330;  command = "hyprctl dispatch dpms off"; }
+      { timeout = 330;  command = "hyprctl dispatch dpms off"; resumeCommand = "hyprctl dispatch dpms on"; }
       { timeout = 1800; command = "systemctl suspend"; }
     ];
   };

@@ -31,6 +31,7 @@
     curl
     wget
     tmux
+    usbutils  # lsusb
 
     # Drop into a shell as a service user with its full environment:
     #   sudo svc-shell paperless-web

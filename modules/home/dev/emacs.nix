@@ -29,12 +29,13 @@ in {
     sqlite
     zstd
 
-    # Spell checking
-    hunspell
+    # Spell checking (doom config uses hunspell with en_GB / de_DE)
+    (hunspell.withDicts (dicts: with dicts; [ en_GB-ise de_DE ]))
     (aspellWithDicts (dicts: with dicts; [ de en en-computers en-science ]))
 
     # Fonts
     emacs-all-the-icons-fonts
+    symbola  # Emacs' fallback font; doom doctor warns without it
 
     # For LSP and other features
     shellcheck

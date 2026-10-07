@@ -169,6 +169,7 @@ in
           "class<scratchterm>" = " &#xf120;";
           "class<[Ee]macs>" = " &#xe632;";
           "class<thunderbird>" = " &#xf0e0;";
+          "class<discord>" = " &#xf392;";
           "class<thunar|Thunar>" = " &#xf07b;";
           "class<steam>" = " &#xf1b6;";
           "class<blender>" = " &#xf00ab;";
