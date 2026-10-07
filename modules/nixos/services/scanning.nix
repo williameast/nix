@@ -2,8 +2,7 @@
 # - brscan4: SANE backend driver so scanimage/simple-scan can talk to the printer
 # - saned: exposes the scanner over the network so desktop machines can scan remotely
 #
-# Note: brscan-skey (scan button handler) is not packaged in nixpkgs.
-# On a headless server it's not useful anyway — desktops connect via saned.
+# The printer's Scan button is handled by scan-to-paperless.nix (brscan-skey).
 { config, pkgs, lib, ... }:
 {
   hardware.sane = {

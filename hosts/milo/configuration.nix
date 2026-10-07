@@ -28,6 +28,7 @@
     ../../modules/nixos/services/scanning.nix
     ../../modules/nixos/services/buero/service.nix
     ../../modules/nixos/services/paperless-ngx.nix
+    ../../modules/nixos/services/scan-to-paperless.nix
     ../../modules/nixos/services/ntfy.nix
     ../../modules/nixos/services/music-staging-watcher.nix
     # ../../modules/nixos/services/docker.nix
