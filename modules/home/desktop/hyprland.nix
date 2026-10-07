@@ -10,6 +10,7 @@
     wl-clipboard         # Clipboard utilities
     google-chrome        # Browser
     pavucontrol          # Volume control GUI (click from waybar)
+    alsa-scarlett-gui    # Focusrite Scarlett Gen 3+ mixer/routing
     networkmanagerapplet # nm-connection-editor (advanced network settings)
     # Power menu is handled via rofi (see keybind Super+X)
     # File manager

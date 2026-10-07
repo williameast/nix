@@ -50,10 +50,21 @@ let
     ${notmuch} tag -new +inbox +unread -- tag:new
   '';
 
-  # UserName field of the KeePassXC entry holding the Google OAuth client.
-  googleClientId = pkgs.writeShellScript "google-client-id" ''
-    ${pkgs.libsecret}/bin/secret-tool search Title calendar.google.com 2>&1 \
-      | ${pkgs.gnused}/bin/sed -n 's/^attribute.UserName = //p'
+  # Client ID of the Microsoft app for Outlook.com. Prints nothing until the
+  # KeePassXC entry exists, so oama keeps working for Google meanwhile
+  # (it reads every service's client id on each run).
+  microsoftClientId = pkgs.writeShellScript "microsoft-client-id" ''
+    ${pkgs.libsecret}/bin/secret-tool lookup Title oama-microsoft-client-id || true
+  '';
+
+
+  # Background syncs read passwords from KeePassXC. While the database is
+  # locked every lookup pops an unlock prompt, so skip the run instead
+  # (ExecCondition exiting 1 skips the unit without marking it failed).
+  keyringUnlocked = pkgs.writeShellScript "keyring-unlocked" ''
+    [ "$(${pkgs.systemd}/bin/busctl --user get-property org.freedesktop.secrets \
+      /org/freedesktop/secrets/aliases/default \
+      org.freedesktop.Secret.Collection Locked)" = "b false" ]
   '';
 
   syncMail = pkgs.writeShellScript "sync-mail" ''
@@ -67,7 +78,11 @@ in
 {
   accounts.email.maildirBasePath = "${config.xdg.dataHome}/mail";
 
-  programs.mbsync.enable = true;
+  programs.mbsync = {
+    enable = true;
+    # XOAUTH2 SASL plugin for Gmail and Outlook.com (off by default in nixpkgs).
+    package = pkgs.isync.override { withCyrusSaslXoauth2 = true; };
+  };
   programs.msmtp.enable = true;
 
   programs.notmuch = {
@@ -88,12 +103,12 @@ in
     services:
       google:
         client_id_cmd: |
-          ${googleClientId}
+          ${pkgs.coreutils}/bin/cat ${config.age.secrets.google-client-id.path}
         client_secret_cmd: |
-          ${pkgs.libsecret}/bin/secret-tool lookup Title calendar.google.com
+          ${pkgs.coreutils}/bin/cat ${config.age.secrets.google-client-secret.path}
       microsoft:
         client_id_cmd: |
-          ${pkgs.libsecret}/bin/secret-tool lookup Title oama-microsoft-client-id
+          ${microsoftClientId}
         tenant: consumers
   '';
 
@@ -111,9 +126,13 @@ in
 
   # Fetch every 5 minutes, then index.
   systemd.user.services.sync-mail = {
-    Unit.Description = "Fetch mail (mbsync) and index it (notmuch)";
+    Unit = {
+      Description = "Fetch mail (mbsync) and index it (notmuch)";
+      After = [ "agenix.service" ];
+    };
     Service = {
       Type = "oneshot";
+      ExecCondition = "${keyringUnlocked}";
       ExecStart = "${syncMail}";
     };
   };

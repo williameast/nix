@@ -16,6 +16,7 @@
     frequency = "*:0/15";
   };
 
+
   programs.khal = {
     enable = true;
     locale = {

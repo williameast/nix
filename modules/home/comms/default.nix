@@ -7,6 +7,7 @@
     ./accounts.nix
     ./mail.nix
     ./calendar.nix
+    ./secrets.nix
   ];
 
   home.packages = with pkgs; [

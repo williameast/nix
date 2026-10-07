@@ -27,7 +27,7 @@ in
     mcgill     = p.office365Calendar "william.east@mail.mcgill.ca";
     # Outlook.com has no CalDAV: publish the calendar as ICS
     # (outlook.live.com → Settings → Calendar → Shared calendars → Publish)
-    # and store the ICS link as the password of KeePassXC entry "outlook-calendar-ics".
+    # and store the ICS link as agenix secret "outlook-calendar-ics" (see secrets.nix).
     live       = p.icsCalendar "outlook-calendar-ics";
   };
 }

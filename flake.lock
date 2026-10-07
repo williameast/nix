@@ -29,6 +29,26 @@
         "type": "github"
       }
     },
+    "agenix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1790734419,
+        "narHash": "sha256-n7wew722m1OTBT9DOIMxNX/NF4zfsSUABAO5eW3wikE=",
+        "owner": "ryantm",
+        "repo": "agenix",
+        "rev": "3daa710894355fa2fad8243380af373a2b4046ef",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ryantm",
+        "repo": "agenix",
+        "type": "github"
+      }
+    },
     "claude-code": {
       "inputs": {
         "nixpkgs": [
@@ -462,6 +482,7 @@
     "root": {
       "inputs": {
         "affinity-nix": "affinity-nix",
+        "agenix": "agenix",
         "claude-code": "claude-code",
         "claude-desktop": "claude-desktop",
         "home-manager": "home-manager",

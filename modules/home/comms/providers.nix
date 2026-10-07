@@ -1,28 +1,24 @@
 # How to talk to each mail/calendar provider. Used by ./accounts.nix.
 #
-# Secrets come from KeePassXC over the Secret Service API (KeePassXC →
-# Settings → Secret Service Integration, then expose the group holding these
-# entries). Entries are looked up by title:
-#   <email address>          password of that mailbox (Purelymail, McGill)
-#   calendar.google.com      Google OAuth client (UserName = client id, Password = secret)
-#   outlook-calendar-ics     Password = published ICS link of the Outlook.com calendar
-# OAuth tokens for Gmail and Outlook.com are kept by oama (also in the keyring).
+# Passwords and OAuth client secrets are agenix secrets (./secrets.nix),
+# decrypted at login to files that the sync tools simply `cat`.
+# OAuth tokens for Gmail and Outlook.com are kept by oama (in the keyring).
 { config, lib, pkgs }:
 
 let
-  secretTool = "${pkgs.libsecret}/bin/secret-tool";
+  cat = "${pkgs.coreutils}/bin/cat";
 
-  # Command printing the password of the KeePassXC entry titled TITLE.
-  secret = title: [ secretTool "lookup" "Title" title ];
+  # Secret holding the password of the mailbox ADDRESS.
+  addressSecret = address:
+    lib.replaceStrings [ "@" "." ] [ "_at_" "_" ] address;
+
+  secretPath = name: config.age.secrets.${name}.path;
+
+  # Command printing the secret NAME.
+  secret = name: [ cat (secretPath name) ];
 
   # Same as a shell command string (mbsync and msmtp run it through sh).
-  secretSh = title: "${secretTool} lookup Title ${lib.escapeShellArg title}";
-
-  # Command printing the UserName field of the KeePassXC entry titled TITLE.
-  secretUser = title: [
-    "${pkgs.bash}/bin/sh" "-c"
-    "${secretTool} search Title ${lib.escapeShellArg title} 2>&1 | ${pkgs.gnused}/bin/sed -n 's/^attribute.UserName = //p'"
-  ];
+  secretSh = name: "${cat} ${secretPath name}";
 
   # Settings every mailbox shares.
   mailbox = {
@@ -61,7 +57,7 @@ in
   purelymail = address: lib.recursiveUpdate mailbox {
     inherit address;
     userName = address;
-    passwordCommand = secretSh address;
+    passwordCommand = secretSh (addressSecret address);
     imap = { host = "imap.purelymail.com"; port = 993; tls.enable = true; };
     smtp = { host = "smtp.purelymail.com"; port = 587; tls = { enable = true; useStartTls = true; }; };
   };
@@ -93,7 +89,10 @@ in
     inherit address;
     flavor = "davmail";
     userName = address;
-    passwordCommand = secretSh address;
+    passwordCommand = secretSh (addressSecret address);
+    # DavMail serves plain IMAP/SMTP on localhost.
+    imap.tls.enable = false;
+    mbsync.extraConfig.account.AuthMechs = "LOGIN";
     folders = { sent = "Sent"; drafts = "Drafts"; trash = "Trash"; };
   };
 
@@ -101,8 +100,8 @@ in
     remote.type = "google_calendar";
     vdirsyncer = {
       tokenFile = "${config.xdg.stateHome}/vdirsyncer/google-${address}.token";
-      clientIdCommand = secretUser "calendar.google.com";
-      clientSecretCommand = secret "calendar.google.com";
+      clientIdCommand = secret "google-client-id";
+      clientSecretCommand = secret "google-client-secret";
     };
   };
 
@@ -111,7 +110,7 @@ in
       type = "caldav";
       url = "https://purelymail.com/";
       userName = address;
-      passwordCommand = secret address;
+      passwordCommand = secret (addressSecret address);
     };
   };
 
@@ -120,11 +119,11 @@ in
       type = "caldav";
       url = "http://localhost:1080/users/${address}/";
       userName = address;
-      passwordCommand = secret address;
+      passwordCommand = secret (addressSecret address);
     };
   };
 
-  # Read-only calendar published as an .ics link stored in KeePassXC.
+  # Read-only calendar published as an .ics link decrypted by agenix.
   icsCalendar = title: {
     remote.type = "http";
     vdirsyncer = {

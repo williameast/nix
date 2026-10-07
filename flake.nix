@@ -28,6 +28,12 @@
     # Claude Desktop (Linux) — pinned to last working build before 1.8089.1 tray patch broke
     claude-desktop.url = "github:aaddrick/claude-desktop-debian/ba2846c8b3e9";
 
+    agenix = {
+      url = "github:ryantm/agenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.home-manager.follows = "home-manager";
+    };
+
     # Affinity suite for Linux
     affinity-nix.url = "github:mrshmllow/affinity-nix";
   };
