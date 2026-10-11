@@ -29,7 +29,7 @@
     # nixfmt TODO not working?
 
     # LaTeX
-    texliveSmall
+    (texliveSmall.withPackages (ps: with ps; [ wrapfig capt-of ])) # wrapfig/capt-of: org-latex defaults
     pandoc
 
     # R

@@ -65,7 +65,27 @@
   services.printing = {
     enable = true;
     drivers = [ pkgs.brlaser ];
+    # cups-browsed's auto-created queues lose the printer and stall jobs;
+    # use the permanent queue below instead
+    browsed.enable = false;
   };
+
+  hardware.printers = {
+    ensurePrinters = [{
+      name = "Brother_DCP_L2520DW";
+      description = "Brother DCP-L2520DW";
+      deviceUri = "socket://BRWACD1B88CF0E4.local:9100";
+      model = "drv:///brlaser.drv/brl2520w.ppd";
+      ppdOptions.PageSize = "A4";
+    }];
+    ensureDefaultPrinter = "Brother_DCP_L2520DW";
+  };
+
+  # Epson TM-T88 receipt printer (UB-U05 USB interface): let lp group write
+  # raw ESC/POS directly via libusb, without going through CUPS
+  services.udev.extraRules = ''
+    SUBSYSTEM=="usb", ATTRS{idVendor}=="04b8", ATTRS{idProduct}=="0202", MODE="0660", GROUP="lp"
+  '';
 
   # Swap (swapfile — no repartitioning needed)
   swapDevices = [{

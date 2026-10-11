@@ -10,6 +10,8 @@ let
 in {
   programs.emacs = {
     enable = true;
+    # X11/GTK3 build under XWayland; emacs-pgtk redraws a 4K frame too slowly
+    package = pkgs.emacs;
     extraPackages = epkgs: [
       epkgs.vterm
       epkgs.pdf-tools  # Precompiled from nixpkgs, avoids build issues
