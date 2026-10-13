@@ -140,6 +140,9 @@ home-manager switch --flake .#weast@milo       # server
   - `kxu <db> <entry>` - Get username
   - `kxa <db> <entry> <attr>` - Get custom attribute
 
+### Comms
+- **Mail and calendars** - Purelymail accounts via Thunderbird, mbsync/notmuch/msmtp and vdirsyncer, passwords in agenix; add a mailbox with `mail-add` (see "Mail" below)
+
 ### I/O Devices
 - **Receipt Printer** - Network printing to Epson TM-T88V via milo
   - Server: CUPS on milo with raw queue for ESC/POS
@@ -275,6 +278,60 @@ Hub-and-spoke topology. Milo is the central hub and the only ingress point for e
 **Configuration:** `modules/home/syncthing-topology.nix` — edit device IDs and folder lists there. Everything else is computed automatically.
 
 **Torrent workflow:** Drop `.torrent` into `~/torrentfiles/` → syncs to milo → milo forwards to ultracc → completed download syncs back to `/mnt/vault-new/`.
+
+## Mail
+
+All mailboxes are Purelymail accounts, declared once in `modules/home/comms/accounts.nix`. Gmail, Outlook.com and McGill are not synced; they forward to a Purelymail address.
+
+| Tool | Role | Password from |
+|------|------|---------------|
+| Thunderbird | Main client | Its own password store (entered once per account) |
+| mbsync + notmuch | Fetch every 5 min (`sync-mail` timer), index for Emacs | agenix |
+| msmtp | Send from Emacs | agenix |
+| vdirsyncer + khal | Calendars → org-agenda | agenix |
+
+Passwords are agenix secrets in `secrets/`, named after the address (`hello@aquaveen.com` → `secrets/hello_at_aquaveen_com.age`), encrypted to `~/.ssh/id_ed25519.pub` and decrypted at login to `/run/user/1000/agenix/`. No keyring or KeePassXC is involved, so background sync works while KeePassXC is locked.
+
+**Files** (`modules/home/comms/`):
+- `accounts.nix` - every mailbox and calendar
+- `providers.nix` - how to talk to Purelymail, Google Calendar, ICS links
+- `mail.nix` - mbsync, msmtp, notmuch, the `sync-mail` timer and `mail-add`
+- `secrets.nix` - agenix; mailbox secrets are derived from `accounts.nix`
+- `default.nix` - Thunderbird
+
+### Adding a mailbox
+
+```bash
+mail-add
+```
+
+It asks for the address, an account name (default `<domain>-<user>`, e.g. `weast-studios-oldmail`) and the password, then:
+1. encrypts the password to `secrets/<address>.age` and `git add`s it
+2. adds `<name> = p.purelymail "<address>";` to `accounts.nix`
+3. optionally runs `nixos-rebuild switch`
+
+Then restart Thunderbird and enter the password once when it asks (tick "remember"):
+```bash
+wl-copy < /run/user/1000/agenix/<user>_at_<domain>_<tld>
+```
+
+Running `mail-add` for an address that already exists only replaces its password (Thunderbird keeps its old one until you change it there too).
+
+### Removing a mailbox
+
+Delete its line from `accounts.nix` and its `.age` file from `secrets/`, then rebuild.
+
+### Troubleshooting
+
+- **Thunderbird stuck on "Loading message" or "Copying message to Sent folder":** an account has no saved password, and Thunderbird queues every account behind that password prompt. Right-click each account → Get Messages and enter the missing password. To see which one, start it with logging and look for accounts that stop after `CAPABILITY`:
+  ```bash
+  MOZ_LOG=IMAP:5,timestamp MOZ_LOG_FILE=/tmp/tb.log thunderbird
+  ```
+- **Check a password against the server:**
+  ```bash
+  curl -u "you@domain:$(cat /run/user/1000/agenix/you_at_domain_tld)" imaps://imap.purelymail.com/ -X 'LIST "" "*"'
+  ```
+- **Background sync:** `systemctl --user start sync-mail` and `journalctl --user -u sync-mail`.
 =======
 ## Receipt Printer Setup
 

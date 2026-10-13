@@ -159,6 +159,14 @@ Phone connects to milo only — same security model as other spokes.
 4. Add folders (e.g. `org`): Folder ID must match the key in `sharedFolders` exactly
 5. Accept the folder share on milo at `http://milo:8384`
 
+## Mail
+
+See the "Mail" section in `README.md`. In short:
+- Mailboxes (all Purelymail) are declared once in `modules/home/comms/accounts.nix`
+- Passwords are agenix secrets `secrets/<user>_at_<domain>_<tld>.age`; `secrets.nix` derives the list from `accounts.nix`. No keyring/KeePassXC in mail.
+- Add a mailbox with `mail-add` (prompts for address + password, encrypts, edits `accounts.nix`, rebuilds)
+- Thunderbird is the main client and keeps its own saved passwords (it can't read agenix); a missing one stalls every account
+
 ## Workflow
 - **Changelog:** Use `git log --oneline` to see what changed
 - **Status:** Check git status and the modules to understand current state
