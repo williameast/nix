@@ -21,8 +21,26 @@ let
     esac
   '';
 
+  # Next event from Thunderbird's Google (CalDAV) calendar cache
+  thunderbirdProfile = "${config.home.homeDirectory}/.thunderbird/default";
   agendaNext = pkgs.writeShellScript "agenda-next" ''
-    exec ${pkgs.python3}/bin/python3 ${./agenda-next.py} "${config.home.homeDirectory}/org"
+    exec ${pkgs.python3.withPackages (ps: [ ps.python-dateutil ])}/bin/python3 \
+      ${./agenda-next.py} "${thunderbirdProfile}"
+  '';
+
+  # Show Thunderbird's calendar tab (starting Thunderbird if needed), focused.
+  # With "new", also open the New Event dialog (Ctrl+I).
+  thunderbirdCalendar = pkgs.writeShellScript "thunderbird-calendar" ''
+    thunderbird -calendar >/dev/null 2>&1 &
+    for _ in $(seq 50); do
+      hyprctl clients -j | ${pkgs.jq}/bin/jq -e 'any(.class == "thunderbird")' >/dev/null && break
+      sleep 0.2
+    done
+    hyprctl dispatch focuswindow class:thunderbird >/dev/null
+    if [ "$1" = new ]; then
+      sleep 0.3
+      hyprctl dispatch sendshortcut CTRL, I, class:thunderbird >/dev/null
+    fi
   '';
 
   tailscaleStatus = pkgs.writeShellScript "tailscale-status" ''
@@ -207,8 +225,10 @@ in
       clock = {
         format = "{:%a %d %b  %H:%M}";
         format-alt = "{:%A %d %B %Y  ·  week %V  ·  %H:%M:%S}";
+        format-alt-click = "click-right";  # left click is "new event"
         interval = 1;
         tooltip = false;
+        on-click = "${thunderbirdCalendar} new";
       };
 
       "custom/agenda" = {
@@ -216,7 +236,7 @@ in
         return-type = "json";
         exec = "${agendaNext}";
         interval = 60;
-        on-click = "emacsclient -c --eval '(org-agenda-list)'";
+        on-click = "${thunderbirdCalendar}";
         tooltip = false;
       };
 

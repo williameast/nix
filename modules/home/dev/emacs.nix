@@ -10,11 +10,23 @@ let
 in {
   programs.emacs = {
     enable = true;
-    # X11/GTK3 build under XWayland; emacs-pgtk redraws a 4K frame too slowly
-    package = pkgs.emacs;
+    # X11/GTK3 build under XWayland; emacs-pgtk redraws a 4K frame too slowly.
+    # Not plain pkgs.emacs: that's Lucid now, which gets a 24-bit visual (no
+    # alpha-background) and crashes on popup menus if forced to 32-bit.
+    package = pkgs.emacs-gtk;
     extraPackages = epkgs: [
       epkgs.vterm
       epkgs.pdf-tools  # Precompiled from nixpkgs, avoids build issues
+      # Tree-sitter grammars for Doom's (javascript +tree-sitter); land on treesit-extra-load-path
+      (epkgs.treesit-grammars.with-grammars (g: with g; [
+        tree-sitter-javascript
+        tree-sitter-typescript
+        tree-sitter-tsx
+        tree-sitter-jsdoc
+        tree-sitter-json
+        tree-sitter-css
+        tree-sitter-html
+      ]))
     ];
   };
 
