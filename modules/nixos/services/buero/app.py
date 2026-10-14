@@ -2471,6 +2471,7 @@ def bank_upload():
     with BANK.lock:
         txs, accounts = BANK.transactions(), BANK.accounts()
         added = dup = pending = 0
+        fixed = []
         for f in files:
             try:
                 acct, rows, pend = bank.parse_csv(f.read(), f.filename)
@@ -2481,7 +2482,13 @@ def bank_upload():
                 role = "private" if acct.get("bank") == "HVB" else "mixed"
                 accounts[acct["id"]] = {**acct, "role": role, "default_cat": ""}
             for t in rows:
-                if t["id"] in txs:
+                legacy = t.pop("legacy_id", None)
+                if t["id"] not in txs and legacy in txs:
+                    # Imported with a misread amount ("1.146" as 1,15 €): fix it in place
+                    old = txs.pop(legacy)
+                    txs[t["id"]] = {**old, "id": t["id"], "amount": t["amount"]}
+                    fixed.append((legacy, txs[t["id"]]))
+                elif t["id"] in txs:
                     dup += 1
                 else:
                     txs[t["id"]] = {**t, "cat": "", "imported": date.today().isoformat()}
@@ -2491,7 +2498,20 @@ def bank_upload():
             txs, accounts, cfg["business"].get("name", ""))
         BANK.save_accounts(accounts)
         BANK.save_transactions(txs)
+    for legacy, t in fixed:   # Ausgaben / invoices created from the misread transaction
+        if t.get("expense_id"):
+            e = get_expense(t["expense_id"])
+            if e and e.get("bank_tx_id") == legacy:
+                e.update({"bank_tx_id": t["id"], "amount": round(-t["amount"], 2) if t["amount"] < 0 else e["amount"]})
+                put_expense(e["id"], e)
+        if t.get("invoice_id"):
+            inv = get_invoice(t["invoice_id"])
+            if inv and inv.get("payment_tx") == legacy:
+                inv["payment_tx"] = t["id"]
+                put_invoice(inv["id"], inv)
     msg = f"{added} neue Umsätze importiert, {dup} bereits vorhanden"
+    if fixed:
+        msg += f", {len(fixed)} Beträge korrigiert (Tausenderpunkt)"
     if auto:
         msg += f", {auto} automatisch eingeordnet (Regeln/Umbuchungen)"
     if pending:

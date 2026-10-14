@@ -71,11 +71,17 @@ def _map_header(row):
     return m
 
 
-def parse_amount(s):
+_THOUSANDS_ONLY = re.compile(r"^[+-]?\d{1,3}(\.\d{3})+$")
+
+
+def parse_amount(s, legacy=False):
+    """German amounts: "1.799,58", "-52,3", "-4" and, since DKB drops ",00",
+    "1.146" for 1146 €. legacy=True reproduces the old reading of the latter
+    (1.146) so transactions imported before the fix can be found and repaired."""
     s = (s or "").strip().replace("€", "").replace("EUR", "").replace("\xa0", "").replace(" ", "")
     if not s:
         return None
-    if "," in s:
+    if "," in s or (not legacy and _THOUSANDS_ONLY.match(s)):
         s = s.replace(".", "").replace(",", ".")
     try:
         return round(float(s), 2)
@@ -183,6 +189,11 @@ def parse_csv(raw: bytes, filename=""):
         key = "|".join(str(tx[k]) for k in ("account", "date", "amount", "counterparty", "purpose", "ref"))
         seen[key] = seen.get(key, 0) + 1           # identical lines on one day stay distinct
         tx["id"] = hashlib.sha1(f"{key}|{seen[key]}".encode()).hexdigest()[:12]
+        old_amt = parse_amount(cell(r, "amount"), legacy=True)
+        if old_amt != amt:                         # id under the old "1.146" → 1.146 € reading
+            old_key = "|".join(str({**tx, "amount": old_amt}[k])
+                               for k in ("account", "date", "amount", "counterparty", "purpose", "ref"))
+            tx["legacy_id"] = hashlib.sha1(f"{old_key}|{seen[key]}".encode()).hexdigest()[:12]
         out.append(tx)
     if account is None:
         raise ValueError(f"{filename}: keine Umsätze gefunden")
