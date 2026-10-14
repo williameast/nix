@@ -133,8 +133,12 @@ in
       ExecStart = "${brscan-skey}/opt/brother/scanner/brscan-skey/brscan-skey-exe -f";
       User = serviceUser;
       StateDirectory = "scan-to-paperless";
-      Restart = "on-failure";
+      # brscan-skey leaks a UDP socket on every printer re-registration (~every
+      # 5 min) and hits the 1024 fd limit after ~3.5 days, after which the printer
+      # reports "check connection". Restart it daily.
+      Restart = "always";
       RestartSec = "10s";
+      RuntimeMaxSec = "1d";
       PrivateTmp = true;  # it keeps lock files in /tmp; start clean every time
       TemporaryFileSystem = "/opt:ro";
       BindReadOnlyPaths = [

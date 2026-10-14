@@ -47,6 +47,15 @@ let
     org = {
       path = "org";
       devices = [ "orr" "yossarian" "milo" "phone" ];
+      # music-production used to live here; ignoring it (rather than letting the
+      # move show up as a delete) keeps a not-yet-migrated host from losing its copy
+      patterns = [ "/music-production" ];
+    };
+
+    # Too big for the phone (~40G), so it's its own folder
+    music-production = {
+      path = "music-production";
+      devices = [ "orr" "yossarian" "milo" ];
     };
 
     # Torrent watch folder: drop a .torrent on any machine, milo forwards to ultracc.

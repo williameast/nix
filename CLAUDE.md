@@ -16,7 +16,7 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 - **OS:** NixOS 25.11
 - **GPU:** AMD Radeon R9 290 (radeonsi driver)
 - **Desktop:** Hyprland (Wayland compositor)
-- **Modules:** core, desktop (hyprland, rofi), dev, media, games, modelling, work
+- **Modules:** core, desktop (hyprland, rofi), dev, media, games, modelling, work, comms
 
 ### yossarian (laptop)
 - **OS:** Pop!_OS with Nix (not yet migrated; `hosts/yossarian/` is a draft NixOS config with a placeholder hardware-configuration.nix)
@@ -26,8 +26,8 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 
 ### milo (server)
 - **OS:** NixOS 25.11
-- **Role:** Headless server (Proxmox/Docker host)
-- **Modules:** core (minimal: shell, git, cli-tools, syncthing), secrets
+- **Role:** Headless server (Syncthing hub, media, Immich, Paperless, Gitea, Büro)
+- **Modules:** core (minimal: shell, git, cli-tools); Syncthing runs as a NixOS service
 
 **User:** weast
 
@@ -76,7 +76,8 @@ sudo nixos-rebuild switch --flake .#orr --show-trace
 
 | Folder | Participants | Notes |
 |--------|-------------|-------|
-| `org` | orr, yossarian, milo, phone | Personal notes/org files |
+| `org` | orr, yossarian, milo, phone | Personal notes/org files; ignores `/music-production` (moved out) |
+| `music-production` | orr, yossarian, milo | ~40G, kept off the phone |
 | `torrent-metainfo` | orr, yossarian, milo, ultracc | `.torrent` files only; spokes → milo → ultracc |
 | `music-staging` | ultracc, milo | Incoming music; milo path: `/mnt/vault-new/staging/music` |
 | `tv-shows` | ultracc, milo | Incoming TV; milo path: `/mnt/bulk/tv-shows` |
@@ -170,10 +171,9 @@ See the "Mail" section in `README.md`. In short:
 ## Workflow
 - **Changelog:** Use `git log --oneline` to see what changed
 - **Status:** Check git status and the modules to understand current state
-- **Old config:** `~/.config/home-manager/` (legacy, being migrated from)
 
 ## Current Status
-**Last updated:** 2026-02-20
+**Last updated:** 2026-10-14
 
 ### Completed
 - [x] Phase 1: Bootstrap - flake.nix with inputs (nixpkgs, home-manager, nur)
@@ -187,15 +187,13 @@ See the "Mail" section in `README.md`. In short:
 - [x] Removed all nixGL wrappers (pure NixOS now)
 - [x] Added Hyprland compositor with rofi launcher
 - [x] Fixed Doom Emacs config to use HTTPS clone
-
-### In Progress
-- [ ] Verify all packages from old config are migrated
-- [ ] Test other apps that may need nixGL wrapping
+- [x] Mail and calendars declarative with agenix secrets (`modules/home/comms/`, `mail-add`)
+- [x] Old `~/.config/home-manager/` config retired; nixGL input, receipt-printer client and KeePassXC module removed
 
 ### Not Started
 - [ ] Phase 5: Full XDG audit and cleanup
 - [ ] Document any programs that can't be XDG-compliant
-- [ ] Remove old config at ~/.config/home-manager/ once verified
+- [ ] Migrate yossarian from Pop!_OS to NixOS
 
 ## Session Start Checklist
 1. Run `git log --oneline -5` to see recent changes

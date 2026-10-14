@@ -16,12 +16,7 @@
     # Use XDG config directory for zsh files (new default in HM 26.05+)
     dotDir = "${config.xdg.configHome}/zsh";
 
-    # Session variables (machine-specific ones go in hosts/)
-    sessionVariables = {
-      MAIL = "weast@student.42berlin.de";
-    };
-
-    # Prepend ~/.local/bin to PATH (for nixGL wrappers to take precedence)
+    # ~/.local/bin first (user scripts such as nixos-test-vm)
     initContent = ''
       export PATH="$HOME/.local/bin:$PATH"
 

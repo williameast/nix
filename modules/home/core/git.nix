@@ -8,7 +8,7 @@
     settings = {
       user = {
         name = "William East";
-        email = "william.east@mail.mcgill.ca";
+        email = "william@weast-studios.com";
       };
       # Open in the running Emacs daemon (fast, in this terminal); vi if it's down
       core.editor = "emacsclient -t -a vi";

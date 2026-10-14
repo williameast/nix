@@ -1,4 +1,4 @@
-# Machine-specific configuration for orr (Pop!_OS workstation)
+# Machine-specific configuration for orr (NixOS workstation)
 # Includes 42 Berlin tools and other machine-specific packages
 { config, pkgs, lib, inputs, ... }:
 
@@ -34,7 +34,7 @@
     intermodal # Create .torrent files
 
     # Claude Desktop
-    inputs.claude-desktop.packages.${pkgs.system}.claude-desktop-fhs
+    inputs.claude-desktop.packages.${pkgs.stdenv.hostPlatform.system}.claude-desktop-fhs
   ];
 
   # Syncthing service

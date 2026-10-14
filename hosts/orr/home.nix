@@ -1,4 +1,4 @@
-# Configuration for orr (Pop!_OS workstation with AMD R9 290)
+# Configuration for orr (NixOS workstation with AMD R9 290)
 {
   config,
   pkgs,

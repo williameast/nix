@@ -9,6 +9,8 @@
       server = {
         HTTP_PORT = 3000;
         HTTP_ADDR = "0.0.0.0";
+        # Host shown in clone URLs (gitea@milo:user/repo.git)
+        DOMAIN = "milo";
         ROOT_URL = "http://milo:3000";
       };
       service = {

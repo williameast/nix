@@ -126,6 +126,13 @@
             };
           }
           {
+            "FileBrowser" = {
+              href = "https://milo.quoll-bleak.ts.net:8443";
+              description = "Share files via public links";
+              icon = "filebrowser";
+            };
+          }
+          {
             "ntfy" = {
               href = "http://milo:2586";
               description = "Push notifications";

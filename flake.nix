@@ -1,5 +1,5 @@
 {
-  description = "weast's Home Manager configuration";
+  description = "weast's NixOS + Home Manager configuration";
 
   inputs = {
     # Core inputs
@@ -10,16 +10,10 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    # nixGL for OpenGL on non-NixOS (required for Firefox WebGL on Pop!_OS)
-    nixgl = {
-      url = "github:nix-community/nixGL";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
-
     # NUR for Firefox extensions
     nur.url = "github:nix-community/NUR";
 
-# Claude Code CLI
+    # Claude Code CLI
     claude-code = {
       url = "github:sadjow/claude-code-nix";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -31,20 +25,15 @@
     agenix = {
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
-      inputs.home-manager.follows = "home-manager";
     };
 
     # Affinity suite for Linux
     affinity-nix.url = "github:mrshmllow/affinity-nix";
   };
 
-  outputs = { self, nixpkgs, home-manager, nixgl, nur, ... }@inputs:
+  outputs = { nixpkgs, ... }@inputs:
     let
       system = "x86_64-linux";
-      pkgs = import nixpkgs {
-        inherit system;
-        config.allowUnfree = true;
-      };
       mkHost = hostConfig: nixpkgs.lib.nixosSystem {
         specialArgs = { inherit inputs; };
         modules = [
