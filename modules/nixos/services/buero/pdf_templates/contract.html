@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="UTF-8">
+<style>
+  {% include "_brand.css" %}
+
+  /* ── PARTIES ── */
+  .parties { width: 100%; border-collapse: collapse; margin-top: 4mm; }
+  .parties td { width: 50%; vertical-align: top; padding-right: 8mm; font-size: 8.5pt; line-height: 1.5; }
+  .parties td:last-child { padding-right: 0; }
+  .parties .role {
+    display: block; font-size: 6.5pt; font-weight: 600; color: var(--accent);
+    text-transform: lowercase; margin-bottom: 1mm;
+  }
+  .parties strong { font-size: 9.5pt; }
+  .parties .note { color: var(--light); font-size: 7.5pt; }
+  .between { font-size: 7.5pt; color: var(--light); text-transform: lowercase; margin-top: 8mm; }
+
+  .meta-row { width: 100%; border-collapse: collapse; margin-top: 7mm; border-top: 0.5pt solid var(--lavender); border-bottom: 0.5pt solid var(--lavender); }
+  .meta-row td { padding: 2mm 4mm 2mm 0; vertical-align: top; font-size: 8pt; }
+  .meta-row .lbl { margin-bottom: 0.3mm; }
+  .meta-row .v { font-weight: 500; }
+
+  /* ── CLAUSES ── */
+  .clauses { margin-top: 8mm; }
+  .clause { margin-bottom: 4.5mm; }
+  .clause h3 {
+    font-size: 9pt; font-weight: 600; color: var(--ink);
+    margin-bottom: 1.2mm; page-break-after: avoid; break-after: avoid;
+  }
+  .clause h3 .nr { color: var(--accent); font-weight: 700; margin-right: 2mm; }
+  .clause .rich { font-size: 8.2pt; color: var(--ink); line-height: 1.55; text-align: justify; hyphens: auto; }
+  .clause .rich p { margin-bottom: 1.6mm; }
+  .clause .rich strong { font-weight: 600; }
+
+  /* ── SIGNATURES ── */
+  .sign { margin-top: 10mm; page-break-inside: avoid; }
+  .sign-intro { font-size: 8.2pt; margin-bottom: 14mm; }
+  .sign-tbl { width: 100%; border-collapse: collapse; }
+  .sign-tbl td { width: 50%; vertical-align: bottom; padding-right: 12mm; }
+  .sign-tbl td:last-child { padding-right: 0; padding-left: 0; }
+  .line { border-top: 0.75pt solid var(--ink); padding-top: 1.2mm; font-size: 6.5pt; color: var(--light); text-transform: lowercase; }
+  .place { height: 12mm; }
+  .signee { font-size: 8pt; margin-top: 1mm; }
+  .signee strong { font-weight: 600; }
+  .signee .r { color: var(--light); }
+
+  .annex { margin-top: 8mm; font-size: 7.5pt; color: var(--light); }
+</style>
+</head>
+<body>
+
+{% set brand = cfg.business.legal_name or cfg.business.name %}
+{% set who = contract.role %}
+
+{% include "_footer.html" %}
+
+{% include "_header.html" %}
+
+<div class="doc-type" style="margin-top:12mm">{{ t.title }}</div>
+
+<table class="meta-row">
+  <tr>
+    <td><span class="lbl">{{ t.nr }}</span><span class="v">{{ number }}</span></td>
+    <td><span class="lbl">{{ t.date }}</span><span class="v">{{ contract.date | date_de }}</span></td>
+    <td><span class="lbl">{{ t.project }}</span><span class="v">{{ project.name }}</span></td>
+    {% if project.project_number %}
+    <td><span class="lbl">{{ t.order_nr }}</span><span class="v">{{ project.project_number }}</span></td>
+    {% endif %}
+    {% if ctx.start or ctx.end %}
+    <td><span class="lbl">{{ t.period }}</span><span class="v">{{ ctx.start }}{% if ctx.start and ctx.end %} – {% endif %}{{ ctx.end }}</span></td>
+    {% endif %}
+    {% if ctx.fee or ctx.rate %}
+    <td><span class="lbl">{{ t.fee }}</span><span class="v">{% if contract.fee_type == 'fixed' %}{{ ctx.fee }}{% else %}{{ ctx.rate }} {{ t.fee_per }} {{ ctx.unit }}{% endif %}</span></td>
+    {% endif %}
+  </tr>
+</table>
+
+<div class="between">{{ t.between }}</div>
+<table class="parties">
+  <tr>
+    <td>
+      <span class="role">{{ t.contractor }}</span>
+      <strong>{{ cfg.business.name }}</strong>{% if brand != cfg.business.name %}<br>{{ brand }}{% endif %}<br>
+      {{ cfg.business.address_line1 }}<br>
+      {{ cfg.business.address_line2 }}{% if cfg.business.country %}, {{ cfg.business.country }}{% endif %}<br>
+      {% if cfg.business.email %}<span class="note">{{ cfg.business.email }}</span>{% endif %}
+    </td>
+    <td>
+      <span class="role">{{ t.client }}</span>
+      {% if client.name %}
+      <strong>{{ client.name }}</strong><br>
+      {% if client.contact_name %}{{ client.contact_name }}<br>{% endif %}
+      {% if client.address_line1 %}{{ client.address_line1 }}<br>{% endif %}
+      {% if client.address_line2 %}{{ client.address_line2 }}{% if client.country and client.country != 'Deutschland' %}, {{ client.country }}{% endif %}<br>{% endif %}
+      {% if client.ust_idnr %}<span class="note">USt-IdNr. {{ client.ust_idnr }}</span>{% endif %}
+      {% else %}<span class="note">—</span>{% endif %}
+    </td>
+  </tr>
+</table>
+
+<div class="clauses">
+  {% for title, body in clauses %}
+  <div class="clause">
+    <h3><span class="nr">§ {{ loop.index }}</span>{{ title }}</h3>
+    <div class="rich">{{ body }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="sign">
+  <p class="sign-intro">{{ t.sign_intro }}</p>
+  <table class="sign-tbl">
+    <tr>
+      <td><div class="place"></div><div class="line">{{ t.place_date }}</div></td>
+      <td><div class="place"></div><div class="line">{{ t.place_date }}</div></td>
+    </tr>
+    <tr>
+      <td><div class="place" style="height:16mm"></div><div class="line">{{ t.signature }} {{ t.contractor }}</div>
+        <div class="signee"><strong>{{ cfg.business.name }}</strong>{% if brand != cfg.business.name %} <span class="r">· {{ brand }}</span>{% endif %}</div></td>
+      <td><div class="place" style="height:16mm"></div><div class="line">{{ t.signature }} {{ t.client }}</div>
+        <div class="signee"><strong>{{ client.contact_name or client.name or '' }}</strong>{% if client.contact_name and client.name %} <span class="r">· {{ client.name }}</span>{% endif %}</div></td>
+    </tr>
+  </table>
+</div>
+
+{% if ctx.quote_attached %}
+<p class="annex">{{ t.annex }}: {{ 'Angebot' if lang == 'de' else 'Quote' }} {{ contract.quote_id }}</p>
+{% endif %}
+
+</body>
+</html>

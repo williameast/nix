@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Vertrag — {{ project.name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Vertrag <span class="muted" style="font-size:1rem;font-weight:500">{{ number }}</span></h1>
+  <div class="header-actions">
+    {% if saved %}
+    <a href="{{ url_for('project_contract_pdf', pid=project.id) }}" target="_blank" class="btn btn-primary">PDF ansehen</a>
+    <a href="{{ url_for('project_contract_pdf', pid=project.id, dl=1) }}" class="btn btn-outline">↓ Download</a>
+    {% endif %}
+    <a href="{{ url_for('project_detail', pid=project.id) }}" class="btn btn-outline">Zum Projekt</a>
+  </div>
+</div>
+
+{% if not client.name %}
+<div class="flash flash-warning">Dem Projekt ist kein Kunde zugeordnet – der Vertrag hat dann keinen Auftraggeber.
+  <a href="{{ url_for('project_edit', pid=project.id) }}">Projekt bearbeiten</a></div>
+{% endif %}
+
+<form method="POST" id="contract-form">
+  <div class="settings-section">
+    <h2>Grunddaten</h2>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label>Vertragsdatum</label>
+        <input type="text" name="date" class="date-input" value="{{ contract.date | date_de }}" placeholder="TT.MM.JJJJ">
+      </div>
+      <div class="form-group">
+        <label>Sprache / Language</label>
+        <select name="language">
+          <option value="de" {% if lang == 'de' %}selected{% endif %}>Deutsch</option>
+          <option value="en" {% if lang == 'en' %}selected{% endif %}>English</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select name="status">
+          {% for v, l in [('draft', 'Entwurf'), ('sent', 'Versendet'), ('signed', 'Unterschrieben')] %}
+          <option value="{{ v }}" {% if contract.status == v %}selected{% endif %}>{{ l }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-group">
+        <label>Position / Funktion <span class="muted">(optional)</span></label>
+        <input type="text" name="role" value="{{ contract.role }}" placeholder="z.B. Props Master">
+        <div class="field-hint">Erscheint im Kopf unter Ihrem Namen</div>
+      </div>
+      <div class="form-group">
+        <label>Leistungs- / Lieferort <span class="muted">(optional)</span></label>
+        <input type="text" name="location" value="{{ contract.location }}" placeholder="z.B. Studio Adlershof, Berlin">
+      </div>
+    </div>
+    <div class="field-hint">
+      Auftraggeber: <strong>{{ client.name or '—' }}</strong> ·
+      Zeitraum: <strong>{{ project.start_date | date_de or '—' }} – {{ project.end_date | date_de or '—' }}</strong>
+      (aus dem Projekt, dort ändern)
+    </div>
+  </div>
+
+  <div class="settings-section">
+    <h2>Leistung</h2>
+    <div class="form-group">
+      <label>Leistungsbeschreibung</label>
+      <textarea name="scope" class="item-details" rows="5" placeholder="Was wird gebaut / geliefert / geleistet?">{{ contract.scope }}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Lieferumfang <span class="muted">(optional)</span></label>
+      <textarea name="deliverables" class="item-details" rows="3" placeholder="- 3 Golden Records, gerahmt&#10;- 1 Plüsch-Ghettoblaster">{{ contract.deliverables }}</textarea>
+    </div>
+    <div class="form-row-2">
+      <div class="form-group">
+        <label>Angebot als Grundlage</label>
+        <select name="quote_id">
+          <option value="">— keins —</option>
+          {% for q in quotes %}
+          <option value="{{ q.id }}" {% if q.id == contract.quote_id %}selected{% endif %}>{{ q.id }} · {{ q.date | date_de }}</option>
+          {% endfor %}
+        </select>
+        {% if not quotes %}<div class="field-hint">Dieses Projekt hat noch kein Angebot</div>{% endif %}
+      </div>
+      <div class="form-group" style="padding-top:1.7rem">
+        <label class="checkbox-label"><input type="checkbox" name="attach_quote" {% if contract.attach_quote %}checked{% endif %}> Angebot als Anlage an den Vertrag hängen</label>
+      </div>
+    </div>
+    {% include "_format_hint.html" %}
+  </div>
+
+  <div class="settings-section">
+    <h2>Konditionen</h2>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label>Abrechnung</label>
+        <select name="fee_type" id="fee-type">
+          <option value="fixed"  {% if contract.fee_type == 'fixed'  %}selected{% endif %}>Pauschal</option>
+          <option value="effort" {% if contract.fee_type != 'fixed' %}selected{% endif %}>Nach Aufwand</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label id="fee-label">{{ 'Pauschalbetrag' if contract.fee_type == 'fixed' else 'Geschätzter Aufwand' }} (€)</label>
+        <input type="number" name="fee" value="{{ contract.fee }}" step="0.01" min="0">
+      </div>
+      <div class="form-group fee-effort">
+        <label>Satz (€) je Einheit</label>
+        <div style="display:flex;gap:.5rem">
+          <input type="number" name="rate" value="{{ contract.rate }}" step="0.01" min="0">
+          <input type="text" name="unit" value="{{ contract.unit }}" list="contract-units" style="max-width:7rem">
+          <datalist id="contract-units">{% for u in units %}<option value="{{ u }}">{% endfor %}</datalist>
+        </div>
+      </div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label>Anzahlung (%)</label>
+        <input type="number" name="deposit_pct" value="{{ contract.deposit_pct }}" step="1" min="0" max="100">
+        <div class="field-hint">Fällig bei Unterzeichnung, 0 = keine</div>
+      </div>
+      <div class="form-group">
+        <label>Zahlungsziel (Tage)</label>
+        <input type="number" name="payment_days" value="{{ contract.payment_days }}" step="1" min="0">
+      </div>
+      <div class="form-group">
+        <label>Satz für Zusatzleistungen (€)</label>
+        <input type="number" name="extra_rate" value="{{ contract.extra_rate }}" step="0.01" min="0" placeholder="leer = nach Aufwand">
+      </div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group">
+        <label>Korrekturschleifen inklusive</label>
+        <input type="number" name="revisions" value="{{ contract.revisions }}" step="1" min="0">
+      </div>
+      <div class="form-group">
+        <label>Abnahmefrist (Tage)</label>
+        <input type="number" name="acceptance_days" value="{{ contract.acceptance_days }}" step="1" min="1">
+      </div>
+      <div class="form-group">
+        <label>Ausfallpauschale bei Kündigung (%)</label>
+        <input type="number" name="cancel_pct" value="{{ contract.cancel_pct }}" step="1" min="0" max="100">
+        <div class="field-hint">vom noch nicht erbrachten Teil, zusätzlich zu Geleistetem &amp; Material</div>
+      </div>
+    </div>
+    <label class="checkbox-label"><input type="checkbox" name="portfolio" {% if contract.portfolio %}checked{% endif %}> Arbeit darf nach Veröffentlichung im Portfolio / Social Media gezeigt werden</label>
+  </div>
+
+  <div class="settings-section">
+    <h2>Standardklauseln</h2>
+    <p class="field-hint" style="margin:-.5rem 0 1rem">Abwählen, um eine Klausel wegzulassen. Unter „Text anpassen“ lässt sich der Wortlaut für diesen Vertrag ersetzen.</p>
+    {% for c in clauses %}
+    {% set title, body = c[lang] if lang in c else c.de %}
+    <div class="clause-row">
+      <label class="checkbox-label">
+        <input type="checkbox" name="enabled[{{ c.key }}]" {% if c.key not in contract.disabled %}checked{% endif %}>
+        {{ title }}
+        {% if contract.overrides[c.key] %}<span class="badge badge-locked">angepasst</span>{% endif %}
+      </label>
+      <details {% if contract.overrides[c.key] %}open{% endif %}>
+        <summary>Text anpassen</summary>
+        <textarea name="override[{{ c.key }}]" class="item-details" rows="4"
+                  placeholder="Leer lassen für den Standardtext">{{ contract.overrides[c.key] or '' }}</textarea>
+        <pre class="clause-default">{{ body }}</pre>
+      </details>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="settings-section">
+    <h2>Eigene Klauseln</h2>
+    <p class="field-hint" style="margin:-.5rem 0 1rem">Werden vor den Schlussbestimmungen eingefügt. Platzhalter:
+      {% for k, v in placeholders.items() %}<code title="{{ v }}">{{ '{{ ' ~ k ~ ' }}' }}</code> {% endfor %}</p>
+    <div id="custom-clauses">
+      {% for c in contract.custom %}
+      <div class="custom-clause">
+        <div style="display:flex;gap:.5rem;align-items:center">
+          <input type="text" name="custom[{{ loop.index0 }}][title]" value="{{ c.title }}" placeholder="Überschrift" class="custom-title">
+          <button type="button" class="btn-icon" onclick="removeClause(this)" title="Entfernen">✕</button>
+        </div>
+        <textarea name="custom[{{ loop.index0 }}][text]" class="item-details" rows="4" placeholder="Text der Klausel">{{ c.text }}</textarea>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="button" class="btn btn-outline" onclick="addClause()">+ Klausel</button>
+  </div>
+
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Speichern</button>
+    <button type="submit" name="action" value="pdf" formtarget="_blank" class="btn btn-outline">Speichern &amp; PDF öffnen</button>
+  </div>
+</form>
+
+<script>
+function renumberClauses() {
+  document.querySelectorAll('#custom-clauses .custom-clause').forEach((el, i) => {
+    el.querySelectorAll('input, textarea').forEach(inp => {
+      inp.name = inp.name.replace(/custom\[\d+\]/, `custom[${i}]`);
+    });
+  });
+}
+function addClause() {
+  const el = document.createElement('div');
+  el.className = 'custom-clause';
+  el.innerHTML = `
+    <div style="display:flex;gap:.5rem;align-items:center">
+      <input type="text" name="custom[0][title]" placeholder="Überschrift" class="custom-title">
+      <button type="button" class="btn-icon" onclick="removeClause(this)" title="Entfernen">✕</button>
+    </div>
+    <textarea name="custom[0][text]" class="item-details" rows="4" placeholder="Text der Klausel"></textarea>`;
+  document.getElementById('custom-clauses').appendChild(el);
+  renumberClauses();
+  initAutoGrow(el);
+  el.querySelector('input').focus();
+}
+function removeClause(btn) {
+  btn.closest('.custom-clause').remove();
+  renumberClauses();
+}
+// Pauschal ↔ nach Aufwand
+(() => {
+  const sel = document.getElementById('fee-type');
+  const sync = () => {
+    const fixed = sel.value === 'fixed';
+    document.querySelectorAll('.fee-effort').forEach(el => el.style.opacity = fixed ? .45 : 1);
+    document.getElementById('fee-label').textContent = (fixed ? 'Pauschalbetrag' : 'Geschätzter Aufwand') + ' (€)';
+  };
+  sel.addEventListener('change', sync);
+  sync();
+})();
+document.addEventListener('DOMContentLoaded', () => initAutoGrow());
+</script>
+{% endblock %}

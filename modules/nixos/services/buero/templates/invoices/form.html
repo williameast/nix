@@ -133,39 +133,68 @@
   <div class="section" style="margin-top:2rem">
     <div class="section-header">
       <h2>Positionen</h2>
-      <button type="button" class="btn btn-outline" onclick="addLineItem()">+ Position</button>
+      <div class="header-actions">
+        <button type="button" class="btn btn-outline" onclick="addLineItem('heading')">+ Überschrift</button>
+        <button type="button" class="btn btn-outline" onclick="addLineItem()">+ Position</button>
+      </div>
     </div>
 
     <table class="table" id="items-table">
       <thead>
         <tr>
-          <th style="width:45%">Beschreibung</th>
+          <th style="width:47%">Beschreibung</th>
           <th style="width:10%">Menge</th>
           <th style="width:10%">Einheit</th>
-          <th style="width:15%">Einzelpreis</th>
-          <th style="width:15%" class="num">Gesamt</th>
+          <th style="width:14%">Einzelpreis</th>
+          <th style="width:14%" class="num">Gesamt</th>
           <th style="width:5%"></th>
         </tr>
       </thead>
-      <tbody id="items-body">
-        {% for item in invoice.positions %}
-        <tr class="item-row">
+      {% for item in invoice.positions %}
+      {% set i = loop.index0 %}
+      {% if item.kind == 'heading' %}
+      <tbody class="item-row item-heading">
+        <tr>
+          <td colspan="5">
+            <input type="hidden" name="positions[{{ i }}][kind]" value="heading">
+            <input type="text" name="positions[{{ i }}][description]" value="{{ item.description }}" placeholder="Überschrift, z.B. Phase 1 — Konzept" class="item-title-input">
+          </td>
+          <td><button type="button" class="btn-icon" onclick="removeRow(this)" title="Entfernen">✕</button></td>
+        </tr>
+        <tr class="item-details-row">
+          <td colspan="6">
+            <button type="button" class="details-toggle" onclick="toggleDetails(this)" {% if item.details %}hidden{% endif %}>+ Text</button>
+            <textarea name="positions[{{ i }}][details]" class="item-details" rows="2" placeholder="Einleitender Text (optional)" {% if not item.details %}hidden{% endif %}>{{ item.details or '' }}</textarea>
+          </td>
+        </tr>
+      </tbody>
+      {% else %}
+      <tbody class="item-row">
+        <tr>
           <td>
-            <input type="text" name="positions[{{ loop.index0 }}][description]" value="{{ item.description }}" placeholder="Leistungsbeschreibung">
+            <input type="text" name="positions[{{ i }}][description]" value="{{ item.description }}" placeholder="Leistungsbeschreibung">
             {% if item.auslagenersatz %}
-            <input type="hidden" name="positions[{{ loop.index0 }}][auslagenersatz]" value="1">
-            <input type="hidden" name="positions[{{ loop.index0 }}][expense_id]" value="{{ item.expense_id or '' }}">
+            <input type="hidden" name="positions[{{ i }}][auslagenersatz]" value="1">
+            <input type="hidden" name="positions[{{ i }}][expense_id]" value="{{ item.expense_id or '' }}">
             {% endif %}
           </td>
-          <td><input type="number" name="positions[{{ loop.index0 }}][quantity]" value="{{ item.quantity }}" step="any" min="0" class="item-qty" oninput="recalc()"></td>
-          <td><input type="text" name="positions[{{ loop.index0 }}][unit]" value="{{ item.unit }}" list="unit-list" class="item-unit" placeholder="{{ defaults.unit }}"></td>
-          <td><input type="number" name="positions[{{ loop.index0 }}][unit_price]" value="{{ item.unit_price }}" step="any" min="0" class="item-price" oninput="recalc()"></td>
+          <td><input type="number" name="positions[{{ i }}][quantity]" value="{{ item.quantity }}" step="any" min="0" class="item-qty" oninput="recalc()"></td>
+          <td><input type="text" name="positions[{{ i }}][unit]" value="{{ item.unit }}" list="unit-list" class="item-unit" placeholder="{{ defaults.unit }}"></td>
+          <td><input type="number" name="positions[{{ i }}][unit_price]" value="{{ item.unit_price }}" step="any" min="0" class="item-price" oninput="recalc()"></td>
           <td class="num item-total">—</td>
           <td><button type="button" class="btn-icon" onclick="removeRow(this)" title="Entfernen">✕</button></td>
         </tr>
-        {% endfor %}
+        <tr class="item-details-row">
+          <td colspan="6">
+            <button type="button" class="details-toggle" onclick="toggleDetails(this)" {% if item.details %}hidden{% endif %}>+ Details</button>
+            <textarea name="positions[{{ i }}][details]" class="item-details" rows="3" placeholder="Details (optional)" {% if not item.details %}hidden{% endif %}>{{ item.details or '' }}</textarea>
+          </td>
+        </tr>
       </tbody>
+      {% endif %}
+      {% endfor %}
     </table>
+    {% include "_format_hint.html" %}
 
     <!-- Totals -->
     <div class="totals-box">
@@ -180,7 +209,7 @@
   <!-- Notes -->
   <div class="form-group" style="margin-top:1.5rem">
     <label>Anmerkungen / Zahlungshinweis</label>
-    <textarea name="notes" rows="4">{{ invoice.notes }}</textarea>
+    <textarea name="notes" rows="4" class="item-details">{{ invoice.notes }}</textarea>
   </div>
 
   <div class="form-group">

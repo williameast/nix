@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Büro{% endblock %} — {{ cfg.business.name }}</title>
+  <title>{% block title %}Büro{% endblock %} — {{ cfg.business.legal_name or cfg.business.name }}</title>
+  <link rel="icon" href="{{ url_for('static', filename='img/logo.svg') }}" type="image/svg+xml">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <style>
     :root {
@@ -13,12 +14,14 @@
 </head>
 <body>
   <nav class="sidebar">
-    <div class="sidebar-brand">
-      {% if cfg.design.logo_path %}
-        <img src="{{ url_for('uploaded_file', filename=cfg.design.logo_path) }}" alt="Logo" class="sidebar-logo">
-      {% endif %}
-      <span class="sidebar-name">{{ cfg.business.name }}</span>
-    </div>
+    <a href="{{ url_for('dashboard') }}" class="sidebar-brand">
+      <img src="{{ url_for('uploaded_file', filename=cfg.design.logo_path) if cfg.design.logo_path else url_for('static', filename='img/logo.svg') }}"
+           alt="" class="sidebar-logo">
+      <span class="sidebar-wordmark">
+        <span class="sidebar-name">{{ cfg.business.legal_name or cfg.business.name }}</span>
+        <span class="sidebar-sub">büro</span>
+      </span>
+    </a>
 
     <ul class="nav-links">
       <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">
@@ -44,6 +47,10 @@
       <li><a href="{{ url_for('expenses_list') }}" class="{% if 'expense' in (request.endpoint or '') %}active{% endif %}">
         <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16C9.56 5.67 8 6.9 8 8.75c0 2.19 1.81 3.28 4.5 3.95 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1H7.63c.12 2.19 1.76 3.42 3.87 3.84V21h3v-2.16c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.39z"/></svg>
         Ausgaben
+      </a></li>
+      <li><a href="{{ url_for('bank_index') }}" class="{% if 'bank' in (request.endpoint or '') %}active{% endif %}">
+        <svg viewBox="0 0 24 24"><path d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zm-5-9L2 6v2h20V6z"/></svg>
+        Bank
       </a></li>
       {% if cfg.paperless.enabled %}
       <li><a href="{{ url_for('paperless_browser') }}" class="{% if 'paperless' in (request.endpoint or '') %}active{% endif %}">

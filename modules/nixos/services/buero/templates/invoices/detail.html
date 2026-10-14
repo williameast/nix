@@ -149,13 +149,21 @@
   </thead>
   <tbody>
     {% for item in regular_items %}
+    {% if item.kind == 'heading' %}
+    <tr class="item-group">
+      <td colspan="5"><strong>{{ item.description }}</strong>
+        {% if item.details %}<div class="rich">{{ item.details | rich }}</div>{% endif %}</td>
+    </tr>
+    {% else %}
     <tr>
-      <td>{{ item.description }}</td>
-      <td class="num">{{ item.quantity }}</td>
+      <td>{{ item.description }}
+        {% if item.details %}<div class="rich">{{ item.details | rich }}</div>{% endif %}</td>
+      <td class="num">{{ item.quantity | qty }}</td>
       <td>{{ item.unit }}</td>
       <td class="num">{{ item.unit_price | eur }}</td>
       <td class="num">{{ (item.quantity * item.unit_price) | eur }}</td>
     </tr>
+    {% endif %}
     {% endfor %}
   </tbody>
   {% if auslagen_items %}
@@ -205,7 +213,7 @@
 {% if invoice.notes %}
 <div class="detail-section">
   <div class="meta-label">Anmerkungen</div>
-  <p>{{ invoice.notes }}</p>
+  <div class="rich">{{ invoice.notes | rich }}</div>
 </div>
 {% endif %}
 

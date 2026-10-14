@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Konten &amp; Regeln{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Konten &amp; Regeln</h1>
+  <a href="{{ url_for('bank_index') }}" class="btn btn-outline">Zur Bank</a>
+</div>
+
+<form method="POST" class="settings-section">
+  <h2>Konten</h2>
+  <p class="field-hint" style="margin:-.5rem 0 1rem">
+    Die Rolle hilft der KI beim Einschätzen (ein Geschäftskonto ist eher geschäftlich, enthält aber trotzdem Privates).
+    „Neue Umsätze automatisch“ ordnet jeden neu importierten Umsatz ohne passende Regel direkt ein – sinnvoll, sobald ein Konto rein geschäftlich oder rein privat ist.
+  </p>
+  <table class="table">
+    <thead><tr><th>Name</th><th>Umsätze</th><th>Rolle</th><th>Neue Umsätze automatisch</th></tr></thead>
+    <tbody>
+    {% for aid, a in accounts.items() %}
+      <tr>
+        <td><input type="text" name="name[{{ aid }}]" value="{{ a.name }}" class="search-input" style="width:100%">
+            <div class="field-hint">{{ a.bank }} {{ a.iban or aid }}</div></td>
+        <td class="num">{{ counts[aid] }}</td>
+        <td><select name="role[{{ aid }}]">
+          {% for v, l in [('business', 'Geschäftskonto'), ('mixed', 'Gemischt'), ('private', 'Privat')] %}
+          <option value="{{ v }}" {% if a.role == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select></td>
+        <td><select name="default[{{ aid }}]">
+          {% for v, l in [('', 'nein – prüfen'), ('business', 'als geschäftlich'), ('private', 'als privat')] %}
+          <option value="{{ v }}" {% if (a.default_cat or '') == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
+        </select></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">Noch keine Konten – zuerst eine CSV hochladen.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">Speichern</button>
+    <button type="submit" name="reapply" value="1" class="btn btn-outline">Speichern &amp; auf ungeprüfte anwenden</button>
+  </div>
+</form>
+
+<div class="settings-section">
+  <h2>Regeln</h2>
+  <p class="field-hint" style="margin:-.5rem 0 1rem">Entstehen über „+ Regel: immer so“ bzw. „merken“ auf der Bank-Seite. Sie gelten für ungeprüfte und künftig importierte Umsätze; die erste passende gewinnt.</p>
+  <table class="table">
+    <thead><tr><th>Wenn Empfänger enthält</th><th>dann</th><th>Projekt</th><th>Kategorie</th><th></th></tr></thead>
+    <tbody>
+    {% for r in rules %}
+      <tr>
+        <td><code>{{ r.match }}</code>{% if r.field != 'counterparty' %} <span class="muted">({{ r.field }})</span>{% endif %}</td>
+        <td>{{ cat_labels.get(r.cat, r.cat) }}</td>
+        <td>{{ pnames.get(r.project_id, '') if r.project_id else '—' }}</td>
+        <td>{{ r.exp_category or '—' }}</td>
+        <td><form method="POST" action="{{ url_for('bank_rule_delete') }}">
+          <input type="hidden" name="i" value="{{ loop.index0 }}">
+          <button type="submit" class="btn-icon" title="Regel löschen">✕</button></form></td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="muted">Noch keine Regeln.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

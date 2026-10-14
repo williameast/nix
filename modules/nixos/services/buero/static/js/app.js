@@ -2,50 +2,94 @@
 
 /* ── Line items ──────────────────────────────────────────────────────────── */
 
-let itemCount = document.querySelectorAll('.item-row').length;
-
 function defaultUnit() {
   return document.getElementById('invoice-form')?.dataset.defaultUnit || 'Stück';
 }
 
-function addLineItem() {
-  const tbody = document.getElementById('items-body');
-  const idx   = itemCount++;
+// Each position is its own <tbody class="item-row">: the main row plus a details row
+function addLineItem(kind) {
+  const table = document.getElementById('items-table');
+  const idx   = document.querySelectorAll('.item-row').length;
   const unit  = defaultUnit();
-  const row   = document.createElement('tr');
-  row.className = 'item-row';
-  row.innerHTML = `
-    <td><input type="text" name="positions[${idx}][description]" placeholder="Leistungsbeschreibung"></td>
-    <td><input type="number" name="positions[${idx}][quantity]" value="1" step="any" min="0" class="item-qty" oninput="recalc()"></td>
-    <td><input type="text" name="positions[${idx}][unit]" value="${unit}" list="unit-list" class="item-unit" placeholder="${unit}"></td>
-    <td><input type="number" name="positions[${idx}][unit_price]" step="any" min="0" class="item-price" oninput="recalc()"></td>
-    <td class="num item-total">—</td>
-    <td><button type="button" class="btn-icon" onclick="removeRow(this)" title="Entfernen">✕</button></td>
-  `;
-  tbody.appendChild(row);
-  row.querySelector('input').focus();
+  const body  = document.createElement('tbody');
+  const remove = `<button type="button" class="btn-icon" onclick="removeRow(this)" title="Entfernen">✕</button>`;
+  if (kind === 'heading') {
+    body.className = 'item-row item-heading';
+    body.innerHTML = `
+      <tr>
+        <td colspan="5">
+          <input type="hidden" name="positions[${idx}][kind]" value="heading">
+          <input type="text" name="positions[${idx}][description]" placeholder="Überschrift, z.B. Phase 1 — Konzept" class="item-title-input">
+        </td>
+        <td>${remove}</td>
+      </tr>
+      <tr class="item-details-row"><td colspan="6">
+        <button type="button" class="details-toggle" onclick="toggleDetails(this)">+ Text</button>
+        <textarea name="positions[${idx}][details]" class="item-details" rows="2" placeholder="Einleitender Text (optional)" hidden></textarea>
+      </td></tr>`;
+  } else {
+    body.className = 'item-row';
+    body.innerHTML = `
+      <tr>
+        <td><input type="text" name="positions[${idx}][description]" placeholder="Leistungsbeschreibung"></td>
+        <td><input type="number" name="positions[${idx}][quantity]" value="1" step="any" min="0" class="item-qty" oninput="recalc()"></td>
+        <td><input type="text" name="positions[${idx}][unit]" value="${unit}" list="unit-list" class="item-unit" placeholder="${unit}"></td>
+        <td><input type="number" name="positions[${idx}][unit_price]" step="any" min="0" class="item-price" oninput="recalc()"></td>
+        <td class="num item-total">—</td>
+        <td>${remove}</td>
+      </tr>
+      <tr class="item-details-row"><td colspan="6">
+        <button type="button" class="details-toggle" onclick="toggleDetails(this)">+ Details</button>
+        <textarea name="positions[${idx}][details]" class="item-details" rows="3" placeholder="Details (optional)" hidden></textarea>
+      </td></tr>`;
+  }
+  table.appendChild(body);
+  initAutoGrow(body);
+  body.querySelector('input[type=text]').focus();
   renumberItems();
 }
 
+function toggleDetails(btn) {
+  const ta = btn.parentElement.querySelector('textarea');
+  btn.hidden = true;
+  ta.hidden = false;
+  ta.focus();
+}
+
 function removeRow(btn) {
-  const row = btn.closest('tr');
-  row.remove();
+  btn.closest('.item-row').remove();
   renumberItems();
   recalc();
 }
 
 function renumberItems() {
   document.querySelectorAll('.item-row').forEach((row, i) => {
-    row.querySelectorAll('input').forEach(inp => {
+    row.querySelectorAll('input, textarea').forEach(inp => {
       inp.name = inp.name.replace(/positions\[\d+\]/, `positions[${i}]`);
     });
+  });
+}
+
+// Textareas grow with their content instead of scrolling
+function initAutoGrow(root = document) {
+  root.querySelectorAll('textarea.item-details').forEach(ta => {
+    const grow = () => {
+      if (!ta.offsetParent) return;   // hidden (e.g. in a closed <details>): nothing to measure
+      ta.style.height = 'auto';
+      ta.style.height = ta.scrollHeight + 2 + 'px';
+    };
+    ta.addEventListener('input', grow);
+    ta.addEventListener('focus', grow);
+    grow();
+    ta.closest('details')?.addEventListener('toggle', grow);
+    window.addEventListener('load', grow);   // again once web fonts are in
   });
 }
 
 /* ── Live totals ─────────────────────────────────────────────────────────── */
 
 async function recalc() {
-  const rows  = document.querySelectorAll('.item-row');
+  const rows  = document.querySelectorAll('.item-row:not(.item-heading)');
   const items = [];
   rows.forEach(row => {
     const qty   = parseFloat(row.querySelector('.item-qty')?.value)   || 0;
@@ -215,7 +259,7 @@ function initNewInvoice(form) {
 /* ── Init ────────────────────────────────────────────────────────────────── */
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('items-body')) recalc();
+  if (document.getElementById('items-table')) { recalc(); initAutoGrow(); }
 
   initDateInputs();
   initClientProject();

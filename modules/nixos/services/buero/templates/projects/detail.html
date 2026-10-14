@@ -6,6 +6,7 @@
   <div class="header-actions">
     <a href="{{ url_for('invoice_new') }}?project_id={{ project.id }}{% if project.client_id %}&client_id={{ project.client_id }}{% endif %}&type=invoice" class="btn btn-primary">+ Rechnung</a>
     <a href="{{ url_for('expense_new') }}?project_id={{ project.id }}{% if project.client_id %}&client_id={{ project.client_id }}{% endif %}" class="btn btn-outline">+ Ausgabe</a>
+    <a href="{{ url_for('project_contract', pid=project.id) }}" class="btn btn-outline">{{ 'Vertrag' if project.contract else '+ Vertrag' }}</a>
     <a href="{{ url_for('project_edit', pid=project.id) }}" class="btn btn-outline">Bearbeiten</a>
   </div>
 </div>

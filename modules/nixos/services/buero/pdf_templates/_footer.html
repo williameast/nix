@@ -1,0 +1,36 @@
+{# Running footer; include right after <body>: a running element only shows from the page it appears on #}
+<div class="page-footer">
+  <table class="footer">
+    <tr>
+      <td>
+        <span class="lbl">{{ t.address }}</span>
+        <span class="brand">{{ brand }}</span>{% if cfg.business.legal_name and cfg.business.name != cfg.business.legal_name %} · {{ cfg.business.name }}{% endif %}<br>
+        {{ cfg.business.address_line1 }}<br>
+        {{ cfg.business.address_line2 }}{% if cfg.business.country %}, {{ cfg.business.country }}{% endif %}
+      </td>
+      {% if cfg.business.email or cfg.business.phone or cfg.business.website %}
+      <td>
+        <span class="lbl">{{ t.contact }}</span>
+        {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
+        {% if cfg.business.phone %}{{ cfg.business.phone }}<br>{% endif %}
+        {% if cfg.business.website %}{{ cfg.business.website }}{% endif %}
+      </td>
+      {% endif %}
+      <td>
+        <span class="lbl">{{ t.tax }}</span>
+        {% if cfg.tax.steuernummer %}StNr. {{ cfg.tax.steuernummer }}<br>{% endif %}
+        {% if cfg.tax.ust_idnr %}USt-IdNr. {{ cfg.tax.ust_idnr }}<br>{% endif %}
+        {% if cfg.tax.mode == 'kleinunternehmer' %}{{ t.ku_short }}{% endif %}
+      </td>
+      {% if cfg.invoice.iban %}
+      <td>
+        <span class="lbl">{{ t.bank }}</span>
+        {% if cfg.invoice.bank_name %}{{ cfg.invoice.bank_name }}<br>{% endif %}
+        <span style="white-space:nowrap">{{ cfg.invoice.iban }}</span><br>
+        {% if cfg.invoice.bic %}BIC {{ cfg.invoice.bic }}{% endif %}
+      </td>
+      {% endif %}
+    </tr>
+  </table>
+  <div class="page-nr"></div>
+</div>

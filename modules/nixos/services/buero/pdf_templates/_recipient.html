@@ -1,0 +1,13 @@
+      <div class="sender-line">
+        {{ brand }} · {{ cfg.business.address_line1 }} · {{ cfg.business.address_line2 }}
+      </div>
+      <div class="recipient">
+        {% if client and client.name %}
+        <strong>{{ client.name }}</strong><br>
+        {% if client.contact_name %}{{ client.contact_name }}<br>{% endif %}
+        {% if client.address_line1 %}{{ client.address_line1 }}<br>{% endif %}
+        {% if client.address_line2 %}{{ client.address_line2 }}<br>{% endif %}
+        {% if client.country and client.country != 'Deutschland' %}{{ client.country }}<br>{% endif %}
+        {% if client.ust_idnr %}<span style="font-size:8pt;color:#555">USt-IdNr. {{ client.ust_idnr }}</span>{% endif %}
+        {% else %}<span style="color:#bbb">—</span>{% endif %}
+      </div>

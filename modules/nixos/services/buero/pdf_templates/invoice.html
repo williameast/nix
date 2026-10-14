@@ -1,324 +1,138 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="{{ lang }}">
 <head>
 <meta charset="UTF-8">
 <style>
-  @page {
-    size: A4;
-    /* 20mm bottom margin holds the running footer (≈16mm tall) */
-    margin: 14mm 16mm 20mm 16mm;
+  {% include "_brand.css" %}
 
-    @bottom-left {
-      /* Running footer element — removed from content flow, no overlap */
-      content: element(page-footer);
-      vertical-align: top;
-    }
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  :root { --accent: {{ cfg.design.accent_color }}; }
-
-  body {
-    font-family: Inter, 'Inter UI', Helvetica Neue, Helvetica, Arial, sans-serif;
-    font-size: 9.5pt;
-    color: #111;
-    background: #fff;
-    line-height: 1.45;
-    /* Footer is in the @page margin box — no padding-bottom needed */
-  }
-
-  /* ── HEADER ────────────────────────────────────────────── */
-  .hdr { width: 100%; border-collapse: collapse; margin-bottom: 4mm; }
-  .hdr-logo img { max-width: 36mm; max-height: 24mm; }
-  .hdr-name { text-align: right; vertical-align: middle; }
-  .company-name {
-    font-size: 24pt;
-    font-weight: 900;
-    color: var(--accent);
-    letter-spacing: -0.025em;
-    line-height: 1;
-  }
-  .company-sub { font-size: 9pt; color: #555; margin-top: 1mm; }
-
-  .hdr-rule { border-top: 3pt solid var(--accent); margin-bottom: 0; }
-
-  .grad-boxes { text-align: right; margin-bottom: 4mm; margin-top: 1.5mm; line-height: 0; }
-
-  /* ── ADDRESS BOXES ──────────────────────────────────────── */
-  .addr-tbl { width: 100%; border-collapse: separate; border-spacing: 4mm 0; margin-bottom: 6mm; }
-  .addr-box { border: 2pt solid var(--accent); padding: 3.5mm 4mm; vertical-align: top; font-size: 9pt; line-height: 1.55; }
-  .addr-lbl {
-    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--accent); display: block; margin-bottom: 1.5mm;
-  }
-
-  /* ── DOCUMENT TITLE ─────────────────────────────────────── */
-  .doc-hdr { width: 100%; border-collapse: collapse; margin-bottom: 1.5mm; }
-  .doc-type {
-    font-size: 30pt; font-weight: 900; color: var(--accent);
-    letter-spacing: -0.03em; line-height: 1; vertical-align: bottom;
-  }
-  .doc-nr-cell { text-align: right; vertical-align: bottom; }
-  .doc-nr-lbl {
-    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: #888; display: block; margin-bottom: 0.5mm;
-  }
-  .doc-nr { font-size: 15pt; font-weight: 700; color: #111; letter-spacing: -0.01em; }
-
-  /* ── DETAILS BAR ────────────────────────────────────────── */
-  .dbar-wrap { background: var(--accent); margin-bottom: 6mm; }
-  .dbar { width: 100%; border-collapse: collapse; }
-  .dbar td { padding: 2.5mm 3mm 2.5mm 4mm; color: #fff; font-size: 8pt; vertical-align: middle; white-space: nowrap; }
-  .dbar td:last-child { padding-right: 4mm; }
-  .dlbl {
-    font-size: 6pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.08em; opacity: 0.75; display: block; margin-bottom: 0.4mm;
-  }
-  .dval { font-weight: 600; }
-
-  /* ── LINE ITEMS ─────────────────────────────────────────── */
-  .items { width: 100%; border-collapse: collapse; font-size: 9pt; margin-bottom: 3mm; }
-  .items thead tr { background: var(--accent); color: #fff; }
+  /* ── LINE ITEMS ── */
+  .items { width: 100%; border-collapse: collapse; margin-bottom: 2mm; }
   .items th {
-    padding: 2.5mm 3mm; font-size: 7pt; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.07em; text-align: left;
+    font-size: 6.5pt; font-weight: 600; color: var(--accent);
+    text-transform: lowercase; letter-spacing: 0.02em; text-align: left;
+    padding: 0 2.5mm 1.5mm; border-bottom: 1pt solid var(--accent);
+    white-space: nowrap;
   }
+  .items th:first-child, .items td:first-child { padding-left: 0; }
+  .items th:last-child,  .items td:last-child  { padding-right: 0; }
   .items th.r, .items td.r { text-align: right; }
-  .items td { padding: 2.5mm 3mm; vertical-align: top; border-bottom: 0.5pt solid #ddd; }
+  .items td {
+    padding: 2.4mm 2.5mm; vertical-align: top;
+    border-bottom: 0.5pt solid var(--lavender);
+  }
+  .items td.pos { color: var(--light); }
+  .items td.nw  { white-space: nowrap; }
   .items tbody tr { page-break-inside: avoid; }
-  .items tbody tr:nth-child(even) { background: #f8f8f8; }
+  .item-title { font-weight: 600; }
 
-  /* ── TOTALS ─────────────────────────────────────────────── */
-  .totals-wrap { text-align: right; margin-bottom: 4mm; page-break-inside: avoid; }
-  .totals {
-    display: inline-table; min-width: 68mm;
-    border-left: 3pt solid var(--accent); border-collapse: collapse; font-size: 9.5pt;
+  .items tbody.keep { page-break-inside: avoid; }
+  .items tr.group td {
+    padding-top: 5mm; padding-bottom: 1.5mm;
+    border-bottom: 0.5pt solid var(--grey);
   }
-  .totals td { padding: 1.5mm 3mm; border-bottom: 0.5pt solid #e0e0e0; }
-  .totals td.tv { text-align: right; font-weight: 600; }
-  .totals .grand td {
-    font-weight: 700; font-size: 11pt; color: var(--accent);
-    border-top: 1.5pt solid var(--accent); border-bottom: none; padding-top: 2mm;
+  .items thead + tbody.keep tr.group td,
+  .items tbody:empty + tbody.keep tr.group td { padding-top: 2.5mm; }
+  .group-title { font-size: 9.5pt; font-weight: 700; color: var(--ink); }
+
+  .items tr.subtotal td { border-bottom: none; color: var(--grey); font-weight: 500; padding-top: 1.5mm; }
+
+
+  .auslagen-section { margin-top: 5mm; }
+  .receipts-note { font-size: 7.5pt; color: var(--light); margin-top: 1mm; }
+
+  /* ── TOTALS ── */
+  .totals-wrap { margin-top: 3mm; page-break-inside: avoid; }
+  .totals { border-collapse: collapse; margin-left: auto; min-width: 72mm; }
+  .totals td { padding: 1.2mm 0; }
+  .totals td.tv { text-align: right; font-weight: 500; padding-left: 8mm; }
+  .totals tr.grand td {
+    border-top: 1.5pt solid var(--accent); padding-top: 2mm;
+    font-size: 11pt; font-weight: 700; color: var(--accent);
   }
 
-  /* ── PAYMENT BOX ────────────────────────────────────────── */
+  .ku-note { font-size: 7.5pt; color: var(--light); font-style: italic; margin-top: 4mm; }
+
+  /* ── NOTES ── */
+  .notes { margin-top: 6mm; page-break-inside: avoid; }
+  .notes .rich { font-size: 8.5pt; color: var(--ink); }
+  .notes .lbl { margin-bottom: 1mm; }
+
+  /* ── PAYMENT ── */
   .pay {
-    width: 100%; border-collapse: collapse;
-    border: 2pt solid var(--accent); margin-top: 6mm;
-    page-break-inside: avoid;
+    width: 100%; border-collapse: collapse; margin-top: 7mm;
+    border: 1pt solid var(--accent); page-break-inside: avoid;
   }
-  .pay td { padding: 4mm; vertical-align: middle; }
-  .pay-lbl {
-    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: var(--accent); display: block; margin-bottom: 2mm;
-  }
-  .pay-body { font-size: 9pt; line-height: 1.65; }
-  .pay-qr { text-align: center; width: 34mm; border-left: 0.5pt solid #ddd; }
-  .pay-qr img { width: 28mm; height: 28mm; }
-  .pay-qr-lbl { font-size: 5.5pt; color: #888; margin-top: 1.5mm; line-height: 1.3; }
+  .pay td { padding: 4mm 5mm; vertical-align: middle; }
+  .pay .lbl { color: var(--accent); margin-bottom: 1.5mm; font-weight: 600; }
+  .pay-body { line-height: 1.7; }
+  .pay-qr { width: 32mm; text-align: center; border-left: 0.5pt solid var(--lavender); }
+  .pay-qr img { width: 24mm; height: 24mm; }
+  .pay-qr-lbl { font-size: 5.5pt; color: var(--light); line-height: 1.3; margin-top: 1mm; }
 
-  /* ── PAID CONFIRMATION ───────────────────────────────────── */
-  .pay-confirmed {
-    width: 100%; border-collapse: collapse;
-    border: 2pt solid #1a8a3c; margin-top: 6mm;
-    page-break-inside: avoid; background: #f0faf4;
-  }
-  .pay-confirmed td { padding: 4mm; vertical-align: middle; }
-  .pay-confirmed-lbl {
-    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: #1a8a3c; display: block; margin-bottom: 2mm;
-  }
-  .pay-confirmed-body { font-size: 9pt; line-height: 1.65; color: #111; }
-  .bezahlt-badge {
-    font-size: 18pt; font-weight: 900; color: #1a8a3c;
-    letter-spacing: 0.04em; text-align: center;
-    border-left: 0.5pt solid #aaddbb; padding-left: 5mm; white-space: nowrap;
+  .pay.confirmed { border-color: #1a8a3c; background: #f3fbf6; }
+  .pay.confirmed .lbl { color: #1a8a3c; }
+  .paid-badge {
+    width: 32mm; text-align: center; white-space: nowrap;
+    font-size: 15pt; font-weight: 700; color: #1a8a3c;
+    border-left: 0.5pt solid #aaddbb;
   }
 
-  /* ── BEZAHLT WATERMARK ─────────────────────────────────── */
   .bezahlt-watermark {
     position: fixed; top: 50%; left: 50%;
     transform: translate(-50%, -50%) rotate(-35deg);
-    font-size: 72pt; font-weight: 900;
-    color: rgba(0, 140, 60, 0.09);
-    letter-spacing: 0.05em; text-transform: uppercase;
-    white-space: nowrap; pointer-events: none; z-index: 0;
+    font-size: 80pt; font-weight: 700; text-transform: lowercase;
+    color: rgba(0, 140, 60, 0.08); white-space: nowrap;
   }
 
-  .items tr.subtotal td { border-top: 0.75pt solid #999; border-bottom: none; color: #555; font-weight: 600; }
-  .receipts-note { font-size: 8pt; color: #666; margin: 1mm 0 0; }
-
-  /* ── §19 NOTE ───────────────────────────────────────────── */
-  .ku-note { font-size: 8pt; color: #666; font-style: italic; margin-bottom: 4mm; }
-
-  /* ── AUSLAGENERSATZ ─────────────────────────────────────── */
-  .auslagen-section { margin-top: 2mm; margin-bottom: 1mm; }
-  .auslagen-lbl {
-    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.09em; color: #555; margin-bottom: 1mm; display: block;
-  }
-
-  /* ── NOTES ──────────────────────────────────────────────── */
-  .notes { margin-top: 3mm; margin-bottom: 4mm; font-size: 8.5pt; line-height: 1.5; border-top: 0.5pt solid #ccc; padding-top: 3mm; }
-  .nlbl {
-    font-size: 6.5pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.1em; color: #888; display: block; margin-bottom: 1.5mm;
-  }
-
-  /* ── FOOTER ─────────────────────────────────────────────── */
-  /* Running element: pulled out of content flow, painted in @page @bottom-left
-     on every page — never overlaps content. */
-  .footer-rule {
-    position: running(page-footer);
-    border-top: 2pt solid var(--accent);
-    background: #fff;
-    width: 100%;
-  }
-  .footer { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  .footer td {
-    padding-top: 2mm; vertical-align: top;
-    font-size: 6.5pt; color: #555; line-height: 1.4; overflow: hidden;
-  }
-  .fclbl {
-    font-size: 5pt; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.07em; color: #111; display: block; margin-bottom: 0.5mm;
-  }
-  .fiban { word-break: break-all; }
-  .fqr-cell { text-align: center; width: 16mm; vertical-align: middle; }
-  .fqr-cell img { width: 13mm; height: 13mm; }
-  .fqr-lbl { font-size: 5pt; color: #aaa; display: block; margin-top: 0.5mm; }
-  /* Page number rendered via CSS counter inside the running element */
-  .fpg-cell { text-align: right; width: 14mm; white-space: nowrap; vertical-align: bottom; }
-  .fpg-num::after {
-    content: counter(page) " / " counter(pages);
-    font-size: 6pt; color: #aaa;
-  }
 </style>
 </head>
 <body>
+
+{% set brand = cfg.business.legal_name or cfg.business.name %}
+{% set who = invoice.position_title %}
+
+{% include "_footer.html" %}
 
 {% if invoice.status == 'paid' %}
 <div class="bezahlt-watermark">{{ t.paid_watermark }}</div>
 {% endif %}
 
-
 <!-- ── HEADER ── -->
-<table class="hdr">
-  <tr>
-    {% if logo_b64 %}
-    <td class="hdr-logo" style="width:38mm; vertical-align:middle">
-      <img src="{{ logo_b64 }}" alt="{{ cfg.business.legal_name or cfg.business.name }}">
-    </td>
-    {% endif %}
-    <td class="hdr-name">
-      <div class="company-name">{{ cfg.business.legal_name or cfg.business.name }}</div>
-      {% if cfg.business.profession %}
-      <div class="company-sub">{{ cfg.business.profession }}</div>
-      {% endif %}
-    </td>
-  </tr>
-</table>
-<div class="hdr-rule"></div>
+{% include "_header.html" %}
 
-<div class="grad-boxes">
-  <svg width="46mm" height="3.5mm" xmlns="http://www.w3.org/2000/svg">
-    {% for i in range(10) %}
-    <rect x="{{ i * 4.6 }}mm" y="0" width="3.5mm" height="3.5mm"
-          fill="{{ cfg.design.accent_color }}"
-          opacity="{{ ((i + 1) / 10.0) | round(2) }}"/>
-    {% endfor %}
-  </svg>
-</div>
-
-<!-- ── ADDRESS BOXES ── -->
-<table class="addr-tbl">
+<!-- ── RECIPIENT + DOCUMENT META ── -->
+<table class="head2">
   <tr>
-    <td class="addr-box" style="width:48%">
-      <span class="addr-lbl">{{ t.from_lbl }}</span>
-      <strong>{{ cfg.business.name }}</strong><br>
-      {% if invoice.position_title %}{{ invoice.position_title }}<br>
-      {% elif cfg.business.profession %}{{ cfg.business.profession }}<br>{% endif %}
-      {{ cfg.business.address_line1 }}<br>
-      {{ cfg.business.address_line2 }}<br>
-      {{ cfg.business.country }}<br>
-      {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
-      {% if cfg.business.phone %}Tel. {{ cfg.business.phone }}<br>{% endif %}
-      {% if cfg.tax.mode == 'kleinunternehmer' %}StNr.: {{ cfg.tax.steuernummer }}
-      {% elif cfg.tax.ust_idnr %}USt-IdNr.: {{ cfg.tax.ust_idnr }}{% endif %}
+    <td style="width:58%">
+      {% include "_recipient.html" %}
     </td>
-    <td class="addr-box" style="width:48%">
-      <span class="addr-lbl">{{ t.to_lbl }}</span>
-      {% if client and client.name %}
-      <strong>{{ client.name }}</strong><br>
-      {% if client.contact_name %}{{ client.contact_name }}<br>{% endif %}
-      {% if client.address_line1 %}{{ client.address_line1 }}<br>{% endif %}
-      {% if client.address_line2 %}{{ client.address_line2 }}<br>{% endif %}
-      {% if client.country and client.country != 'Deutschland' %}{{ client.country }}<br>{% endif %}
-      {% if client.ust_idnr %}<br>USt-IdNr.: {{ client.ust_idnr }}{% endif %}
-      {% else %}<span style="color:#bbb">—</span>{% endif %}
+    <td>
+      <table class="meta">
+        <tr class="nr"><td class="k">{{ t.quote_nr_lbl if invoice.type == 'quote' else t.doc_nr_lbl }}</td><td class="v">{{ invoice.id }}</td></tr>
+        <tr><td class="k">{{ t.date }}</td><td class="v">{{ invoice.date | date_de }}</td></tr>
+        {% if invoice.service_period_end %}
+        <tr><td class="k">{{ t.service_period }}</td><td class="v">{{ invoice.service_date | date_de }} – {{ invoice.service_period_end | date_de }}</td></tr>
+        {% elif invoice.service_date %}
+        <tr><td class="k">{{ t.service_date }}</td><td class="v">{{ invoice.service_date | date_de }}</td></tr>
+        {% endif %}
+        {% if invoice.type == 'invoice' and invoice.due_date %}
+        <tr><td class="k">{{ t.due }}</td><td class="v">{{ invoice.due_date | date_de }}</td></tr>
+        {% endif %}
+        {% if project %}
+        <tr><td class="k">{{ t.project }}</td><td class="v">{{ project.name }}</td></tr>
+        {% if project.project_number %}
+        <tr><td class="k">{{ t.order_nr }}</td><td class="v">{{ project.project_number }}</td></tr>
+        {% endif %}
+        {% endif %}
+        {% if invoice.payment_ref and invoice.payment_ref != invoice.id %}
+        <tr><td class="k">{{ t.ref }}</td><td class="v">{{ invoice.payment_ref }}</td></tr>
+        {% endif %}
+      </table>
     </td>
   </tr>
 </table>
 
-<!-- ── DOCUMENT TYPE + NUMBER ── -->
-<table class="doc-hdr">
-  <tr>
-    <td class="doc-type">{{ t[invoice.type] if invoice.type in t else t.invoice }}</td>
-    <td class="doc-nr-cell">
-      <span class="doc-nr-lbl">{{ t.doc_nr_lbl }}</span>
-      <span class="doc-nr">{{ invoice.id }}</span>
-    </td>
-  </tr>
-</table>
-
-<!-- ── DETAILS BAR ── -->
-<div class="dbar-wrap">
-  <table class="dbar">
-    <tr>
-      <td>
-        <span class="dlbl">{{ t.date }}</span>
-        <span class="dval">{{ invoice.date | date_de }}</span>
-      </td>
-      {% if invoice.service_period_end %}
-      <td>
-        <span class="dlbl">{{ t.service_period }}</span>
-        <span class="dval">{{ invoice.service_date | date_de }} – {{ invoice.service_period_end | date_de }}</span>
-      </td>
-      {% elif invoice.service_date and invoice.service_date != invoice.date %}
-      <td>
-        <span class="dlbl">{{ t.service_date }}</span>
-        <span class="dval">{{ invoice.service_date | date_de }}</span>
-      </td>
-      {% endif %}
-      {% if project %}
-      <td>
-        <span class="dlbl">{{ t.project }}</span>
-        <span class="dval">{{ project.name }}</span>
-      </td>
-      {% if project.project_number %}
-      <td>
-        <span class="dlbl">{{ t.order_nr }}</span>
-        <span class="dval">{{ project.project_number }}</span>
-      </td>
-      {% endif %}
-      {% endif %}
-      {% if invoice.position_title %}
-      <td>
-        <span class="dlbl">{{ t.position }}</span>
-        <span class="dval">{{ invoice.position_title }}</span>
-      </td>
-      {% endif %}
-      {% if invoice.payment_ref %}
-      <td>
-        <span class="dlbl">{{ t.ref }}</span>
-        <span class="dval">{{ invoice.payment_ref }}</span>
-      </td>
-      {% endif %}
-      <td style="width:100%"></td>
-    </tr>
-  </table>
-</div>
+<div class="doc-type">{{ t[invoice.type] if invoice.type in t else t.invoice }}</div>
 
 <!-- ── LINE ITEMS ── -->
 {% set regular_items  = (invoice.positions or []) | rejectattr("auslagenersatz", "equalto", true) | list %}
@@ -328,59 +142,77 @@
 <table class="items">
   <thead>
     <tr>
-      <th style="width:5%">{{ t.pos }}</th>
-      <th style="width:48%">{{ t.description }}</th>
-      <th class="r" style="width:8%">{{ t.qty }}</th>
+      <th style="width:7%">{{ t.pos }}</th>
+      <th>{{ t.description }}</th>
+      <th class="r" style="width:9%">{{ t.qty }}</th>
       <th style="width:9%">{{ t.unit }}</th>
-      <th class="r" style="width:15%">{{ t.unit_price }} ({{ cfg.invoice.currency }})</th>
-      <th class="r" style="width:15%">{{ t.total_col }} ({{ cfg.invoice.currency }})</th>
+      <th class="r" style="width:14%">{{ t.unit_price }}</th>
+      <th class="r" style="width:14%">{{ t.total_col }}</th>
     </tr>
   </thead>
   <tbody>
+    {# A heading opens its own unbreakable row group together with the first
+       position under it, so it never ends up alone at the bottom of a page #}
+    {% set ns = namespace(n=0, keep=false) %}
     {% for item in regular_items %}
-    <tr>
-      <td>{{ loop.index }}</td>
-      <td>{{ item.description }}</td>
-      <td class="r">{{ item.quantity }}</td>
-      <td>{{ item.unit }}</td>
-      <td class="r">{{ item.unit_price | eur }}</td>
-      <td class="r">{{ (item.quantity * item.unit_price) | eur }}</td>
+    {% if item.kind == 'heading' %}
+    {% if ns.keep %}</tbody><tbody>{% endif %}
+    </tbody><tbody class="keep">
+    {% set ns.keep = true %}
+    <tr class="group">
+      <td colspan="6">
+        <div class="group-title">{{ item.description }}</div>
+        {% if item.details %}<div class="rich">{{ item.details | rich }}</div>{% endif %}
+      </td>
     </tr>
+    {% else %}
+    {% set ns.n = ns.n + 1 %}
+    <tr>
+      <td class="pos">{{ ns.n }}</td>
+      <td>
+        {% if item.description %}<div class="item-title">{{ item.description }}</div>{% endif %}
+        {% if item.details %}<div class="rich">{{ item.details | rich }}</div>{% endif %}
+      </td>
+      <td class="r nw">{{ item.quantity | qty }}</td>
+      <td class="nw">{{ item.unit }}</td>
+      <td class="r nw">{{ item.unit_price | eur }}</td>
+      <td class="r nw">{{ (item.quantity * item.unit_price) | eur }}</td>
+    </tr>
+    {% if ns.keep %}</tbody><tbody>{% set ns.keep = false %}{% endif %}
+    {% endif %}
     {% endfor %}
+    {% if auslagen_items %}
+    <tr class="subtotal"><td></td><td colspan="4">{{ t.subtotal_services }}</td><td class="r nw">{{ totals.services | eur }}</td></tr>
+    {% endif %}
   </tbody>
-  {% if auslagen_items %}
-  <tfoot>
-    <tr class="subtotal"><td></td><td colspan="4">{{ t.subtotal_services }}</td><td class="r">{{ totals.services | eur }}</td></tr>
-  </tfoot>
-  {% endif %}
 </table>
 {% endif %}
 
 {% if auslagen_items %}
 <div class="auslagen-section">
-  <span class="auslagen-lbl">{{ t.expense_reimb }}</span>
   <table class="items">
     <thead>
       <tr>
-        <th style="width:5%">{{ t.pos }}</th>
-        <th style="width:72%">{{ t.desc_short }}</th>
-        <th class="r" style="width:23%">{{ t.amount }} ({{ cfg.invoice.currency }})</th>
+        <th style="width:7%">{{ t.pos }}</th>
+        <th>{{ t.expense_reimb }}</th>
+        <th class="r" style="width:14%">{{ t.amount }}</th>
       </tr>
     </thead>
     <tbody>
       {% for item in auslagen_items %}
       <tr>
-        <td>{{ loop.index }}</td>
-        <td>{{ item.description }}</td>
-        <td class="r">{{ (item.quantity * item.unit_price) | eur }}</td>
+        <td class="pos">{{ loop.index }}</td>
+        <td>
+          <div class="item-title">{{ item.description }}</div>
+          {% if item.details %}<div class="rich">{{ item.details | rich }}</div>{% endif %}
+        </td>
+        <td class="r nw">{{ (item.quantity * item.unit_price) | eur }}</td>
       </tr>
       {% endfor %}
+      {% if regular_items %}
+      <tr class="subtotal"><td></td><td>{{ t.subtotal_expenses }}</td><td class="r nw">{{ totals.auslagen | eur }}</td></tr>
+      {% endif %}
     </tbody>
-    {% if regular_items %}
-    <tfoot>
-      <tr class="subtotal"><td></td><td>{{ t.subtotal_expenses }}</td><td class="r">{{ totals.auslagen | eur }}</td></tr>
-    </tfoot>
-    {% endif %}
   </table>
   {% if invoice.type != 'storno' %}<p class="receipts-note">{{ t.receipts_attached }}</p>{% endif %}
 </div>
@@ -390,19 +222,10 @@
 <div class="totals-wrap">
   <table class="totals">
     {% if not kleinunternehmer %}
-    <tr>
-      <td>{{ t.net }} ({{ cfg.invoice.currency }})</td>
-      <td class="tv">{{ totals.subtotal | eur }}</td>
-    </tr>
-    <tr>
-      <td>{{ t.vat }} {{ totals.mwst_rate | int }} %</td>
-      <td class="tv">{{ totals.mwst | eur }}</td>
-    </tr>
+    <tr><td>{{ t.net }}</td><td class="tv">{{ totals.subtotal | eur }}</td></tr>
+    <tr><td>{{ t.vat }} {{ totals.mwst_rate | int }} %</td><td class="tv">{{ totals.mwst | eur }}</td></tr>
     {% endif %}
-    <tr class="grand">
-      <td>{{ t.total_amount }} ({{ cfg.invoice.currency }})</td>
-      <td class="tv">{{ totals.total | eur }}</td>
-    </tr>
+    <tr class="grand"><td>{{ t.total_amount }}</td><td class="tv">{{ totals.total | eur }}</td></tr>
   </table>
 </div>
 
@@ -412,83 +235,43 @@
 
 {% if invoice.notes %}
 <div class="notes">
-  <span class="nlbl">{{ t.notes_lbl }}</span>
-  {{ invoice.notes }}
+  <span class="lbl">{{ t.notes_lbl }}</span>
+  <div class="rich">{{ invoice.notes | rich }}</div>
 </div>
 {% endif %}
 
-<!-- ── PAYMENT BOX (end of invoice) ── -->
+<!-- ── PAYMENT ── -->
 {% if invoice.type == 'invoice' %}
   {% if invoice.status == 'paid' %}
-  <table class="pay-confirmed">
+  <table class="pay confirmed">
     <tr>
-      <td class="pay-confirmed-body">
-        <span class="pay-confirmed-lbl">{{ t.payment_received }}</span>
+      <td class="pay-body">
+        <span class="lbl">{{ t.payment_received }}</span>
         {{ t.payment_body_html | safe }}
       </td>
-      <td class="bezahlt-badge">{{ t.paid_badge }}</td>
+      <td class="paid-badge">{{ t.paid_badge }}</td>
     </tr>
   </table>
   {% elif cfg.invoice.iban %}
   <table class="pay">
     <tr>
       <td class="pay-body">
-        <span class="pay-lbl">{{ t.payment_info }}</span>
+        <span class="lbl">{{ t.payment_info }}</span>
         {{ t.please_pay_html | safe }}<br>
-        {% if cfg.invoice.bank_name %}<strong>{{ cfg.invoice.bank_name }}</strong><br>{% endif %}
-        IBAN:&nbsp;<strong>{{ cfg.invoice.iban }}</strong>{% if cfg.invoice.bic %}&nbsp;&nbsp;BIC:&nbsp;{{ cfg.invoice.bic }}{% endif %}<br>
-        {{ t.usage }}:&nbsp;<strong>{{ invoice.payment_ref or invoice.id }}</strong>
+        {% if cfg.invoice.bank_name %}{{ cfg.invoice.bank_name }} · {% endif %}{{ cfg.business.name }}<br>
+        IBAN <strong>{{ cfg.invoice.iban }}</strong>{% if cfg.invoice.bic %} &nbsp;·&nbsp; BIC {{ cfg.invoice.bic }}{% endif %}<br>
+        {{ t.usage }}: <strong>{{ invoice.payment_ref or invoice.id }}</strong>
       </td>
       {% if epc_qr %}
       <td class="pay-qr">
         <img src="data:image/png;base64,{{ epc_qr }}" alt="GiroCode">
-        <div class="pay-qr-lbl">{{ t.girocode }}<br>{{ t.sepa }}</div>
+        <div class="pay-qr-lbl">{{ t.girocode }} · {{ t.sepa }}</div>
       </td>
       {% endif %}
     </tr>
   </table>
   {% endif %}
 {% endif %}
-
-<!-- ── FOOTER: address / contact / tax / bank — every page ── -->
-<div class="footer-rule">
-  <table class="footer">
-    <tr>
-      <td style="padding-left:0">
-        <span class="fclbl">{{ t.address }}</span>
-        {{ cfg.business.address_line1 }}<br>
-        {{ cfg.business.address_line2 }}{% if cfg.business.country %}, {{ cfg.business.country }}{% endif %}
-      </td>
-      {% if cfg.business.email or cfg.business.phone or cfg.business.website %}
-      <td style="padding-left:4mm">
-        <span class="fclbl">{{ t.contact }}</span>
-        {% if cfg.business.email %}{{ cfg.business.email }}<br>{% endif %}
-        {% if cfg.business.phone %}{{ cfg.business.phone }}<br>{% endif %}
-        {% if cfg.business.website %}{{ cfg.business.website }}{% endif %}
-      </td>
-      {% endif %}
-      <td style="padding-left:4mm">
-        <span class="fclbl">{{ t.tax }}</span>
-        {% if cfg.tax.mode == 'kleinunternehmer' %}StNr.: {{ cfg.tax.steuernummer }}
-        {% elif cfg.tax.ust_idnr %}USt-IdNr.: {{ cfg.tax.ust_idnr }}{% endif %}
-      </td>
-      {% if cfg.invoice.iban %}
-      <td style="padding-left:4mm; width:30mm">
-        <span class="fclbl">{{ t.bank }}</span>
-        <span class="fiban">{{ cfg.invoice.iban }}</span>
-        {% if cfg.invoice.bic %}<br>{{ cfg.invoice.bic }}{% endif %}
-      </td>
-      {% endif %}
-      {% if inv_qr %}
-      <td class="fqr-cell" style="padding-left:4mm">
-        <img src="data:image/png;base64,{{ inv_qr }}" alt="{{ invoice.id }}">
-        <span class="fqr-lbl">{{ invoice.id }}</span>
-      </td>
-      {% endif %}
-      <td class="fpg-cell" style="padding-left:2mm"><span class="fpg-num"></span></td>
-    </tr>
-  </table>
-</div>
 
 </body>
 </html>

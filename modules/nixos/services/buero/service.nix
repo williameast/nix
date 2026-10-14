@@ -13,6 +13,7 @@ let
     qrcode
     pillow
     pypdf
+    anthropic
   ]);
 
   buero = pkgs.stdenv.mkDerivation {
@@ -25,8 +26,13 @@ let
 
     installPhase = ''
       mkdir -p $out/{bin,lib/buero}
-      cp app.py $out/lib/buero/
+      cp *.py $out/lib/buero/
       cp -r templates static pdf_templates $out/lib/buero/
+      # CI typeface, used by the web UI and embedded in invoice PDFs
+      mkdir -p $out/lib/buero/static/fonts
+      for w in Regular Italic Medium SemiBold Bold BoldItalic; do
+        cp ${pkgs.poppins}/share/fonts/truetype/Poppins-$w.ttf $out/lib/buero/static/fonts/
+      done
       makeWrapper ${pythonEnv}/bin/python $out/bin/buero \
         --add-flags "$out/lib/buero/app.py" \
         --set BUERO_APP_DIR "$out/lib/buero"

@@ -4,6 +4,7 @@ Büro — self-hosted freelance management for German Einzelunternehmer
 Python/Flask + YAML backend, Plain HTML/JS frontend
 """
 
+import json
 import os
 import uuid
 from copy import deepcopy
@@ -11,12 +12,14 @@ from datetime import datetime, timedelta, date
 from io import BytesIO
 from pathlib import Path
 import base64
+import re
 from collections import Counter
 
 import yaml
 import requests as req_lib
 from flask import (Flask, render_template, request, redirect, url_for,
                    flash, jsonify, send_file, abort)
+from markupsafe import Markup, escape
 
 try:
     from weasyprint import HTML as WPHtml
@@ -100,6 +103,9 @@ DEFAULTS = {
         "accent_color": "#1400FF",
         "logo_path": "",
     },
+    "ai": {
+        "api_key": "",           # Claude API key for the bank review; else ANTHROPIC_API_KEY
+    },
     "forecast": {
         "other_income": 0,       # zvE from other sources (e.g. employment), per year
         "deductions": 0,         # Sonderausgaben/Vorsorge not covered by health_rate
@@ -123,12 +129,24 @@ def deep_merge(base, over):
     return result
 
 
+# The brand is always written in lowercase, however it was typed in settings
+_BRAND_RE = re.compile(r"weast\s+studios", re.IGNORECASE)
+
+
+def _brand_case(s):
+    return _BRAND_RE.sub("weast studios", s) if isinstance(s, str) else s
+
+
 def load_config():
     if CONFIG_FILE.exists():
         with open(CONFIG_FILE, encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
-        return deep_merge(DEFAULTS, data)
-    return deepcopy(DEFAULTS)
+        cfg = deep_merge(DEFAULTS, data)
+    else:
+        cfg = deepcopy(DEFAULTS)
+    for k in ("name", "legal_name"):
+        cfg["business"][k] = _brand_case(cfg["business"].get(k))
+    return cfg
 
 
 def save_config(cfg):
@@ -571,13 +589,16 @@ class Paperless:
 
 # ── PDF helpers ───────────────────────────────────────────────────────────────
 
+BUNDLED_LOGO = APP_DIR / "static" / "img" / "logo.svg"
+
+
 def load_logo_b64(cfg):
-    """Return logo as a base64 data URI, or None if not available."""
+    """Return logo as a base64 data URI: the uploaded one, else the bundled CI logo."""
     try:
         logo_path = cfg["design"].get("logo_path", "")
-        if not logo_path:
-            return None
-        p = UPLOADS_DIR / logo_path
+        p = UPLOADS_DIR / logo_path if logo_path else None
+        if not (p and p.exists()):
+            p = BUNDLED_LOGO
         if not p.exists():
             return None
         ext = p.suffix.lower().lstrip(".")
@@ -609,25 +630,6 @@ def make_epc_qr(cfg, invoice, totals):
             box_size=6, border=2,
         )
         qr.add_data(data)
-        qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
-        buf = BytesIO()
-        img.save(buf, format="PNG")
-        return base64.b64encode(buf.getvalue()).decode()
-    except Exception:
-        return None
-
-
-def make_invoice_qr(invoice_id):
-    """Generate small QR with invoice ID for footer micrographic (base64 PNG)."""
-    if not QRCODE:
-        return None
-    try:
-        qr = _qrcode.QRCode(
-            error_correction=_qrc.ERROR_CORRECT_M,
-            box_size=4, border=2,
-        )
-        qr.add_data(str(invoice_id))
         qr.make(fit=True)
         img = qr.make_image(fill_color="black", back_color="white")
         buf = BytesIO()
@@ -768,6 +770,8 @@ _TRANSLATIONS = {
         "address": "Adresse", "contact": "Kontakt", "tax": "Steuer", "bank": "Bank",
         "subtotal_services": "Zwischensumme Leistungen", "subtotal_expenses": "Zwischensumme Auslagen",
         "receipts_attached": "Die Belege sind dieser Rechnung angehängt.",
+        "quote_nr_lbl": "Angebotsnummer", "due": "Zahlbar bis", "page": "Seite",
+        "ku_short": "Kleinunternehmer § 19 UStG",
     },
     "en": {
         "invoice": "Invoice", "quote": "Quote", "receipt": "Receipt", "storno": "Cancellation Invoice",
@@ -797,6 +801,8 @@ _TRANSLATIONS = {
         "address": "Address", "contact": "Contact", "tax": "Tax", "bank": "Bank",
         "subtotal_services": "Subtotal services", "subtotal_expenses": "Subtotal expenses",
         "receipts_attached": "Receipts are attached to this invoice.",
+        "quote_nr_lbl": "Quote Number", "due": "Due", "page": "Page",
+        "ku_short": "Small business, § 19 UStG",
     },
 }
 
@@ -808,13 +814,14 @@ def make_pdf(invoice, client, cfg, project=None):
     totals   = calc_totals(invoice, cfg)
     logo_b64 = load_logo_b64(cfg)
     epc_qr   = make_epc_qr(cfg, invoice, totals) if invoice.get("type") == "invoice" else None
-    inv_qr   = make_invoice_qr(invoice.get("id", ""))
     lang     = invoice.get("language", "de")
     t        = _TRANSLATIONS.get(lang, _TRANSLATIONS["de"])
 
     env = Environment(loader=FileSystemLoader(str(APP_DIR / "pdf_templates")))
     env.filters["eur"] = lambda v: fmt_eur(float(v or 0), cfg["invoice"]["currency_symbol"])
     env.filters["date_de"] = _date_de
+    env.filters["rich"] = rich_text
+    env.filters["qty"] = lambda v: fmt_qty(v, lang)
 
     # Pre-render the callable strings so the template stays simple
     paid_date_fmt = _date_de(invoice.get("paid_date", ""))
@@ -835,7 +842,6 @@ def make_pdf(invoice, client, cfg, project=None):
         project=project,
         logo_b64=logo_b64,
         epc_qr=epc_qr,
-        inv_qr=inv_qr,
         kleinunternehmer=cfg["tax"]["mode"] == "kleinunternehmer",
         now=datetime.now(),
         t=t_rendered,
@@ -843,7 +849,8 @@ def make_pdf(invoice, client, cfg, project=None):
     )
 
     if WEASYPRINT:
-        pdf_bytes = WPHtml(string=html, base_url=str(APP_DIR)).write_pdf()
+        # Trailing slash: relative URLs (static/fonts/…) resolve inside APP_DIR
+        pdf_bytes = WPHtml(string=html, base_url=APP_DIR.as_uri() + "/").write_pdf()
         return pdf_bytes, "application/pdf"
     else:
         return html.encode("utf-8"), "text/html"
@@ -974,6 +981,83 @@ def _date_de(v):
         return datetime.strptime(str(v), "%Y-%m-%d").strftime("%d.%m.%Y")
     except ValueError:
         return str(v)
+
+
+def fmt_qty(v, lang="de"):
+    """14.0 → "14", 1.5 → "1,5" (de) / "1.5" (en)."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return v or ""
+    s = f"{f:.3f}".rstrip("0").rstrip(".")
+    return s.replace(".", ",") if lang == "de" else s
+
+
+_INLINE = [
+    (re.compile(r"\*\*(.+?)\*\*"), r"<strong>\1</strong>"),
+    (re.compile(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])"), r"<em>\1</em>"),
+    (re.compile(r"(?<!\w)_(?!\s)(.+?)(?<!\s)_(?!\w)"), r"<em>\1</em>"),
+    (re.compile(r"~~(.+?)~~"), r"<s>\1</s>"),
+]
+_BULLET  = re.compile(r"^\s*[-*•]\s+(.*)$")
+_NUMBER  = re.compile(r"^\s*\d+[.)]\s+(.*)$")
+_HEADING = re.compile(r"^#{1,3}\s+(.*)$")
+
+
+def _inline(text):
+    out = str(escape(text))
+    for rx, sub in _INLINE:
+        out = rx.sub(sub, out)
+    return out
+
+
+def rich_text(text):
+    """Small, safe Markdown subset for line item details and notes:
+    **fett**, *kursiv*, ~~durchgestrichen~~, "- " / "1. " lists, "# " headings,
+    blank line = new paragraph, single newline = line break."""
+    if not text:
+        return Markup("")
+    html, para, lst = [], [], None   # lst = ("ul"|"ol", [items])
+
+    def flush_para():
+        if para:
+            html.append("<p>" + "<br>".join(para) + "</p>")
+            para.clear()
+
+    def flush_list():
+        nonlocal lst
+        if lst:
+            tag, items = lst
+            html.append(f"<{tag}>" + "".join(f"<li>{i}</li>" for i in items) + f"</{tag}>")
+            lst = None
+
+    for line in str(text).replace("\r\n", "\n").split("\n"):
+        if not line.strip():
+            flush_para(); flush_list()
+            continue
+        m_b, m_n, m_h = _BULLET.match(line), _NUMBER.match(line), _HEADING.match(line)
+        if m_b or m_n:
+            tag = "ul" if m_b else "ol"
+            flush_para()
+            if lst and lst[0] != tag:
+                flush_list()
+            if not lst:
+                lst = (tag, [])
+            lst[1].append(_inline((m_b or m_n).group(1)))
+        elif m_h:
+            flush_para(); flush_list()
+            html.append(f"<h4>{_inline(m_h.group(1))}</h4>")
+        elif lst and line[:1].isspace():
+            lst[1][-1] += "<br>" + _inline(line.strip())   # indented: continues the item
+        else:
+            flush_list()
+            para.append(_inline(line))
+    flush_para(); flush_list()
+    return Markup("".join(html))
+
+
+app.add_template_filter(rich_text, "rich")
+app.add_template_filter(fmt_qty, "qty")
 
 
 @app.template_filter("eur")
@@ -1619,18 +1703,30 @@ def _parse_invoice_form(form, cfg):
         desc = form.get(f"positions[{i}][description]")
         if desc is None:
             break
+        details = form.get(f"positions[{i}][details]", "").strip()
+        if form.get(f"positions[{i}][kind]") == "heading":
+            # Section heading: groups the following positions, carries no amount
+            if desc.strip():
+                pos = {"kind": "heading", "description": desc.strip()}
+                if details:
+                    pos["details"] = details
+                positions.append(pos)
+            i += 1
+            continue
         try:
             qty   = float(form.get(f"positions[{i}][quantity]") or 1)
             price = float(form.get(f"positions[{i}][unit_price]") or 0)
         except ValueError:
             qty, price = 1.0, 0.0
-        if desc.strip():  # skip blank rows
+        if desc.strip() or details:  # skip blank rows
             pos = {
-                "description": desc,
+                "description": desc.strip(),
                 "quantity":    qty,
                 "unit":        form.get(f"positions[{i}][unit]", "Std."),
                 "unit_price":  price,
             }
+            if details:
+                pos["details"] = details
             # Preserve Auslagenersatz metadata so receipt links survive edits
             if form.get(f"positions[{i}][auslagenersatz]"):
                 pos["auslagenersatz"] = True
@@ -1746,8 +1842,9 @@ def _parse_expense_form(form, base):
         data["date"] = _parse_date_input(data.get("date", ""), "Datum")
     except FormError as e:
         errors.append(str(e))
-    # An expense booked to a project belongs to that project's client
-    if data.get("project_id") and not data.get("client_id"):
+    # An expense booked to a project belongs to that project's client, unless it
+    # came from the bank as the studio's own cost (no_rebill)
+    if data.get("project_id") and not data.get("client_id") and not data.get("no_rebill"):
         data["client_id"] = (get_project(data["project_id"]) or {}).get("client_id", "")
     return data, errors
 
@@ -1953,6 +2050,772 @@ def project_delete(pid):
     del_project(pid)
     flash("Projekt gelöscht.", "success")
     return redirect(url_for("projects_list"))
+
+
+# ── Project contracts (Auftragsvereinbarung) ─────────────────────────────────
+#
+# Stored on the project as project["contract"]. Standard clauses live in
+# contract_clauses.py; each can be switched off or reworded per contract, and
+# any number of custom clauses can be added (before the final provisions).
+
+from jinja2.sandbox import SandboxedEnvironment
+from contract_clauses import CLAUSES, CLAUSE_KEYS, PLACEHOLDERS
+
+_clause_env = SandboxedEnvironment(autoescape=False)
+
+_CONTRACT_T = {
+    "de": {
+        "title": "Auftragsvereinbarung", "between": "zwischen", "and": "und",
+        "contractor": "Auftragnehmer", "client": "Auftraggeber",
+        "nr": "Vertragsnummer", "date": "Datum", "project": "Projekt", "order_nr": "Bestell-Nr.",
+        "period": "Zeitraum", "fee": "Vergütung",
+        "sign_intro": "Beide Parteien erklären sich mit den vorstehenden Bedingungen einverstanden.",
+        "place_date": "Ort, Datum", "signature": "Unterschrift",
+        "page": "Seite", "address": "Adresse", "contact": "Kontakt", "tax": "Steuer", "bank": "Bank",
+        "ku_short": "Kleinunternehmer § 19 UStG", "annex": "Anlage",
+        "fee_per": "je",
+    },
+    "en": {
+        "title": "Service Agreement", "between": "between", "and": "and",
+        "contractor": "Contractor", "client": "Client",
+        "nr": "Agreement No.", "date": "Date", "project": "Project", "order_nr": "Order No.",
+        "period": "Term", "fee": "Fee",
+        "sign_intro": "Both parties agree to the terms set out above.",
+        "place_date": "Place, date", "signature": "Signature",
+        "page": "Page", "address": "Address", "contact": "Contact", "tax": "Tax", "bank": "Bank",
+        "ku_short": "Small business, § 19 UStG", "annex": "Appendix",
+        "fee_per": "per",
+    },
+}
+
+CONTRACT_UNITS = {"de": ["Stunde", "Tag", "Woche"], "en": ["hour", "day", "week"]}
+
+
+def project_quotes(pid):
+    return [i for i in all_invoices() if i.get("type") == "quote" and i.get("project_id") == pid]
+
+
+def contract_defaults(project, client, cfg):
+    """A fresh contract, prefilled from project, client and the latest quote."""
+    quotes = project_quotes(project["id"])
+    quote = quotes[0] if quotes else None
+    fee = project.get("budget") or ""
+    if quote:
+        fee = round(calc_totals(quote, cfg)["services"], 2)
+    lang = client.get("language") or "de"
+    return {
+        "status":          "draft",
+        "date":            date.today().isoformat(),
+        "language":        lang,
+        "scope":           project.get("description") or "",
+        "deliverables":    "",
+        "location":        "",
+        "role":            "",
+        "fee_type":        "fixed",
+        "fee":             fee,
+        "rate":            "",
+        "unit":            CONTRACT_UNITS.get(lang, CONTRACT_UNITS["de"])[1],
+        "extra_rate":      "",
+        "deposit_pct":     50,
+        "payment_days":    int(client.get("payment_terms_days") or cfg["invoice"]["payment_terms_days"]),
+        "revisions":       2,
+        "acceptance_days": 7,
+        "cancel_pct":      25,
+        "portfolio":       True,
+        "quote_id":        quote["id"] if quote else "",
+        "attach_quote":    bool(quote),
+        "disabled":        [],
+        "overrides":       {},
+        "custom":          [],
+    }
+
+
+def get_contract(project, client, cfg):
+    c = {**contract_defaults(project, client, cfg), **(project.get("contract") or {})}
+    for k in ("fee", "rate", "extra_rate", "deposit_pct", "cancel_pct"):
+        c[k] = _num_or_int(c[k])   # 4800.0 → 4800 in the form
+    return c
+
+
+def _parse_contract_form(form, old):
+    def num(name, default=0):
+        return _num(form.get(name), default)
+
+    data = {
+        **old,
+        "status":          form.get("status", "draft"),
+        "language":        form.get("language", "de"),
+        "scope":           form.get("scope", "").strip(),
+        "deliverables":    form.get("deliverables", "").strip(),
+        "location":        form.get("location", "").strip(),
+        "role":            form.get("role", "").strip(),
+        "fee_type":        form.get("fee_type", "fixed"),
+        "fee":             num("fee", ""),
+        "rate":            num("rate", ""),
+        "unit":            form.get("unit", "").strip() or "Tag",
+        "extra_rate":      num("extra_rate", ""),
+        "deposit_pct":     num("deposit_pct"),
+        "payment_days":    int(num("payment_days", 14)),
+        "revisions":       int(num("revisions")),
+        "acceptance_days": int(num("acceptance_days", 7)),
+        "cancel_pct":      num("cancel_pct"),
+        "portfolio":       form.get("portfolio") == "on",
+        "quote_id":        form.get("quote_id", ""),
+        "attach_quote":    form.get("attach_quote") == "on",
+        "disabled":        [k for k in CLAUSE_KEYS if form.get(f"enabled[{k}]") != "on"],
+        "overrides":       {k: form.get(f"override[{k}]", "").strip()
+                            for k in CLAUSE_KEYS if form.get(f"override[{k}]", "").strip()},
+    }
+    errors = []
+    try:
+        data["date"] = _parse_date_input(form.get("date", ""), "Vertragsdatum") or date.today().isoformat()
+    except FormError as e:
+        errors.append(str(e))
+        data["date"] = form.get("date", "")
+    custom, i = [], 0
+    while form.get(f"custom[{i}][title]") is not None:
+        title = form.get(f"custom[{i}][title]", "").strip()
+        text  = form.get(f"custom[{i}][text]", "").strip()
+        if title or text:
+            custom.append({"title": title, "text": text})
+        i += 1
+    data["custom"] = custom
+    return data, errors
+
+
+def _num_or_int(v):
+    """Show 50.0 as 50 in contract texts."""
+    try:
+        f = float(v)
+        return int(f) if f == int(f) else f
+    except (TypeError, ValueError):
+        return v
+
+
+def contract_context(contract, project, client, cfg):
+    sym = cfg["invoice"]["currency_symbol"]
+    money = lambda v: fmt_eur(v, sym) if v not in ("", None) and float(v or 0) else ""
+    fee = float(contract.get("fee") or 0)
+    deposit_pct = _num_or_int(contract.get("deposit_pct") or 0)
+    city = re.sub(r"^\s*\d+\s*", "", cfg["business"].get("address_line2") or "").strip() or "Berlin"
+    return {
+        "contractor":     cfg["business"].get("legal_name") or cfg["business"].get("name"),
+        "client":         client.get("name") or "",
+        "project":        project.get("name") or "",
+        "start":          _date_de(project.get("start_date")),
+        "end":            _date_de(project.get("end_date")),
+        "location":       contract.get("location") or "",
+        "scope":          contract.get("scope") or "",
+        "deliverables":   contract.get("deliverables") or "",
+        "fee_type":       contract.get("fee_type") or "fixed",
+        "fee":            money(fee),
+        "rate":           money(contract.get("rate")),
+        "unit":           contract.get("unit") or "Tag",
+        "extra_rate":     money(contract.get("extra_rate")),
+        "deposit_pct":    deposit_pct,
+        "deposit":        money(fee * float(deposit_pct) / 100) if contract.get("fee_type") == "fixed" else "",
+        "payment_days":   contract.get("payment_days") or 14,
+        "revisions":      int(contract.get("revisions") or 0),
+        "acceptance_days": contract.get("acceptance_days") or 7,
+        "cancel_pct":     _num_or_int(contract.get("cancel_pct") or 0),
+        "portfolio":      bool(contract.get("portfolio")),
+        "quote_id":       contract.get("quote_id") or "",
+        "quote_attached": bool(contract.get("quote_id") and contract.get("attach_quote")),
+        "kleinunternehmer": cfg["tax"]["mode"] == "kleinunternehmer",
+        "city":           city,
+    }
+
+
+def _render_clause_text(text, ctx):
+    try:
+        return _clause_env.from_string(text).render(**ctx)
+    except Exception:
+        return text   # a typo in a custom placeholder shouldn't break the contract
+
+
+def contract_clauses(contract, ctx):
+    """[(title, html)] in document order; custom clauses go before the final provisions."""
+    lang = contract.get("language", "de")
+    disabled, overrides = set(contract.get("disabled") or []), contract.get("overrides") or {}
+    out, final = [], []
+    for c in CLAUSES:
+        if c["key"] in disabled:
+            continue
+        title, body = c.get(lang) or c["de"]
+        body = overrides.get(c["key"]) or body
+        (final if c.get("final") else out).append((title, rich_text(_render_clause_text(body, ctx))))
+    for c in contract.get("custom") or []:
+        out.append((c.get("title") or "", rich_text(_render_clause_text(c.get("text", ""), ctx))))
+    return out + final
+
+
+def contract_number(project):
+    return "V-" + (project.get("project_number") or project["id"].removeprefix("proj-"))
+
+
+def build_contract_pdf(project, cfg):
+    from jinja2 import Environment, FileSystemLoader
+    client   = get_client(project.get("client_id", "")) or {}
+    contract = get_contract(project, client, cfg)
+    lang     = contract.get("language", "de")
+    ctx      = contract_context(contract, project, client, cfg)
+    env = Environment(loader=FileSystemLoader(str(APP_DIR / "pdf_templates")), autoescape=True)
+    env.filters["date_de"] = _date_de
+    html = env.get_template("contract.html").render(
+        cfg=cfg, client=client, project=project, contract=contract, ctx=ctx,
+        clauses=contract_clauses(contract, ctx), number=contract_number(project),
+        logo_b64=load_logo_b64(cfg), t=_CONTRACT_T.get(lang, _CONTRACT_T["de"]), lang=lang,
+    )
+    if not WEASYPRINT:
+        return html.encode("utf-8"), "text/html"
+    data = WPHtml(string=html, base_url=APP_DIR.as_uri() + "/").write_pdf()
+    quote = get_invoice(contract["quote_id"]) if contract.get("quote_id") and contract.get("attach_quote") else None
+    if quote and PYPDF:
+        writer = _pypdf.PdfWriter()
+        for src in (data, build_invoice_pdf(quote, cfg, receipts=False)):
+            for page in _pypdf.PdfReader(BytesIO(src)).pages:
+                writer.add_page(page)
+        out = BytesIO()
+        writer.write(out)
+        data = out.getvalue()
+    return data, "application/pdf"
+
+
+@app.route("/projects/<pid>/contract", methods=["GET", "POST"])
+def project_contract(pid):
+    project = get_project(pid)
+    if not project:
+        abort(404)
+    cfg    = load_config()
+    client = get_client(project.get("client_id", "")) or {}
+    contract = get_contract(project, client, cfg)
+    if request.method == "POST":
+        contract, errors = _parse_contract_form(request.form, contract)
+        for e in errors:
+            flash(e, "error")
+        if not errors:
+            project["contract"] = contract
+            put_project(pid, project)
+            if request.form.get("action") == "pdf":
+                return redirect(url_for("project_contract_pdf", pid=pid))
+            flash("Vertrag gespeichert.", "success")
+            return redirect(url_for("project_contract", pid=pid))
+    lang = contract.get("language", "de")
+    return render_template("projects/contract.html", project=project, client=client,
+                           contract=contract, clauses=CLAUSES, lang=lang,
+                           quotes=project_quotes(pid), placeholders=PLACEHOLDERS,
+                           units=CONTRACT_UNITS.get(lang, CONTRACT_UNITS["de"]),
+                           number=contract_number(project),
+                           saved=bool(project.get("contract")))
+
+
+@app.route("/projects/<pid>/contract.pdf")
+def project_contract_pdf(pid):
+    project = get_project(pid)
+    if not project:
+        abort(404)
+    data, mimetype = build_contract_pdf(project, load_config())
+    ext = "pdf" if mimetype == "application/pdf" else "html"
+    name = f"Vertrag-{_safe(contract_number(project))}.{ext}"
+    return send_file(BytesIO(data), mimetype=mimetype, download_name=name,
+                     as_attachment=request.args.get("dl") == "1")
+
+
+# ── Bank statements ───────────────────────────────────────────────────────────
+#
+# CSV exports are parsed in bank.py and kept in data/bank/*.json. This screen is
+# for sorting payments quickly: business / private / transfer, project, expense
+# category; incoming payments settle invoices, business spending becomes
+# Ausgaben (which is what the EÜR and the tax forecast count).
+
+import threading
+import bank
+import bank_ai
+
+BANK = bank.BankStore(DATA_DIR / "data" / "bank")
+AI_STATE = {"running": False, "done": 0, "total": 0, "error": "", "finished": "", "count": 0}
+
+
+def open_invoice_totals(cfg):
+    """Issued, unpaid invoices with their totals: what incoming money can settle."""
+    out = []
+    for inv in all_invoices():
+        if inv.get("type", "invoice") in ("invoice", "receipt") and inv.get("status") == "sent":
+            out.append((inv, calc_totals(inv, cfg)["total"]))
+    return out
+
+
+def _bank_year(t):
+    return t["date"][:4]
+
+
+def _year_arg(y):
+    """"all" (or nothing) means no year filter."""
+    return "" if y in (None, "", "all") else str(y)
+
+
+def _filter_txs(txs, args):
+    cat, acct, year = args.get("cat", "open"), args.get("acct", ""), _year_arg(args.get("year"))
+    direction, project, q = args.get("dir", ""), args.get("project", ""), args.get("q", "").lower().strip()
+    out = []
+    for t in txs.values():
+        c = t.get("cat", "")
+        if cat == "open" and c:
+            continue
+        if cat in bank.CATS and c != cat:
+            continue
+        if cat == "ai" and not (t.get("ai") and not c):
+            continue
+        if acct and t["account"] != acct:
+            continue
+        if year and _bank_year(t) != year:
+            continue
+        if direction == "in" and t["amount"] <= 0 or direction == "out" and t["amount"] >= 0:
+            continue
+        if project and t.get("project_id") != project:
+            continue
+        if q and q not in f'{t["counterparty"]} {t["purpose"]} {t["amount"]}'.lower():
+            continue
+        out.append(t)
+    out.sort(key=lambda t: (t["date"], t["id"]), reverse=True)
+    return out
+
+
+def _bank_stats(txs, year):
+    s = {"biz_out": 0.0, "biz_in": 0.0, "priv_out": 0.0, "open": 0, "open_out": 0.0,
+         "by_project": {}, "by_cat": {}, "biz_unbooked": 0, "biz_unbooked_sum": 0.0, "n": 0}
+    for t in txs.values():
+        if year and _bank_year(t) != year:
+            continue
+        s["n"] += 1
+        c, a = t.get("cat", ""), t["amount"]
+        if not c:
+            s["open"] += 1
+            s["open_out"] += min(a, 0)
+        elif c == "business":
+            if a < 0:
+                s["biz_out"] += -a
+                s["by_project"][t.get("project_id", "")] = s["by_project"].get(t.get("project_id", ""), 0) - a
+                s["by_cat"][t.get("exp_category") or "—"] = s["by_cat"].get(t.get("exp_category") or "—", 0) - a
+                if not t.get("expense_id"):
+                    s["biz_unbooked"] += 1
+                    s["biz_unbooked_sum"] -= a
+            else:
+                s["biz_in"] += a
+        elif c == "private" and a < 0:
+            s["priv_out"] -= a
+    s["by_project"] = sorted(s["by_project"].items(), key=lambda kv: -kv[1])
+    s["by_cat"] = sorted(s["by_cat"].items(), key=lambda kv: -kv[1])
+    return s
+
+
+def _tx_view(t, open_invs, expenses, linked):
+    """What a row needs beyond the stored transaction."""
+    v = dict(t)
+    if t["amount"] > 0 and not t.get("invoice_id") and t.get("cat") in ("", "business", None):
+        v["_inv"] = bank.invoice_candidates(t, open_invs)
+    if t["amount"] < 0 and not t.get("expense_id") and t.get("cat") == "business":
+        v["_exp"] = [{"id": e["id"], "description": e.get("description", ""), "date": e.get("date", "")}
+                     for e in bank.expense_candidates(t, expenses, linked)]
+    return v
+
+
+def _bank_context():
+    cfg = load_config()
+    expenses = all_expenses()
+    return cfg, open_invoice_totals(cfg), expenses, {e.get("id") for e in expenses if e.get("bank_tx_id")}
+
+
+@app.route("/bank")
+def bank_index():
+    cfg, open_invs, expenses, linked = _bank_context()
+    txs, accounts = BANK.transactions(), BANK.accounts()
+    years = sorted({_bank_year(t) for t in txs.values()}, reverse=True)
+    args = request.args.to_dict()
+    args.setdefault("year", years[0] if years else "")
+    args.setdefault("cat", "open")
+    view = args.get("view", "list")
+    rows = _filter_txs(txs, args)
+    page, per = max(int(args.get("page", 1) or 1), 1), 150
+    projects = all_projects()
+    pnames = {p["id"]: p.get("name", p["id"]) for p in projects}
+    parties = []
+    if view == "parties":
+        groups = {}
+        for t in rows:
+            g = groups.setdefault(t["counterparty"], {"name": t["counterparty"], "n": 0, "sum": 0.0,
+                                                      "cats": Counter(), "ids": [], "sample": t["purpose"]})
+            g["n"] += 1
+            g["sum"] += t["amount"]
+            g["cats"][t.get("cat", "")] += 1
+            g["ids"].append(t["id"])
+        parties = sorted(groups.values(), key=lambda g: (-g["n"], g["sum"]))
+    return render_template(
+        "bank/index.html", args=args, view=view, years=years, accounts=accounts,
+        rows=[_tx_view(t, open_invs, expenses, linked) for t in rows[(page - 1) * per: page * per]],
+        total_rows=len(rows), page=page, pages=max((len(rows) + per - 1) // per, 1),
+        parties=parties, projects=projects, pnames=pnames, cat_labels=bank.CAT_LABELS,
+        exp_cats=EXPENSE_CATS, stats=_bank_stats(txs, _year_arg(args.get("year"))),
+        rules=BANK.rules(), ai=AI_STATE, has_key=bool(cfg["ai"].get("api_key") or os.environ.get("ANTHROPIC_API_KEY")),
+        ai_open=sum(1 for t in txs.values() if t.get("ai") and not t.get("cat")),
+    )
+
+
+@app.route("/bank/upload", methods=["POST"])
+def bank_upload():
+    files = [f for f in request.files.getlist("files") if f and f.filename]
+    if not files:
+        flash("Keine Datei ausgewählt.", "error")
+        return redirect(url_for("bank_index"))
+    cfg = load_config()
+    with BANK.lock:
+        txs, accounts = BANK.transactions(), BANK.accounts()
+        added = dup = pending = 0
+        for f in files:
+            try:
+                acct, rows, pend = bank.parse_csv(f.read(), f.filename)
+            except ValueError as e:
+                flash(str(e), "error")
+                continue
+            if acct["id"] not in accounts:
+                role = "private" if acct.get("bank") == "HVB" else "mixed"
+                accounts[acct["id"]] = {**acct, "role": role, "default_cat": ""}
+            for t in rows:
+                if t["id"] in txs:
+                    dup += 1
+                else:
+                    txs[t["id"]] = {**t, "cat": "", "imported": date.today().isoformat()}
+                    added += 1
+            pending += pend
+        auto = bank.apply_rules(txs, BANK.rules(), accounts) + bank.detect_transfers(
+            txs, accounts, cfg["business"].get("name", ""))
+        BANK.save_accounts(accounts)
+        BANK.save_transactions(txs)
+    msg = f"{added} neue Umsätze importiert, {dup} bereits vorhanden"
+    if auto:
+        msg += f", {auto} automatisch eingeordnet (Regeln/Umbuchungen)"
+    if pending:
+        msg += f". {pending} vorgemerkte Umsätze übersprungen – die kommen mit dem nächsten Export"
+    flash(msg + ".", "success")
+    return redirect(url_for("bank_index"))
+
+
+def _set_fields(t, data):
+    if "cat" in data:
+        c = data["cat"] if data["cat"] in bank.CATS else ""
+        t["cat"] = c
+        t.pop("auto", None)
+        if c in ("private", "transfer"):
+            t.pop("project_id", None)
+    for k in ("project_id", "exp_category", "note"):
+        if k in data:
+            if data[k]:
+                t[k] = data[k]
+            else:
+                t.pop(k, None)
+    if t.get("project_id") and not t.get("cat"):
+        t["cat"] = "business"   # picking a project is a business decision
+
+
+@app.route("/api/bank/tx/<tid>", methods=["POST"])
+def api_bank_tx(tid):
+    data = request.get_json(force=True) or {}
+
+    def fn(txs):
+        t = txs.get(tid)
+        if not t:
+            abort(404)
+        _set_fields(t, data)
+        same = [o["id"] for o in txs.values()
+                if not o.get("cat") and o["id"] != tid and o["counterparty"] == t["counterparty"]]
+        return t, same
+    t, same = BANK.update(fn)
+    return jsonify({"tx": t, "same_open": len(same)})
+
+
+@app.route("/api/bank/bulk", methods=["POST"])
+def api_bank_bulk():
+    """{ids: [...]} or {counterparty: "..."} (all unreviewed of it) + fields to set."""
+    data = request.get_json(force=True) or {}
+    fields = {k: data[k] for k in ("cat", "project_id", "exp_category") if k in data}
+
+    def fn(txs):
+        if data.get("counterparty") is not None:
+            ids = [t["id"] for t in txs.values()
+                   if t["counterparty"] == data["counterparty"] and (data.get("all") or not t.get("cat"))]
+        else:
+            ids = [i for i in data.get("ids", []) if i in txs]
+        for i in ids:
+            _set_fields(txs[i], fields)
+        return ids
+    ids = BANK.update(fn)
+    return jsonify({"ids": ids, "n": len(ids)})
+
+
+@app.route("/api/bank/rule", methods=["POST"])
+def api_bank_rule():
+    data = request.get_json(force=True) or {}
+    rule = {"match": (data.get("match") or "").strip(), "field": data.get("field", "counterparty"),
+            "cat": data.get("cat", ""), "project_id": data.get("project_id", ""),
+            "exp_category": data.get("exp_category", "")}
+    if not rule["match"] or rule["cat"] not in bank.CATS:
+        return jsonify({"error": "Regel braucht Suchtext und Kategorie"}), 400
+    with BANK.lock:
+        rules = [r for r in BANK.rules() if not (r["match"] == rule["match"] and r.get("field") == rule["field"])]
+        rules.insert(0, rule)
+        BANK.save_rules(rules)
+        n = BANK.update(lambda txs: bank.apply_rules(txs, [rule], {}))
+    return jsonify({"n": n})
+
+
+@app.route("/bank/rules/delete", methods=["POST"])
+def bank_rule_delete():
+    i = int(request.form.get("i", -1))
+    with BANK.lock:
+        rules = BANK.rules()
+        if 0 <= i < len(rules):
+            rules.pop(i)
+            BANK.save_rules(rules)
+    return redirect(url_for("bank_accounts"))
+
+
+@app.route("/api/bank/tx/<tid>/invoice", methods=["POST"])
+def api_bank_invoice(tid):
+    """Incoming payment settles an invoice: link both and mark the invoice paid."""
+    iid = (request.get_json(force=True) or {}).get("invoice_id", "")
+    inv = get_invoice(iid)
+    txs = BANK.transactions()
+    t = txs.get(tid)
+    if not inv or not t:
+        abort(404)
+    if inv.get("status") != "paid":
+        if "paid" not in allowed_statuses(inv):
+            return jsonify({"error": f"Rechnung {iid} kann nicht als bezahlt markiert werden."}), 400
+        _apply_status(inv, "paid", t["date"])
+    inv["payment_tx"] = tid
+    _after_save(inv, load_config())
+    put_invoice(iid, inv)
+
+    def fn(txs):
+        t = txs[tid]
+        t.update({"cat": "business", "invoice_id": iid})
+        t.pop("auto", None)
+        if inv.get("project_id"):
+            t["project_id"] = inv["project_id"]
+        return t
+    return jsonify({"tx": BANK.update(fn)})
+
+
+def _expense_from_tx(t, rebill=False):
+    eid = f"exp-{t['date'].replace('-', '')}-{t['id'][:6]}"
+    project = get_project(t["project_id"]) if t.get("project_id") else None
+    data = {
+        "id":          eid,
+        "date":        t["date"],
+        "amount":      round(-t["amount"], 2),
+        "vendor":      t["counterparty"],
+        "description": (t["counterparty"] + (f" – {t['purpose'][:80]}" if t["purpose"] else "")).strip(),
+        "category":    t.get("exp_category") or "Sonstiges",
+        "project_id":  t.get("project_id", ""),
+        "client_id":   (project or {}).get("client_id", "") if rebill else "",
+        "notes":       f"Aus Kontoumsatz {t['date']} ({(BANK.accounts().get(t['account']) or {}).get('name', t['account'])})",
+        "bank_tx_id":  t["id"],
+    }
+    if not rebill:
+        data["no_rebill"] = True
+    put_expense(eid, data)
+    return eid
+
+
+@app.route("/api/bank/tx/<tid>/expense", methods=["POST"])
+def api_bank_expense(tid):
+    """Create an Ausgabe from a business payment, or link an existing one."""
+    data = request.get_json(force=True) or {}
+    t = BANK.transactions().get(tid)
+    if not t or t["amount"] >= 0:
+        abort(404)
+    if data.get("expense_id"):
+        e = get_expense(data["expense_id"])
+        if not e:
+            abort(404)
+        e["bank_tx_id"] = tid
+        put_expense(e["id"], e)
+        eid = e["id"]
+    else:
+        eid = _expense_from_tx(t, rebill=bool(data.get("rebill")))
+
+    def fn(txs):
+        txs[tid].update({"expense_id": eid, "cat": "business"})
+        return txs[tid]
+    return jsonify({"tx": BANK.update(fn), "expense_id": eid})
+
+
+@app.route("/api/bank/expenses-bulk", methods=["POST"])
+def api_bank_expenses_bulk():
+    """All business payments of a year without an Ausgabe yet become one."""
+    year = _year_arg((request.get_json(force=True) or {}).get("year"))
+    _, _, expenses, linked = _bank_context()
+    txs = BANK.transactions()
+    todo = [t for t in txs.values() if t.get("cat") == "business" and t["amount"] < 0
+            and not t.get("expense_id") and (not year or _bank_year(t) == year)]
+    made = {}
+    for t in todo:
+        cands = bank.expense_candidates(t, expenses, linked)
+        if cands:   # an Ausgabe for this payment exists already (typed in by hand): link it
+            e = cands[0]
+            e["bank_tx_id"] = t["id"]
+            put_expense(e["id"], e)
+            linked.add(e["id"])
+            made[t["id"]] = e["id"]
+        else:
+            made[t["id"]] = _expense_from_tx(t)
+
+    def fn(txs):
+        for tid, eid in made.items():
+            txs[tid]["expense_id"] = eid
+    BANK.update(fn)
+    return jsonify({"n": len(made)})
+
+
+@app.route("/bank/accounts", methods=["GET", "POST"])
+def bank_accounts():
+    if request.method == "POST":
+        with BANK.lock:
+            accounts = BANK.accounts()
+            for aid, a in accounts.items():
+                a["name"] = request.form.get(f"name[{aid}]", a.get("name", aid)).strip() or aid
+                a["role"] = request.form.get(f"role[{aid}]", a.get("role", "mixed"))
+                a["default_cat"] = request.form.get(f"default[{aid}]", "")
+            BANK.save_accounts(accounts)
+            if request.form.get("reapply"):
+                n = BANK.update(lambda txs: bank.apply_rules(txs, BANK.rules(), accounts))
+                flash(f"{n} ungeprüfte Umsätze eingeordnet.", "success")
+        flash("Konten gespeichert.", "success")
+        return redirect(url_for("bank_accounts"))
+    txs = BANK.transactions()
+    counts = Counter(t["account"] for t in txs.values())
+    return render_template("bank/accounts.html", accounts=BANK.accounts(), counts=counts,
+                           rules=BANK.rules(), cat_labels=bank.CAT_LABELS,
+                           pnames={p["id"]: p.get("name") for p in all_projects()})
+
+
+# ── Bank: LLM review ──────────────────────────────────────────────────────────
+
+def _ai_context(year=""):
+    cfg, year = load_config(), _year_arg(year)
+    txs, accounts = BANK.transactions(), BANK.accounts()
+    todo = [t for t in txs.values() if not t.get("cat") and (not year or _bank_year(t) == year)]
+    todo.sort(key=lambda t: t["date"], reverse=True)
+    reviewed = sorted([t for t in txs.values() if t.get("cat") and t.get("auto") != "transfer"],
+                      key=lambda t: t["date"], reverse=True)
+    examples, seen = [], set()
+    for t in reviewed:   # one example per merchant, most recent first
+        if t["counterparty"] not in seen:
+            seen.add(t["counterparty"])
+            examples.append(t)
+        if len(examples) >= 80:
+            break
+    ctx = bank_ai.build_context(todo[:600], all_projects(), all_clients(), open_invoice_totals(cfg),
+                                accounts, examples, EXPENSE_CATS)
+    return cfg, ctx
+
+
+def _store_suggestions(items):
+    projects = {p["id"] for p in all_projects()}
+    invoices = {inv["id"] for inv, _ in open_invoice_totals(load_config())}
+
+    def fn(txs):
+        n = 0
+        for s in items:
+            t = txs.get(str(s.get("id", "")))
+            if not t or t.get("cat"):
+                continue
+            t["ai"] = {
+                "category":     s.get("category") if s.get("category") in (*bank.CATS, "unsure") else "unsure",
+                "project_id":   s.get("project_id") if s.get("project_id") in projects else "",
+                "exp_category": s.get("exp_category") if s.get("exp_category") in EXPENSE_CATS else "",
+                "invoice_id":   s.get("invoice_id") if s.get("invoice_id") in invoices else "",
+                "confidence":   max(0, min(100, int(s.get("confidence") or 0))),
+                "reason":       str(s.get("reason", ""))[:200],
+                "at":           date.today().isoformat(),
+            }
+            n += 1
+        return n
+    return BANK.update(fn)
+
+
+def _ai_worker(api_key, business, ctx):
+    try:
+        items = bank_ai.run(api_key, business, ctx,
+                            on_batch=lambda done, total: AI_STATE.update(done=done, total=total))
+        AI_STATE["count"] = _store_suggestions(items)
+    except Exception as e:   # surfaced on the page; the thread must not die silently
+        AI_STATE["error"] = str(e)
+        app.logger.exception("AI review failed")
+    finally:
+        AI_STATE.update(running=False, finished=datetime.now().strftime("%H:%M"))
+
+
+@app.route("/api/bank/ai/run", methods=["POST"])
+def api_bank_ai_run():
+    if AI_STATE["running"]:
+        return jsonify(AI_STATE)
+    cfg, ctx = _ai_context((request.get_json(force=True) or {}).get("year", ""))
+    if not ctx["transactions"]:
+        return jsonify({**AI_STATE, "error": "Keine ungeprüften Umsätze."})
+    if not (cfg["ai"].get("api_key") or os.environ.get("ANTHROPIC_API_KEY")):
+        return jsonify({**AI_STATE, "error": "Kein Claude API-Key – in den Einstellungen hinterlegen "
+                                             "oder „Export für Chat“ benutzen."})
+    AI_STATE.update(running=True, done=0, total=len(ctx["transactions"]), error="", count=0)
+    threading.Thread(target=_ai_worker, daemon=True, args=(
+        cfg["ai"].get("api_key") or os.environ.get("ANTHROPIC_API_KEY", ""),
+        cfg["business"].get("legal_name") or cfg["business"].get("name", ""), ctx)).start()
+    return jsonify(AI_STATE)
+
+
+@app.route("/api/bank/ai/status")
+def api_bank_ai_status():
+    return jsonify(AI_STATE)
+
+
+@app.route("/api/bank/ai/accept", methods=["POST"])
+def api_bank_ai_accept():
+    """Take over suggestions: {ids: [...]} or {min_conf: 80}. "unsure" ones are skipped."""
+    data = request.get_json(force=True) or {}
+    ids, min_conf = set(data.get("ids") or []), data.get("min_conf")
+
+    def fn(txs):
+        n = 0
+        for t in txs.values():
+            a = t.get("ai")
+            if not a or t.get("cat") or a["category"] == "unsure":
+                continue
+            if ids and t["id"] not in ids or not ids and (min_conf is None or a["confidence"] < int(min_conf)):
+                continue
+            _set_fields(t, {"cat": a["category"], "project_id": a.get("project_id", ""),
+                            "exp_category": a.get("exp_category", "")})
+            t["auto"] = "ai"
+            n += 1
+        return n
+    return jsonify({"n": BANK.update(fn)})
+
+
+@app.route("/bank/ai/export")
+def bank_ai_export():
+    cfg, ctx = _ai_context(request.args.get("year", ""))
+    md = bank_ai.export_markdown(cfg["business"].get("legal_name") or cfg["business"].get("name"), ctx)
+    return send_file(BytesIO(md.encode("utf-8")), mimetype="text/markdown", as_attachment=True,
+                     download_name=f"kontoumsaetze-pruefen-{date.today().isoformat()}.md")
+
+
+@app.route("/bank/ai/import", methods=["POST"])
+def bank_ai_import():
+    try:
+        n = _store_suggestions(bank_ai.parse_reply(request.form.get("reply", "")))
+        flash(f"{n} Vorschläge übernommen – unter „KI-Vorschläge“ prüfen.", "success")
+    except (ValueError, json.JSONDecodeError) as e:
+        flash(f"Antwort nicht lesbar: {e}", "error")
+    return redirect(url_for("bank_index", cat="ai"))
 
 
 # ── Routes: Paperless-ngx ─────────────────────────────────────────────────────
@@ -2193,6 +3056,11 @@ def settings():
             "design": {
                 "accent_color": f.get("d_color", "#1400FF"),
                 "logo_path":    cfg["design"].get("logo_path", ""),
+            },
+            "ai": {
+                # Password field: left empty means "keep the stored key"
+                "api_key": ("" if f.get("ai_clear") == "on"
+                            else f.get("ai_key", "").strip() or cfg["ai"].get("api_key", "")),
             },
             "forecast": {
                 "other_income": _num(f.get("f_other_income")),

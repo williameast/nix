@@ -236,6 +236,28 @@
     </div>
   </div>
 
+  <div class="settings-section">
+    <h2>KI-Prüfung der Kontoumsätze (Claude)</h2>
+    <p class="field-hint" style="margin:-.5rem 0 1rem">
+      Schlägt unter „Bank“ vor, welche Umsätze geschäftlich sind und zu welchem Projekt sie gehören.
+      Übertragen werden Datum, Betrag, Empfänger und Verwendungszweck – ohne IBANs, Karten- und Kontonummern.
+      Ohne Schlüssel bleibt der Export/Import über eine Datei.
+    </p>
+    <div class="form-grid-2">
+      <div class="form-group">
+        <label>Claude API-Key</label>
+        <input type="password" name="ai_key" value="" autocomplete="off"
+               placeholder="{{ 'gespeichert – leer lassen zum Behalten' if cfg.ai.api_key else 'sk-ant-…' }}">
+        <div class="field-hint">console.anthropic.com → API Keys. Alternativ Umgebungsvariable ANTHROPIC_API_KEY.</div>
+      </div>
+      {% if cfg.ai.api_key %}
+      <div class="form-group" style="padding-top:1.7rem">
+        <label class="checkbox-label"><input type="checkbox" name="ai_clear"> Gespeicherten Schlüssel löschen</label>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
   <div class="form-actions">
     <button type="submit" class="btn btn-primary">Einstellungen speichern</button>
   </div>

@@ -1,0 +1,109 @@
+/* Shared look of all buero PDFs (invoices, contracts): CI fonts, header, footer, rich text */
+  /* Poppins is bundled into static/fonts by service.nix (CI typeface) */
+  @font-face { font-family: Poppins; font-weight: 400; font-style: normal; src: url("static/fonts/Poppins-Regular.ttf"); }
+  @font-face { font-family: Poppins; font-weight: 400; font-style: italic; src: url("static/fonts/Poppins-Italic.ttf"); }
+  @font-face { font-family: Poppins; font-weight: 500; font-style: normal; src: url("static/fonts/Poppins-Medium.ttf"); }
+  @font-face { font-family: Poppins; font-weight: 600; font-style: normal; src: url("static/fonts/Poppins-SemiBold.ttf"); }
+  @font-face { font-family: Poppins; font-weight: 700; font-style: normal; src: url("static/fonts/Poppins-Bold.ttf"); }
+  @font-face { font-family: Poppins; font-weight: 700; font-style: italic; src: url("static/fonts/Poppins-BoldItalic.ttf"); }
+
+  @page {
+    size: A4;
+    margin: 14mm 18mm 30mm 18mm;
+
+    /* Running footer spans the full content width and sits centred under it */
+    @bottom-center {
+      content: element(page-footer);
+      width: 100%;
+      vertical-align: top;
+      padding-top: 6mm;
+    }
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --accent: {{ cfg.design.accent_color }};
+    --lavender: #D6D3FF;
+    --ink: #111111;
+    --grey: #555555;
+    --light: #999999;
+  }
+
+  body {
+    font-family: Poppins, Arial, Helvetica, sans-serif;
+    font-size: 8.5pt;
+    color: var(--ink);
+    line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+
+  strong { font-weight: 600; }
+  .lbl {
+    display: block;
+    font-size: 6.5pt; font-weight: 500; color: var(--light);
+    text-transform: lowercase; letter-spacing: 0.02em;
+  }
+
+  /* ── HEADER: logo + wordmark lockup (as in the email signature) ── */
+  .hdr { width: 100%; border-collapse: collapse; }
+  .hdr td { vertical-align: middle; }
+  .lockup-logo { width: 15mm; padding-right: 4mm; }
+  .lockup-logo img { height: 15mm; display: block; }
+  .wordmark {
+    font-size: 21pt; font-weight: 700; color: var(--accent);
+    text-transform: lowercase; letter-spacing: -0.01em; line-height: 1;
+  }
+  .hdr-who { text-align: right; font-size: 8pt; color: var(--grey); line-height: 1.45; }
+  .hdr-who strong { color: var(--ink); font-size: 9pt; }
+  .hdr-rule { border-top: 2pt solid var(--accent); margin: 5mm 0 0; }
+
+  /* ── ADDRESS + META ── */
+  .head2 { width: 100%; border-collapse: collapse; margin-top: 12mm; }
+  .head2 > tbody > tr > td { vertical-align: top; }
+  .sender-line {
+    font-size: 6.5pt; color: var(--light);
+    border-bottom: 0.5pt solid var(--lavender);
+    padding-bottom: 1mm; margin-bottom: 3mm; display: inline-block;
+  }
+  .recipient { font-size: 9.5pt; line-height: 1.5; }
+  .recipient strong { font-size: 10pt; }
+
+  .meta { border-collapse: collapse; margin-left: auto; font-size: 8pt; }
+  .meta td { padding: 0.6mm 0; vertical-align: baseline; }
+  .meta td.k { color: var(--light); padding-right: 5mm; text-transform: lowercase; }
+  .meta td.v { text-align: right; font-weight: 500; }
+  .meta tr.nr td.v { font-size: 11pt; font-weight: 700; color: var(--ink); }
+
+  /* ── TITLE ── */
+  .doc-type {
+    margin-top: 12mm; margin-bottom: 5mm;
+    font-size: 24pt; font-weight: 700; color: var(--accent);
+    text-transform: lowercase; letter-spacing: -0.015em; line-height: 1;
+  }
+
+  /* Rich text: line item details and notes */
+  .rich { font-size: 7.8pt; color: var(--grey); line-height: 1.5; }
+  .item-title + .rich, .group-title + .rich { margin-top: 0.8mm; }
+  .rich p { margin: 0 0 1.2mm; }
+  .rich p:last-child, .rich ul:last-child, .rich ol:last-child { margin-bottom: 0; }
+  .rich ul, .rich ol { margin: 0 0 1.2mm 3.5mm; padding: 0; }
+  .rich li { margin: 0 0 0.3mm; padding-left: 0.8mm; }
+  .rich ul li::marker { color: var(--accent); }
+  .rich h4 { font-size: 7.8pt; font-weight: 600; color: var(--ink); margin: 1.5mm 0 0.5mm; }
+  .rich strong { color: var(--ink); }
+
+  /* ── FOOTER (running element, every page) ── */
+  .page-footer { position: running(page-footer); width: 100%; }
+  .footer {
+    width: 100%; border-collapse: collapse; table-layout: fixed;
+    border-top: 0.75pt solid var(--accent);
+  }
+  .footer td {
+    padding: 2.5mm 2mm 0; vertical-align: top; text-align: center;
+    font-size: 6.5pt; color: var(--grey); line-height: 1.45;
+  }
+  .footer .lbl { font-size: 5.5pt; color: var(--accent); font-weight: 600; margin-bottom: 0.4mm; }
+  .footer .brand { color: var(--accent); font-weight: 700; text-transform: lowercase; }
+  .page-nr { text-align: center; font-size: 5.5pt; color: var(--light); margin-top: 2.5mm; }
+  .page-nr::after { content: "{{ t.page }} " counter(page) " / " counter(pages); }

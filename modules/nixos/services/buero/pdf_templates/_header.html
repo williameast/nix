@@ -1,0 +1,14 @@
+<table class="hdr">
+  <tr>
+    {% if logo_b64 %}
+    <td class="lockup-logo"><img src="{{ logo_b64 }}" alt=""></td>
+    {% endif %}
+    <td><div class="wordmark">{{ brand }}</div></td>
+    <td class="hdr-who">
+      <strong>{{ cfg.business.name }}</strong><br>
+      {% if who %}{{ who }}
+      {% elif cfg.business.profession %}{{ cfg.business.profession }}{% endif %}
+    </td>
+  </tr>
+</table>
+<div class="hdr-rule"></div>

@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}Bank{% endblock %}
+{% block content %}
+{% macro acct_name(a) %}{{ accounts[a].name if a in accounts else a }}{% endmacro %}
+<div class="page-header">
+  <h1>Bank</h1>
+  <div class="header-actions">
+    <form method="POST" action="{{ url_for('bank_upload') }}" enctype="multipart/form-data" class="upload-form">
+      <label class="btn btn-outline">
+        CSV wählen…
+        <input type="file" name="files" accept=".csv,text/csv" multiple hidden onchange="this.form.submit()">
+      </label>
+    </form>
+    <a href="{{ url_for('bank_accounts') }}" class="btn btn-outline">Konten &amp; Regeln</a>
+  </div>
+</div>
+
+{% if not accounts %}
+<div class="empty">
+  <p>Noch keine Kontoumsätze. Exportiere die Umsätze im Online-Banking als CSV und lade sie hier hoch.</p>
+  <p class="muted">Erkannt werden DKB (Girokonto &amp; Kreditkarte), HVB/UniCredit und andere Exporte mit üblichen deutschen Spaltennamen.
+    Mehrere Dateien auf einmal gehen; doppelte Umsätze werden übersprungen.</p>
+</div>
+{% else %}
+
+<!-- ── Summary ── -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-label">Geschäftsausgaben {{ '' if args.year == 'all' else args.year }}</div>
+    <div class="stat-value">{{ stats.biz_out | eur }}</div>
+    {% if stats.biz_unbooked %}<div class="stat-hint">{{ stats.biz_unbooked }} noch nicht in Ausgaben</div>{% endif %}
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Geschäftseinnahmen</div>
+    <div class="stat-value accent">{{ stats.biz_in | eur }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-label">Privat ausgegeben</div>
+    <div class="stat-value">{{ stats.priv_out | eur }}</div>
+  </div>
+  <a class="stat-card stat-link" href="{{ url_with('bank_index', args, cat='open', page=None) }}">
+    <div class="stat-label">Ungeprüft</div>
+    <div class="stat-value {{ 'warn' if stats.open else '' }}">{{ stats.open }}</div>
+    <div class="stat-hint">von {{ stats.n }} Umsätzen</div>
+  </a>
+</div>
+
+{% if stats.by_project or stats.biz_unbooked %}
+<details class="card-section" {% if args.get('open_summary') %}open{% endif %}>
+  <summary><strong>Geschäftsausgaben nach Projekt &amp; Kategorie</strong></summary>
+  <div class="form-grid-2" style="margin-top:1rem">
+    <table class="table">
+      <thead><tr><th>Projekt</th><th class="num">Betrag</th></tr></thead>
+      <tbody>
+      {% for pid, sum in stats.by_project %}
+        <tr><td>{% if pid %}<a href="{{ url_with('bank_index', args, project=pid, cat='business', page=None) }}">{{ pnames.get(pid, pid) }}</a>{% else %}<span class="muted">ohne Projekt</span>{% endif %}</td>
+            <td class="num">{{ sum | eur }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    <table class="table">
+      <thead><tr><th>Kategorie</th><th class="num">Betrag</th></tr></thead>
+      <tbody>
+      {% for c, sum in stats.by_cat %}<tr><td>{{ c }}</td><td class="num">{{ sum | eur }}</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if stats.biz_unbooked %}
+  <div class="select-bar" style="margin:1rem 0 0">
+    <span>{{ stats.biz_unbooked }} geschäftliche Zahlungen ({{ stats.biz_unbooked_sum | eur }}) sind noch keine Ausgaben – und zählen damit nicht in EÜR und Steuerschätzung.</span>
+    <button type="button" class="btn btn-primary btn-xs" onclick="bookAll('{{ args.year }}')">Alle als Ausgaben übernehmen</button>
+  </div>
+  {% endif %}
+</details>
+{% endif %}
+
+<!-- ── LLM review ── -->
+<div class="ai-bar" id="ai-bar" data-running="{{ 1 if ai.running else 0 }}">
+  <div>
+    <strong>KI-Prüfung</strong>
+    <span class="muted" id="ai-status">
+      {% if ai.running %}läuft… {{ ai.done }}/{{ ai.total }}
+      {% elif ai.error %}<span class="danger">{{ ai.error }}</span>
+      {% elif ai.finished %}fertig um {{ ai.finished }}: {{ ai.count }} Vorschläge
+      {% else %}schlägt Kategorie und Projekt für ungeprüfte Umsätze vor{% endif %}
+    </span>
+  </div>
+  <div class="header-actions">
+    {% if ai_open %}
+    <a href="{{ url_with('bank_index', args, cat='ai', page=None) }}" class="btn btn-xs btn-outline">{{ ai_open }} Vorschläge ansehen</a>
+    <button type="button" class="btn btn-xs btn-primary" onclick="acceptAI({min_conf: 80})">Alle ≥ 80 % übernehmen</button>
+    {% endif %}
+    {% if has_key %}
+    <button type="button" class="btn btn-xs btn-outline" id="ai-run" onclick="runAI('{{ args.year }}')" {% if ai.running %}disabled{% endif %}>
+      Vorschläge holen ({{ 'alle Jahre' if args.year == 'all' else args.year }})</button>
+    {% endif %}
+    <a href="{{ url_for('bank_ai_export', year=args.year) }}" class="btn btn-xs btn-outline" title="Prompt + Daten als Datei, z.B. für einen Chat oder Claude Code">Export für Chat ↓</a>
+    <button type="button" class="btn btn-xs btn-outline" onclick="document.getElementById('ai-import').toggleAttribute('hidden')">Antwort einfügen</button>
+  </div>
+  <form method="POST" action="{{ url_for('bank_ai_import') }}" id="ai-import" hidden class="ai-import">
+    <textarea name="reply" rows="6" placeholder='Die JSON-Antwort aus dem Chat hier einfügen: {"suggestions": [...]}'></textarea>
+    <button type="submit" class="btn btn-primary btn-xs">Vorschläge einlesen</button>
+  </form>
+  {% if not has_key %}<div class="field-hint">Für „Vorschläge holen“ in den <a href="{{ url_for('settings') }}">Einstellungen</a> einen Claude API-Key hinterlegen.</div>{% endif %}
+</div>
+
+<!-- ── Filters ── -->
+<div class="filter-group">
+  <span class="meta-label">Jahr</span>
+  {% for y in years %}<a href="{{ url_with('bank_index', args, year=y, page=None) }}" class="filter-chip {% if args.year == y %}active{% endif %}">{{ y }}</a>{% endfor %}
+  <a href="{{ url_with('bank_index', args, year='all', page=None) }}" class="filter-chip {% if args.year == 'all' %}active{% endif %}">Alle</a>
+</div>
+<div class="filter-group">
+  <span class="meta-label">Status</span>
+  {% for key, label in [('open', 'Ungeprüft'), ('ai', 'KI-Vorschläge'), ('business', 'Geschäftlich'), ('private', 'Privat'), ('transfer', 'Umbuchung'), ('all', 'Alle')] %}
+  <a href="{{ url_with('bank_index', args, cat=key, page=None) }}" class="filter-chip {% if args.cat == key %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+</div>
+<form method="GET" class="filter-bar bank-filters">
+  {% for k in ('year', 'cat', 'view') %}{% if args.get(k) %}<input type="hidden" name="{{ k }}" value="{{ args[k] }}">{% endif %}{% endfor %}
+  <select name="acct" onchange="this.form.submit()">
+    <option value="">Alle Konten</option>
+    {% for aid, a in accounts.items() %}<option value="{{ aid }}" {% if args.acct == aid %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+  </select>
+  <select name="dir" onchange="this.form.submit()">
+    <option value="">Ein- &amp; Ausgänge</option>
+    <option value="out" {% if args.dir == 'out' %}selected{% endif %}>nur Ausgänge</option>
+    <option value="in"  {% if args.dir == 'in'  %}selected{% endif %}>nur Eingänge</option>
+  </select>
+  <select name="project" onchange="this.form.submit()">
+    <option value="">Alle Projekte</option>
+    {% for p in projects %}<option value="{{ p.id }}" {% if args.project == p.id %}selected{% endif %}>{{ p.name }}</option>{% endfor %}
+  </select>
+  <input type="search" name="q" value="{{ args.q or '' }}" placeholder="Suche: Empfänger, Zweck, Betrag" class="search-input">
+  <div class="view-toggle">
+    <a href="{{ url_with('bank_index', args, view='list', page=None) }}" class="filter-chip {% if view == 'list' %}active{% endif %}">Liste</a>
+    <a href="{{ url_with('bank_index', args, view='parties', page=None) }}" class="filter-chip {% if view == 'parties' %}active{% endif %}">Nach Empfänger</a>
+  </div>
+</form>
+
+<datalist id="dl-projects"></datalist>
+<template id="project-options">
+  <option value="">— Projekt —</option>
+  {% for p in projects if p.status != 'completed' %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+  {% if projects | selectattr('status', 'equalto', 'completed') | list %}
+  <optgroup label="Abgeschlossen">
+    {% for p in projects if p.status == 'completed' %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+  </optgroup>
+  {% endif %}
+</template>
+<template id="expcat-options">
+  <option value="">— Kategorie —</option>
+  {% for c in exp_cats %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+</template>
+
+{% if view == 'parties' %}
+<!-- ── Grouped by counterparty: sort whole merchants at once ── -->
+<p class="field-hint" style="margin-bottom:.75rem">Ein Klick ordnet alle {{ 'ungeprüften ' if args.cat == 'open' else '' }}Umsätze dieses Empfängers ein. „Merken“ legt zusätzlich eine Regel für künftige Importe an.</p>
+<table class="table bank-table">
+  <thead><tr><th>Empfänger / Auftraggeber</th><th class="num">Anzahl</th><th class="num">Summe</th><th>Einordnen</th><th>Projekt</th><th></th></tr></thead>
+  <tbody>
+  {% for g in parties %}
+    <tr class="party-row" data-party="{{ g.name }}">
+      <td><div class="tx-party">{{ g.name or '—' }}</div><div class="tx-purpose">{{ g.sample }}</div></td>
+      <td class="num">{{ g.n }}</td>
+      <td class="num {{ 'danger' if g.sum < 0 }}">{{ g.sum | eur }}</td>
+      <td class="cat-btns">
+        {% for c, l in [('business', 'Geschäftl.'), ('private', 'Privat'), ('transfer', 'Umbuch.')] %}
+        <button type="button" data-cat="{{ c }}" class="{% if g.cats[c] == g.n %}on{% endif %}">{{ l }}</button>
+        {% endfor %}
+      </td>
+      <td><select class="party-project" data-options="project-options"></select></td>
+      <td><label class="checkbox-label small"><input type="checkbox" class="party-rule"> merken</label></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="muted">Nichts in dieser Auswahl.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% else %}
+<!-- ── Transaction list ── -->
+<div class="select-bar" id="bulk-bar" hidden>
+  <span><strong id="bulk-n">0</strong> ausgewählt</span>
+  <button type="button" class="btn btn-xs btn-outline" onclick="bulk({cat: 'business'})">Geschäftlich</button>
+  <button type="button" class="btn btn-xs btn-outline" onclick="bulk({cat: 'private'})">Privat</button>
+  <button type="button" class="btn btn-xs btn-outline" onclick="bulk({cat: 'transfer'})">Umbuchung</button>
+  <select id="bulk-project" data-options="project-options" onchange="this.value && bulk({project_id: this.value})"></select>
+  <button type="button" class="btn btn-xs btn-outline" onclick="acceptAI({ids: selectedIds()})">KI-Vorschläge übernehmen</button>
+</div>
+
+<table class="table bank-table" id="tx-table">
+  <thead>
+    <tr>
+      <th style="width:1.5rem"><input type="checkbox" id="sel-all"></th>
+      <th>Datum</th>
+      <th>Umsatz</th>
+      <th class="num">Betrag</th>
+      <th>Einordnen</th>
+      <th>Projekt / Kategorie</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for t in rows %}
+    <tr class="tx-row cat-{{ t.cat or 'open' }}" tabindex="0" data-id="{{ t.id }}" data-amount="{{ t.amount }}"
+        data-party="{{ t.counterparty }}" data-project="{{ t.project_id or '' }}" data-expcat="{{ t.exp_category or '' }}"
+        {% if t.ai %}data-ai='{{ t.ai | tojson }}'{% endif %}>
+      <td><input type="checkbox" class="tx-sel"></td>
+      <td class="nw">{{ t.date | date_de }}<div class="acct-tag" title="{{ acct_name(t.account) }}">{{ acct_name(t.account) }}</div></td>
+      <td class="tx-main">
+        <div class="tx-party">{{ t.counterparty or '—' }}
+          {% if t.auto %}<span class="auto-tag" title="automatisch eingeordnet">{{ {'rule': 'Regel', 'transfer': 'auto', 'account': 'Konto', 'ai': 'KI'}[t.auto] }}</span>{% endif %}
+        </div>
+        <div class="tx-purpose" title="{{ t.purpose }}">{{ t.purpose }}</div>
+
+        {% if t.ai and not t.cat %}
+        <div class="ai-chip conf-{{ 'hi' if t.ai.confidence >= 80 else ('mid' if t.ai.confidence >= 50 else 'lo') }}">
+          <span>KI: <strong>{{ cat_labels.get(t.ai.category, 'unsicher') }}</strong>{% if t.ai.project_id %} · {{ pnames.get(t.ai.project_id, '') }}{% endif %}{% if t.ai.exp_category %} · {{ t.ai.exp_category }}{% endif %}{% if t.ai.invoice_id %} · Rechnung {{ t.ai.invoice_id }}{% endif %}
+            · {{ t.ai.confidence }} %</span>
+          <span class="ai-reason">{{ t.ai.reason }}</span>
+          {% if t.ai.category != 'unsure' %}<button type="button" class="btn btn-xs btn-primary" onclick="acceptAI({ids: ['{{ t.id }}']})">✓ übernehmen</button>{% endif %}
+        </div>
+        {% endif %}
+
+        <div class="tx-links">
+          {% if t.invoice_id %}<a href="{{ url_for('invoice_detail', iid=t.invoice_id) }}" class="link-tag ok">Rechnung {{ t.invoice_id }} ✓</a>{% endif %}
+          {% for c in t._inv or [] %}
+          <button type="button" class="btn btn-xs btn-outline inv-link" data-inv="{{ c.id }}"
+                  title="{{ 'Rechnungsnummer im Verwendungszweck' if c.named else 'gleicher Betrag' }}">
+            ↔ Rechnung {{ c.id }} ({{ c.total | eur }}) als bezahlt</button>
+          {% endfor %}
+          {% if t.expense_id %}<a href="{{ url_for('expense_detail', eid=t.expense_id) }}" class="link-tag ok">Ausgabe ✓</a>
+          {% elif t.cat == 'business' and t.amount < 0 %}
+            {% for e in t._exp or [] %}
+            <button type="button" class="btn btn-xs btn-outline exp-link" data-exp="{{ e.id }}" title="{{ e.date | date_de }}">↔ mit Ausgabe „{{ e.description[:40] }}“ verknüpfen</button>
+            {% endfor %}
+            <button type="button" class="btn btn-xs btn-outline exp-new">+ als Ausgabe</button>
+          {% endif %}
+        </div>
+        <div class="same-bar" hidden></div>
+      </td>
+      <td class="num amount {{ 'neg' if t.amount < 0 else 'pos' }}">{{ t.amount | eur }}</td>
+      <td class="cat-btns">
+        <button type="button" data-cat="business" class="{{ 'on' if t.cat == 'business' }}" title="Geschäftlich (g)">G</button>
+        <button type="button" data-cat="private"  class="{{ 'on' if t.cat == 'private'  }}" title="Privat (p)">P</button>
+        <button type="button" data-cat="transfer" class="{{ 'on' if t.cat == 'transfer' }}" title="Umbuchung (u)">U</button>
+      </td>
+      <td class="tx-assign">
+        <select class="tx-project" data-options="project-options"></select>
+        {% if t.amount < 0 %}<select class="tx-expcat" data-options="expcat-options"></select>{% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="muted" style="padding:2rem;text-align:center">
+      {{ 'Alles eingeordnet. 🎉' if args.cat == 'open' else 'Nichts in dieser Auswahl.' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if pages > 1 %}
+<div class="pagination">
+  {% if page > 1 %}<a href="{{ url_with('bank_index', args, page=page - 1) }}" class="btn btn-outline btn-xs">← zurück</a>{% endif %}
+  <span class="muted">Seite {{ page }} / {{ pages }} · {{ total_rows }} Umsätze</span>
+  {% if page < pages %}<a href="{{ url_with('bank_index', args, page=page + 1) }}" class="btn btn-outline btn-xs">weiter →</a>{% endif %}
+</div>
+{% endif %}
+
+<p class="kbd-hint">Tastatur: <kbd>j</kbd>/<kbd>k</kbd> nächster/voriger · <kbd>g</kbd> geschäftlich · <kbd>p</kbd> privat ·
+  <kbd>u</kbd> Umbuchung · <kbd>0</kbd> zurücksetzen · <kbd>a</kbd> KI-Vorschlag übernehmen · <kbd>o</kbd> Projekt wählen ·
+  <kbd>.</kbd> alle vom selben Empfänger ebenso · <kbd>x</kbd> auswählen</p>
+{% endif %}
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/bank.js') }}"></script>
+{% endblock %}
