@@ -16,6 +16,8 @@ let
   };
 in
 {
+  imports = [ ./freecad-mcp.nix ];
+
   home.packages = with pkgs; [
     freecad-wayland
     bambu-studio

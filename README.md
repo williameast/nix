@@ -175,6 +175,14 @@ Delete its line from `accounts.nix` and its `.age` file from `secrets/`, then re
   ```
 - **Background sync:** `systemctl --user start sync-mail` and `journalctl --user -u sync-mail`.
 
+## FreeCAD + Claude (MCP)
+
+`modules/home/modelling/freecad-mcp.nix` installs spkane's [Robust MCP Bridge](https://github.com/spkane/freecad-addon-robust-mcp-server), pinned to a release tag:
+- the **Robust MCP Bridge** workbench in FreeCAD, which serves XML-RPC on `localhost:9875`
+- the `freecad-mcp` server, which is added to Claude Desktop's `~/.config/Claude/claude_desktop_config.json` on every switch (merged with jq, since the app writes its own preferences to that file)
+
+To use it, open FreeCAD, switch to the Robust MCP Bridge workbench and click **Start MCP Bridge** (or turn on auto-start in its preferences). Then restart Claude Desktop. Check the connection with `freecad-mcp --check`.
+
 ## Printing
 
 - **Brother DCP-L2520DW** (network): permanent CUPS queue on orr (`hosts/orr/configuration.nix`), default printer. Scanning is set up via `modules/nixos/services/scanning.nix`.
