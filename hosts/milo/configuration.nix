@@ -62,6 +62,16 @@
   # State version - NEVER change this after initial install
   system.stateVersion = "25.11";
 
+
+services.nfs.server = {
+  enable = true;
+  exports = ''
+    /mnt/bulk      100.72.43.120(rw,sync,no_subtree_check)
+    /mnt/vault-new 100.72.43.120(rw,sync,no_subtree_check)
+  '';
+};
+networking.firewall.allowedTCPPorts = [ 2049 ];
+
   # Home Manager integration
   home-manager = {
     useGlobalPkgs = true;
