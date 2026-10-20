@@ -179,9 +179,9 @@ Delete its line from `accounts.nix` and its `.age` file from `secrets/`, then re
 
 `modules/home/modelling/freecad-mcp.nix` installs spkane's [Robust MCP Bridge](https://github.com/spkane/freecad-addon-robust-mcp-server), pinned to a release tag:
 - the **Robust MCP Bridge** workbench in FreeCAD, which serves XML-RPC on `localhost:9875`
-- the `freecad-mcp` server, which is added to Claude Desktop's `~/.config/Claude/claude_desktop_config.json` on every switch (merged with jq, since the app writes its own preferences to that file)
+- the `freecad-mcp` server, which is added to Claude Desktop's `~/.config/Claude/claude_desktop_config.json` and Claude Code's `~/.claude.json` (user scope) on every switch (merged with jq, since both apps write their own state to those files)
 
-To use it, open FreeCAD, switch to the Robust MCP Bridge workbench and click **Start MCP Bridge** (or turn on auto-start in its preferences). Then restart Claude Desktop. Check the connection with `freecad-mcp --check`.
+To use it, open FreeCAD, switch to the Robust MCP Bridge workbench and click **Start MCP Bridge** (or turn on auto-start in its preferences). Then restart Claude Desktop or Claude Code. Check the connection with `FREECAD_MODE=xmlrpc freecad-mcp --check` (without it, `--check` tries embedded mode and fails).
 
 ## Printing
 

@@ -4,8 +4,8 @@
 # - "Robust MCP Bridge" workbench in FreeCAD, which serves XML-RPC on
 #   localhost:9875. Start it from the workbench toolbar ("Start MCP Bridge"),
 #   or tick auto-start in its preferences.
-# - `freecad-mcp`, the MCP server Claude Desktop launches; it talks to the
-#   bridge, so FreeCAD must be running with the bridge started.
+# - `freecad-mcp`, the MCP server Claude Desktop and Claude Code launch; it
+#   talks to the bridge, so FreeCAD must be running with the bridge started.
 #
 # To update: bump `version`, then
 #   nix-prefetch-url --unpack <repo>/archive/refs/tags/robust-mcp-server-v<version>.tar.gz
@@ -35,8 +35,9 @@ let
     meta.mainProgram = "freecad-mcp";
   };
 
-  claudeConfig = "${config.xdg.configHome}/Claude/claude_desktop_config.json";
-  mcpServer = builtins.toJSON {
+  claudeDesktopConfig = "${config.xdg.configHome}/Claude/claude_desktop_config.json";
+  claudeCodeConfig = "${config.home.homeDirectory}/.claude.json";
+  mcpServer = {
     command = lib.getExe freecad-mcp;
     env.FREECAD_MODE = "xmlrpc";
   };
@@ -48,15 +49,23 @@ in
   home.file.".local/share/FreeCAD/Mod/FreecadRobustMCPBridge".source =
     "${src}/addon/FreecadRobustMCPBridge";
 
-  # Claude Desktop writes its own preferences into this file, so it can't be a
-  # read-only symlink; merge the server entry into it on every switch instead.
-  home.activation.claudeDesktopFreecadMcp = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-    cfg=${lib.escapeShellArg claudeConfig}
-    run mkdir -p "$(dirname "$cfg")"
-    [ -s "$cfg" ] || echo '{}' > "$cfg"
-    tmp=$(mktemp)
-    ${lib.getExe pkgs.jq} --argjson server ${lib.escapeShellArg mcpServer} \
-      '.mcpServers.freecad = $server' "$cfg" > "$tmp"
-    if [ -z "''${DRY_RUN:-}" ]; then mv "$tmp" "$cfg"; else rm "$tmp"; fi
+  # Claude Desktop and Claude Code both write their own state into these files,
+  # so they can't be read-only symlinks; merge the server entry into each on
+  # every switch instead. Claude Code's top-level mcpServers is user scope
+  # (available in every project).
+  home.activation.claudeFreecadMcp = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    mergeFreecadMcp() {
+      local cfg="$1" server="$2" tmp
+      run mkdir -p "$(dirname "$cfg")"
+      [ -s "$cfg" ] || echo '{}' > "$cfg"
+      tmp=$(mktemp)
+      ${lib.getExe pkgs.jq} --argjson server "$server" \
+        '.mcpServers.freecad = $server' "$cfg" > "$tmp"
+      if [ -z "''${DRY_RUN:-}" ]; then mv "$tmp" "$cfg"; else rm "$tmp"; fi
+    }
+    mergeFreecadMcp ${lib.escapeShellArg claudeDesktopConfig} \
+      ${lib.escapeShellArg (builtins.toJSON mcpServer)}
+    mergeFreecadMcp ${lib.escapeShellArg claudeCodeConfig} \
+      ${lib.escapeShellArg (builtins.toJSON (mcpServer // { type = "stdio"; }))}
   '';
 }

@@ -22,7 +22,7 @@ in
     freecad-wayland
     bambu-studio
     openscad
-    blender
+    pkgsRocm.blender  # HIP build: Cycles GPU rendering on orr's Radeon RX 7600 (swap for `blender` on non-AMD hosts)
     printrun
     inkscape
     orca-slicer
