@@ -18,6 +18,7 @@
 
     # Networking
     ../../modules/nixos/networking/tailscale.nix
+    ../../modules/nixos/storage/milo-nfs.nix
     ../../modules/nixos/networking/avahi.nix
 
     # Scanning (Brother DCP-L2520DW on LAN)

@@ -20,6 +20,7 @@
 
     # Networking
     ../../modules/nixos/networking/tailscale.nix
+    ../../modules/nixos/storage/milo-nfs.nix
     ../../modules/nixos/networking/avahi.nix
   ];
 
