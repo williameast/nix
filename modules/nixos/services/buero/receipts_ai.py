@@ -140,7 +140,9 @@ class PaperlessAPI:
         self.s.headers["Authorization"] = f"Token {token}"
 
     def _url(self, path):
-        return f"{self.base}/api/{path.lstrip('/')}"
+        # Paperless (Django) only redirects GETs to the trailing-slash URL; a POST
+        # to e.g. /api/tags fails with a non-JSON response
+        return f"{self.base}/api/{path.strip('/')}/"
 
     def get(self, path, **params):
         r = self.s.get(self._url(path), params=params, timeout=30)
