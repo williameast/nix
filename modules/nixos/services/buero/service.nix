@@ -34,7 +34,8 @@ let
       done
       makeWrapper ${pythonEnv}/bin/python $out/bin/buero \
         --add-flags "$out/lib/buero/app.py" \
-        --set BUERO_APP_DIR "$out/lib/buero"
+        --set BUERO_APP_DIR "$out/lib/buero" \
+        --prefix PATH : ${lib.makeBinPath [ pkgs.poppler-utils ]}  # pdftoppm, for receipt OCR
     '';
   };
 
@@ -62,6 +63,27 @@ in {
       # Note: namespace-based hardening (ProtectSystem, PrivateTmp, etc.)
       # is omitted — milo runs as an LXC container which doesn't support them.
       NoNewPrivileges  = true;
+    };
+  };
+
+  # Nightly receipt processing (Belege tab): Büro wakes orr through milo's
+  # LLM proxy and works through new Paperless documents
+  systemd.services.buero-receipts = {
+    description = "Büro — process new Paperless receipts with the local models";
+    after       = [ "buero.service" ];
+    requires    = [ "buero.service" ];
+    serviceConfig = {
+      Type      = "oneshot";
+      DynamicUser = true;
+      ExecStart = "${pkgs.curl}/bin/curl -sf -X POST -H 'Content-Type: application/json' -d '{\"trigger\":\"timer\"}' http://localhost:5055/api/belege/run";
+    };
+  };
+
+  systemd.timers.buero-receipts = {
+    wantedBy    = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "*-*-* 03:00:00";
+      Persistent = true;   # catch up after milo was down at 3 am
     };
   };
 

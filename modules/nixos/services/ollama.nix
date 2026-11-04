@@ -31,6 +31,31 @@
     };
   };
 
+  # Keep orr awake while Ollama has a model loaded (i.e. while serving milo and
+  # for OLLAMA_KEEP_ALIVE afterwards), so hypridle's 30-minute suspend can't cut
+  # off a nightly batch. Once the model unloads, orr may sleep again.
+  systemd.services.ollama-sleep-guard = {
+    description = "Block sleep while Ollama has a model loaded";
+    after = [ "ollama.service" ];
+    wantedBy = [ "ollama.service" ];
+    path = [ pkgs.curl pkgs.jq pkgs.systemd pkgs.coreutils ];
+    script = ''
+      guard=""
+      while true; do
+        loaded=$(curl -sf -m 5 http://127.0.0.1:${toString config.services.ollama.port}/api/ps \
+          | jq '.models | length' 2>/dev/null || echo 0)
+        if [ "''${loaded:-0}" -gt 0 ] && [ -z "$guard" ]; then
+          systemd-inhibit --what=sleep:idle --who=ollama --why="LLM model loaded" sleep infinity &
+          guard=$!
+        elif [ "''${loaded:-0}" -eq 0 ] && [ -n "$guard" ]; then
+          kill "$guard"; guard=""
+        fi
+        sleep 30
+      done
+    '';
+    serviceConfig.Restart = "always";
+  };
+
   # Wake-on-LAN (magic packet = 64) on wired connections, so milo can boot
   # orr. Set via NetworkManager rather than networking.interfaces.*.wakeOnLan:
   # that adds a .link file to the initrd, and orr's 96 MB ESP (shared with

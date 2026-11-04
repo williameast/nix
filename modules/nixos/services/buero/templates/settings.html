@@ -254,6 +254,11 @@
         <input type="text" name="ai_model" value="{{ cfg.ai.model }}">
         <div class="field-hint">z.B. qwen3:14b (genauer) oder gpt-oss:20b (schneller).</div>
       </div>
+      <div class="form-group">
+        <label>Bildmodell (Belege)</label>
+        <input type="text" name="ai_vision_model" value="{{ cfg.ai.vision_model }}">
+        <div class="field-hint">Liest gescannte Belege neu ein, z.B. qwen3-vl:8b.</div>
+      </div>
     </div>
   </div>
 

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Belege{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h1>Belege</h1>
+  <div class="header-actions">
+    <a href="{{ cfg.paperless.base_url }}" target="_blank" class="btn btn-outline">Paperless öffnen ↗</a>
+    <button type="button" class="btn btn-primary" id="rc-run" onclick="runReceipts()" {% if state.running %}disabled{% endif %}>
+      Jetzt verarbeiten</button>
+  </div>
+</div>
+
+<p class="muted" style="margin:-.5rem 0 1rem">
+  Liest gescannte Belege mit dem Bildmodell neu ein, ergänzt Titel, Empfänger, Zahler, Datum, Betrag,
+  MwSt, Kategorie und geschäftlich/privat in Paperless und schlägt vor, zusammengehörige Scans zu
+  vereinen. Läuft lokal auf orr, jede Nacht um 3 Uhr automatisch. Alles lässt sich pro Dokument zurücknehmen.
+</p>
+
+<div class="stat-card" style="margin-bottom:1.25rem">
+  <div id="rc-status">
+    {% if state.running %}läuft: {{ state.phase }} {{ state.done }}/{{ state.total }}
+    {% elif state.error %}<span class="danger">{{ state.error }}</span>
+    {% elif state.summary %}Zuletzt {{ state.finished }}: {{ state.summary }}
+    {% elif runs %}Zuletzt {{ runs[0].end[:16]|replace('T', ' ') }}: {{ runs[0].processed }} ausgewertet,
+      {{ runs[0].vision }} neu erkannt, {{ runs[0].review }} zu prüfen{% if runs[0].errors %}, {{ runs[0].errors }} Fehler{% endif %}
+      {% if runs[0].error %}<span class="danger">– {{ runs[0].error }}</span>{% endif %}
+    {% else %}Noch nicht gelaufen.{% endif %}
+  </div>
+  {% if pending is not none %}<div class="muted">{{ pending }} Dokument(e) warten auf den nächsten Lauf.</div>{% endif %}
+</div>
+
+{% if merges %}
+<h2>Zusammenführen?</h2>
+<p class="muted">Diese Scans wurden kurz nacheinander eingelesen und sehen nach einem Dokument aus.
+  Beim Zusammenführen wird B hinter A gehängt; die Einzelteile landen im Papierkorb von Paperless.</p>
+<div class="doc-grid" style="margin-bottom:2rem">
+  {% for m in merges %}
+  <div class="doc-card">
+    <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
+      {% for did in (m.a, m.b) %}
+      <a href="{{ paperless_doc_url(did) }}" target="_blank" title="Dokument #{{ did }}">
+        <img src="{{ url_for('receipts_thumb', did=did) }}" alt="#{{ did }}" loading="lazy"
+             style="width:110px;height:150px;object-fit:cover;border:1px solid var(--border, #ddd);border-radius:4px">
+      </a>
+      {% endfor %}
+    </div>
+    <div class="muted">#{{ m.a }} + #{{ m.b }} · {{ m.confidence }} %</div>
+    <div style="margin:.35rem 0 .6rem">{{ m.reason }}</div>
+    <form method="POST" action="{{ url_for('receipts_merge', a=m.a, b=m.b) }}" class="doc-actions">
+      <button type="submit" name="approve" value="1" class="btn btn-xs btn-primary"
+              onclick="return confirm('#{{ m.a }} und #{{ m.b }} zusammenführen?')">Zusammenführen</button>
+      <button type="submit" name="approve" value="0" class="btn btn-xs btn-outline">Getrennt lassen</button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<h2>Verarbeitete Dokumente</h2>
+<div class="filter-group">
+  <a href="{{ url_for('receipts_index') }}" class="filter-chip {% if not show %}active{% endif %}">Alle
+    <span class="chip-sum">{{ counts.values()|sum }}</span></a>
+  <a href="{{ url_for('receipts_index', show='review') }}" class="filter-chip {% if show == 'review' %}active{% endif %}">Zu prüfen
+    <span class="chip-sum">{{ counts.get('review', 0) }}</span></a>
+  <a href="{{ url_for('receipts_index', show='error') }}" class="filter-chip {% if show == 'error' %}active{% endif %}">Fehler
+    <span class="chip-sum">{{ counts.get('error', 0) }}</span></a>
+</div>
+
+{% if docs %}
+<table class="table table-hover">
+  <thead>
+    <tr><th></th><th>Titel</th><th>Empfänger</th><th>Zahler</th><th>Datum</th>
+      <th style="text-align:right">Betrag</th><th>Kategorie</th><th>Sicherheit</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for did, d in docs %}{% set x = d.extracted or {} %}
+    <tr>
+      <td><a href="{{ paperless_doc_url(did) }}" target="_blank">
+        <img src="{{ url_for('receipts_thumb', did=did|int) }}" alt="" loading="lazy"
+             style="width:40px;height:54px;object-fit:cover;border-radius:3px"></a></td>
+      <td>
+        <a href="{{ paperless_doc_url(did) }}" target="_blank">{{ x.title or ('Dokument #' ~ did) }}</a>
+        <div class="muted" style="font-size:.85em">
+          #{{ did }}{% if d.ocr == 'vision' %} · neu erkannt{% endif %}
+          {% if x.invoice_number %} · Nr. {{ x.invoice_number }}{% endif %}
+          {% if x.payment_method and x.payment_method != 'unbekannt' %} · {{ x.payment_method }}{% endif %}
+        </div>
+        {% if x.note %}<div class="muted" style="font-size:.85em">{{ x.note }}</div>{% endif %}
+        {% if d.error %}<div class="danger" style="font-size:.85em">{{ d.error }}</div>{% endif %}
+      </td>
+      <td>{{ x.payee }}</td>
+      <td>{{ x.payer }}</td>
+      <td style="white-space:nowrap">{{ x.date }}</td>
+      <td style="text-align:right;white-space:nowrap">
+        {% if x.total is not none and x.total is defined %}{{ '%.2f'|format(x.total) }} {{ x.currency }}{% endif %}
+        {% if x.vat is not none and x.vat is defined %}<div class="muted" style="font-size:.85em">MwSt {{ '%.2f'|format(x.vat) }}</div>{% endif %}
+      </td>
+      <td>{{ x.category }}{% if x.business %}<div class="muted" style="font-size:.85em">{{ x.business }}</div>{% endif %}</td>
+      <td>
+        {% if d.status == 'review' %}<span class="badge badge-open">prüfen</span>
+        {% elif d.status == 'error' %}<span class="badge badge-locked">Fehler</span>
+        {% else %}<span class="badge badge-paid">ok</span>{% endif %}
+        {% if x.confidence is defined %}<div class="muted" style="font-size:.85em">{{ x.confidence }} %</div>{% endif %}
+      </td>
+      <td style="white-space:nowrap">
+        {% if d.status == 'review' %}
+        <form method="POST" action="{{ url_for('receipts_action', did=did|int, action='accept', show=show) }}" style="display:inline">
+          <button type="submit" class="btn btn-xs btn-primary" title="Geprüft, passt">Passt</button>
+        </form>
+        {% endif %}
+        {% if d.before %}
+        <form method="POST" action="{{ url_for('receipts_action', did=did|int, action='undo', show=show) }}" style="display:inline"
+              onsubmit="return confirm('Titel, Text und Felder von #{{ did }} zurücksetzen?')">
+          <button type="submit" class="btn btn-xs btn-outline" title="Ursprungszustand wiederherstellen">Zurücknehmen</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Noch nichts verarbeitet.</p>
+{% endif %}
+
+{% if runs %}
+<h2 style="margin-top:2rem">Letzte Läufe</h2>
+<table class="table">
+  <thead><tr><th>Start</th><th>Auslöser</th><th>Ausgewertet</th><th>Neu erkannt</th><th>Zu prüfen</th><th>Vorschläge</th><th>Fehler</th></tr></thead>
+  <tbody>
+    {% for r in runs %}
+    <tr>
+      <td>{{ r.start[:16]|replace('T', ' ') }}</td>
+      <td>{{ {'timer': 'Zeitplan', 'manual': 'manuell'}.get(r.trigger, r.trigger) }}</td>
+      <td>{{ r.processed }}</td><td>{{ r.vision }}</td><td>{{ r.review }}</td><td>{{ r.merges }}</td>
+      <td>{{ r.errors }}{% if r.error %} <span class="danger">{{ r.error }}</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<script>
+async function runReceipts() {
+  document.getElementById('rc-run').disabled = true;
+  await fetch('/api/belege/run', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+  pollReceipts();
+}
+async function pollReceipts() {
+  const st = await (await fetch('/api/belege/status')).json();
+  const el = document.getElementById('rc-status');
+  if (st.running) {
+    el.textContent = `läuft: ${st.phase} ${st.done}/${st.total}`;
+    setTimeout(pollReceipts, 3000);
+  } else {
+    location.reload();
+  }
+}
+{% if state.running %}pollReceipts();{% endif %}
+</script>
+{% endblock %}

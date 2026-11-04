@@ -18,7 +18,7 @@ from collections import Counter
 import yaml
 import requests as req_lib
 from flask import (Flask, render_template, request, redirect, url_for,
-                   flash, jsonify, send_file, abort)
+                   flash, jsonify, send_file, abort, make_response)
 from markupsafe import Markup, escape
 
 try:
@@ -107,6 +107,7 @@ DEFAULTS = {
         # Local Ollama for the bank review: milo's proxy wakes orr on demand
         "url":   "http://localhost:11434",
         "model": "qwen3:14b",
+        "vision_model": "qwen3-vl:8b",   # reads scanned receipts for the Belege tab
     },
     "forecast": {
         "other_income": 0,       # zvE from other sources (e.g. employment), per year
@@ -2878,12 +2879,28 @@ def paperless_import(did):
                 vendor = pl.correspondents().get(doc["correspondent"], "")
             except Exception:
                 pass
+        # The Belege tab's processing fills a "Betrag" custom field and a category tag
+        amount, category = "", ""
+        try:
+            fields = {f["id"]: f["name"] for f in req_lib.get(
+                f"{pl.base}/api/custom_fields/", headers=pl.h, params={"page_size": 100},
+                timeout=10).json().get("results", [])}
+            for cf in doc.get("custom_fields") or []:
+                if fields.get(cf["field"]) == "Betrag" and cf.get("value"):
+                    amount = re.sub(r"^[A-Z]{3}", "", str(cf["value"]))
+            tag_names = {t["id"]: t["name"] for t in req_lib.get(
+                f"{pl.base}/api/tags/", headers=pl.h, params={"page_size": 1000},
+                timeout=10).json().get("results", [])}
+            category = next((tag_names[t] for t in doc.get("tags") or []
+                             if tag_names.get(t) in EXPENSE_CATS), "")
+        except Exception as e:
+            app.logger.warning("Paperless fields for %s unavailable: %s", did, e)
         expense = {
             "id":           eid,
             "description":  doc.get("title", f"Paperless #{did}"),
             "date":         (doc.get("created") or datetime.now().strftime("%Y-%m-%d"))[:10],
-            "amount":       "",
-            "category":     _default_category(all_expenses()),
+            "amount":       amount,
+            "category":     category or _default_category(all_expenses()),
             "vendor":       vendor,
             "paperless_id": did,
             "notes":        f"Import aus Paperless Dokument #{did}",
@@ -2905,9 +2922,113 @@ def paperless_import(did):
         flash(f"Import fehlgeschlagen: {e}", "error")
         return redirect(url_for("paperless_browser"))
 
-    # Straight to the form: the amount is the one thing Paperless can't supply
-    flash("Aus Paperless importiert – bitte Betrag ergänzen.", "success")
+    # Straight to the form, to check what the Belege processing found (or add the amount)
+    flash("Aus Paperless importiert – bitte Betrag prüfen." if amount
+          else "Aus Paperless importiert – bitte Betrag ergänzen.", "success")
     return redirect(url_for("expense_edit", eid=eid))
+
+
+# ── Routes: Belege (KI-Verarbeitung der Paperless-Dokumente) ──────────────────
+
+import receipts_ai
+
+RECEIPTS = receipts_ai.Store(DATA_DIR / "receipts_ai.json")
+_receipts_proc = None
+
+
+def receipts_processor():
+    """The single Processor; picks up changed settings whenever it is idle."""
+    global _receipts_proc
+    cfg = load_config()
+    settings = {
+        "base_url": cfg["paperless"]["base_url"], "token": cfg["paperless"]["token"],
+        "ai_url": cfg["ai"]["url"], "text_model": cfg["ai"]["model"],
+        "vision_model": cfg["ai"]["vision_model"],
+        "business": cfg["business"].get("legal_name") or cfg["business"].get("name", ""),
+        "categories": EXPENSE_CATS,
+    }
+    if _receipts_proc is None:
+        _receipts_proc = receipts_ai.Processor(RECEIPTS, settings)
+    elif not _receipts_proc.state["running"]:
+        _receipts_proc.cfg = settings
+    return _receipts_proc
+
+
+@app.route("/belege")
+def receipts_index():
+    cfg = load_config()
+    if not cfg["paperless"]["enabled"]:
+        flash("Paperless-ngx ist nicht aktiviert. Bitte in den Einstellungen konfigurieren.", "warning")
+        return redirect(url_for("settings"))
+    proc, data = receipts_processor(), RECEIPTS.read()
+    show = request.args.get("show", "")
+    docs = sorted(data["docs"].items(), key=lambda kv: kv[1].get("at", ""), reverse=True)
+    counts = Counter(d.get("status") for _, d in docs)
+    if show:
+        docs = [(k, d) for k, d in docs if d.get("status") == show]
+    pending = None
+    try:   # documents the next run will pick up
+        api = proc.api()
+        marker = {t["name"]: t["id"] for t in api.all("tags")}.get(receipts_ai.MARKER)
+        pending = (api.get("documents/", page_size=1, tags__id__none=marker)["count"] if marker
+                   else api.get("documents/", page_size=1)["count"])
+    except Exception as e:
+        app.logger.warning("Paperless count failed: %s", e)
+    return render_template("receipts.html", docs=docs, counts=counts, show=show, pending=pending,
+                           merges=[m for m in data["merges"] if m["status"] == "open"],
+                           runs=data["runs"][:5], state=proc.state)
+
+
+@app.route("/belege/thumb/<int:did>")
+def receipts_thumb(did):
+    try:
+        data, mime = receipts_processor().api().thumb(did)
+    except Exception:
+        abort(404)
+    resp = make_response(data)
+    resp.headers["Content-Type"] = mime
+    resp.headers["Cache-Control"] = "private, max-age=3600"
+    return resp
+
+
+@app.route("/api/belege/run", methods=["POST"])
+def api_receipts_run():
+    proc = receipts_processor()
+    proc.start(trigger=(request.get_json(silent=True) or {}).get("trigger", "manual"))
+    return jsonify(proc.state)
+
+
+@app.route("/api/belege/status")
+def api_receipts_status():
+    return jsonify(receipts_processor().state)
+
+
+@app.route("/belege/<int:did>/<action>", methods=["POST"])
+def receipts_action(did, action):
+    proc = receipts_processor()
+    try:
+        if action == "accept":
+            proc.accept(did)
+        elif action == "undo":
+            proc.undo(did)
+            flash("Änderungen zurückgenommen – der nächste Lauf verarbeitet das Dokument neu.", "success")
+        else:
+            abort(404)
+    except Exception as e:
+        flash(f"Fehlgeschlagen: {e}", "error")
+    return redirect(url_for("receipts_index", show=request.args.get("show", "")))
+
+
+@app.route("/belege/merge/<int:a>/<int:b>", methods=["POST"])
+def receipts_merge(a, b):
+    approve = request.form.get("approve") == "1"
+    try:
+        receipts_processor().merge(a, b, approve=approve)
+        if approve:
+            flash("Wird zusammengeführt – das neue Dokument wird beim nächsten Lauf ausgewertet.", "success")
+    except Exception as e:
+        flash(f"Zusammenführen fehlgeschlagen: {e}", "error")
+    return redirect(url_for("receipts_index"))
 
 
 # ── Routes: Auswertung (analysis & forecast) ──────────────────────────────────
@@ -3078,6 +3199,7 @@ def settings():
             "ai": {
                 "url":   f.get("ai_url", "").strip() or cfg["ai"]["url"],
                 "model": f.get("ai_model", "").strip() or cfg["ai"]["model"],
+                "vision_model": f.get("ai_vision_model", "").strip() or cfg["ai"]["vision_model"],
             },
             "forecast": {
                 "other_income": _num(f.get("f_other_income")),
