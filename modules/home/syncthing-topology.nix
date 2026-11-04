@@ -108,6 +108,15 @@ let
       devices = [ "ultracc" "milo" ];
       pathOverrides.milo = "/mnt/vault-new/misc";
     };
+
+    # status.json from red-staging.py on ultracc (~/pipeline-status there),
+    # read by milo's music-pipeline service (services/music-pipeline.nix).
+    # On ultracc: Send Only.
+    seedbox-status = {
+      type = "receiveonly";
+      path = ".local/state/seedbox-status";
+      devices = [ "ultracc" "milo" ];
+    };
   };
 
   # Returns the direct sync peers for a given hostname and folder.

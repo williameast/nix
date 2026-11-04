@@ -84,6 +84,7 @@ sudo nixos-rebuild switch --flake .#orr --show-trace
 | `movies` | ultracc, milo | Incoming movies; milo path: `/mnt/bulk/movies` |
 | `program-staging` | ultracc, milo | Incoming software; milo path: `/mnt/vault-new/staging/programs` |
 | `misc` | ultracc, milo | Other files; milo path: `/mnt/vault-new/misc` |
+| `seedbox-status` | ultracc, milo | `status.json` from the seedbox copy job; milo path: `~/.local/state/seedbox-status`, read by `services/music-pipeline.nix` |
 
 ### Torrent Workflow
 
@@ -126,6 +127,7 @@ In the Syncthing web UI on ultracc, add milo as the only device, then:
 | `music-staging` | Send Only | `~/media/Music` |
 | `program-staging` | Send Only | `~/media/Programs` |
 | `misc` | Send Only | `~/media/Misc` |
+| `seedbox-status` | Send Only | `~/pipeline-status` |
 
 Do **not** add orr or yossarian as devices on ultracc.
 

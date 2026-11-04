@@ -87,6 +87,31 @@ in
             };
           }
           {
+            # Seedbox → staging → import; see services/music-pipeline.nix.
+            # Dot goes red when /health returns 503 (rtorrent down, seedbox
+            # silent, Syncthing link down, quota full…), "Problems" says why.
+            "Music pipeline" = {
+              description = "Seedbox downloads arriving in staging";
+              icon = "mdi-music-box-multiple";
+              siteMonitor = "http://localhost:8095/health";
+              widget = {
+                type = "customapi";
+                url = "http://localhost:8095/status";
+                refreshInterval = 30000;
+                display = "list";
+                mappings = [
+                  { field = "problems"; label = "Problems"; }
+                  { field = "rtorrent"; label = "rtorrent"; }
+                  { field = "downloading"; label = "Downloading"; format = "number"; }
+                  { field = "arriving"; label = "Syncing to milo"; format = "number"; }
+                  { field = "last_arrival"; label = "Last arrival"; }
+                  { field = "last_arrival_at"; label = "Arrived"; format = "relativeDate"; }
+                  { field = "seedbox_free"; label = "Seedbox free"; format = "bytes"; }
+                ];
+              };
+            };
+          }
+          {
             "Immich" = {
               href = "http://milo:2283";
               description = "Photo management";

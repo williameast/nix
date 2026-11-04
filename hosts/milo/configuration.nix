@@ -30,7 +30,7 @@
     ../../modules/nixos/services/paperless-ngx.nix
     ../../modules/nixos/services/scan-to-paperless.nix
     ../../modules/nixos/services/ntfy.nix
-    ../../modules/nixos/services/music-staging-watcher.nix
+    ../../modules/nixos/services/music-pipeline.nix
     ../../modules/nixos/services/opencrate.nix
     ../../modules/nixos/services/filebrowser.nix
     ../../modules/nixos/services/atuin.nix
