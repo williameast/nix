@@ -11,12 +11,20 @@
   # Auto-upgrade disabled - managed manually via the rebuild alias
   # system.autoUpgrade.enable = true;
 
-  # Automatic garbage collection
-  nix.gc = {
-    automatic = true;
-    dates = "weekly";
-    options = "--delete-older-than 30d";
+  # nh: rebuilds with a diff of what changed, plus weekly cleanup
+  # (keeps 2 weeks of generations, never fewer than 5)
+  programs.nh = {
+    enable = true;
+    flake = "/home/weast/.config/nix-config";
+    clean = {
+      enable = true;
+      dates = "weekly";
+      extraArgs = "--keep-since 14d --keep 5";
+    };
   };
+
+  # Hard-link identical files in the store
+  nix.optimise.automatic = true;
 
   # Time zone and locale
   # mkDefault so hosts can override (e.g. yossarian)

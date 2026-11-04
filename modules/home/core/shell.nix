@@ -21,7 +21,7 @@
       export PATH="$HOME/.local/bin:$PATH"
 
       # Rebuild any machine from anywhere.
-      # Local: runs the rebuild command directly.
+      # Local: runs nh, which shows a diff of what changed.
       # Remote: SSHes in and runs it there.
       rebuild() {
         local target=''${1:-$(hostname -s)}
@@ -32,7 +32,7 @@
         case "$target" in
           orr|yossarian|milo)
             if [[ "$self" == "$target" ]]; then
-              sudo nixos-rebuild switch --flake "$flake#$target"
+              nh os switch "$flake" -H "$target"
             else
               ssh "$target" "sudo nixos-rebuild switch --flake ~/.config/nix-config#$target"
             fi

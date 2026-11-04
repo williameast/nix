@@ -27,6 +27,13 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    # Prebuilt nix-index database: `, cmd` runs uninstalled programs,
+    # and unknown commands suggest the package that provides them
+    nix-index-database = {
+      url = "github:nix-community/nix-index-database";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # Affinity suite for Linux
     affinity-nix.url = "github:mrshmllow/affinity-nix";
   };
