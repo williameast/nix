@@ -443,6 +443,26 @@
         "type": "github"
       }
     },
+    "opencrate": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1792685008,
+        "narHash": "sha256-2jJr1SKSXq+KibqvPe46p39qwCAyEypc/DCCX/LdeFs=",
+        "ref": "refs/heads/main",
+        "rev": "8a7bc096f946d66d4f240cde9c2e7a7aedca92c8",
+        "revCount": 12,
+        "type": "git",
+        "url": "ssh://git@github.com/williameast/opencrate"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/williameast/opencrate"
+      }
+    },
     "plugin-loader-src": {
       "flake": false,
       "locked": {
@@ -469,7 +489,8 @@
         "home-manager": "home-manager",
         "nix-index-database": "nix-index-database",
         "nixpkgs": "nixpkgs_5",
-        "nur": "nur"
+        "nur": "nur",
+        "opencrate": "opencrate"
       }
     },
     "systems": {

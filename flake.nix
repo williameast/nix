@@ -36,6 +36,13 @@
 
     # Affinity suite for Linux
     affinity-nix.url = "github:mrshmllow/affinity-nix";
+
+    # opencrate: rekordbox USB sticks synced with Navidrome (modules/nixos/services/opencrate.nix).
+    # Private repo, fetched over SSH with weast's GitHub key.
+    opencrate = {
+      url = "git+ssh://git@github.com/williameast/opencrate";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs = { nixpkgs, ... }@inputs:
