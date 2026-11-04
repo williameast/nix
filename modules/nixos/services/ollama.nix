@@ -1,0 +1,39 @@
+# Ollama - local LLMs on orr's RX 7600 XT (16 GB VRAM), via Vulkan
+#
+# Listens on all interfaces but no firewall port is opened, so only the
+# tailnet can reach it (tailscale0 is trusted). milo fronts it with a
+# wake-on-demand proxy: ./orr-llm.nix
+#
+# Models download on first start (ollama-model-loader.service); check with
+# `ollama list`. Sizes at Q4: qwen3:14b ~9 GB, gpt-oss:20b ~14 GB.
+{ config, pkgs, lib, ... }:
+
+{
+  services.ollama = {
+    enable = true;
+    # Vulkan needs no ROCm stack and is reliable on RDNA3 (gfx1102)
+    package = pkgs.ollama-vulkan;
+    host = "0.0.0.0";
+    port = 11434;
+
+    loadModels = [
+      "qwen3:14b"
+      "gpt-oss:20b"
+    ];
+
+    environmentVariables = {
+      # Keep a model in VRAM between requests from milo (default 5m)
+      OLLAMA_KEEP_ALIVE = "30m";
+      # Default is 4k; flash attention + q8 KV cache keep 16k affordable
+      OLLAMA_CONTEXT_LENGTH = "16384";
+      OLLAMA_FLASH_ATTENTION = "1";
+      OLLAMA_KV_CACHE_TYPE = "q8_0";
+    };
+  };
+
+  # Wake-on-LAN (magic packet = 64) on wired connections, so milo can boot
+  # orr. Set via NetworkManager rather than networking.interfaces.*.wakeOnLan:
+  # that adds a .link file to the initrd, and orr's 96 MB ESP (shared with
+  # Windows) can't hold a second initrd.
+  networking.networkmanager.settings.connection."ethernet.wake-on-lan" = 64;
+}

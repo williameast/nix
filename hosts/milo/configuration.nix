@@ -32,7 +32,9 @@
     ../../modules/nixos/services/ntfy.nix
     ../../modules/nixos/services/music-staging-watcher.nix
     ../../modules/nixos/services/filebrowser.nix
+    ../../modules/nixos/services/atuin.nix
     ../../modules/nixos/services/nfs-server.nix
+    ../../modules/nixos/services/orr-llm.nix
     # ../../modules/nixos/services/docker.nix
 
     # I/O devices (printers, monitors, etc.)
