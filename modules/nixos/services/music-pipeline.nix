@@ -47,6 +47,7 @@ let
     ULTRACC_OFFLINE = 30 * 60     # Syncthing link to the seedbox
     QUOTA_FULL = 0.95
 
+    STARTED = time.time()
     status = {"health": "starting"}
     lock = threading.Lock()
 
@@ -153,7 +154,9 @@ let
         except (FileNotFoundError, ValueError):
             seedbox = {}
         age = now - seedbox.get("updated", 0)
-        if age > STATUS_STALE:
+        # Measured from service start at the earliest, so a restart (or the
+        # folder's first sync) doesn't count as a silent seedbox
+        if now - max(seedbox.get("updated", 0), STARTED) > STATUS_STALE:
             problems["stale"] = ("No status from the seedbox for "
                                  f"{age / 60:.0f} min (cron job or Syncthing broken)")
         if seedbox.get("rtorrent") == "down":
