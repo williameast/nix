@@ -37,7 +37,7 @@
   systemd.services.ollama-sleep-guard = {
     description = "Block sleep while Ollama has a model loaded";
     after = [ "ollama.service" ];
-    wantedBy = [ "ollama.service" ];
+    wantedBy = [ "multi-user.target" ];
     path = [ pkgs.curl pkgs.jq pkgs.systemd pkgs.coreutils ];
     script = ''
       guard=""
