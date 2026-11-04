@@ -14,7 +14,7 @@ See `AGENT_PROMPT.md` for full details on principles, structure, and preferences
 ## Machines
 ### orr (desktop)
 - **OS:** NixOS 25.11
-- **GPU:** AMD Radeon R9 290 (radeonsi driver)
+- **GPU:** AMD Radeon RX 7600 (radeonsi driver)
 - **Desktop:** Hyprland (Wayland compositor)
 - **Modules:** core, desktop (hyprland, rofi), dev, media, games, modelling, work, comms
 

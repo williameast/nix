@@ -11,10 +11,11 @@ let
   miloDashboard = "http://milo:8082";  # Homepage dashboard on milo
 
   powerMenu = pkgs.writeShellScriptBin "power-menu" ''
-    choice=$(printf "Lock\nSuspend\nLogout\nReboot\nShutdown" | rofi -dmenu -i -p "Power" -theme-str 'window {width: 200px;} listview {lines: 5;}')
+    choice=$(printf "Lock\nSuspend\nHibernate\nLogout\nReboot\nShutdown" | rofi -dmenu -i -p "Power" -theme-str 'window {width: 200px;} listview {lines: 6;}')
     case "$choice" in
-      Lock)     swaylock -f ;;
+      Lock)     loginctl lock-session ;;
       Suspend)  systemctl suspend ;;
+      Hibernate) systemctl hibernate ;;
       Logout)   hyprctl dispatch exit ;;
       Reboot)   systemctl reboot ;;
       Shutdown) systemctl poweroff ;;
@@ -102,12 +103,19 @@ let
 
   terminal = cmd: "alacritty -e ${cmd}";
 
+  # Ethernet / Wi-Fi / Tailscale picker (replaces networkmanager_dmenu)
+  networkMenu = pkgs.writeShellApplication {
+    name = "network-menu";
+    runtimeInputs = with pkgs; [ networkmanager iproute2 gawk gnused gnugrep coreutils libnotify ];
+    text = builtins.readFile ./network-menu.sh;
+  };
+
   bluetoothMenu = pkgs.writeShellScriptBin "bluetooth-menu" ''
     exec ${pkgs.rofi-bluetooth}/bin/rofi-bluetooth -i -theme menu
   '';
 in
 {
-  home.packages = [ powerMenu bluetoothMenu outputMenu pkgs.networkmanager_dmenu pkgs.btop ];
+  home.packages = [ powerMenu bluetoothMenu outputMenu networkMenu pkgs.btop ];
 
   # Menu theme: the launcher theme, a bit wider. A theme file rather than
   # -theme-str because rofi-bluetooth word-splits its arguments.
@@ -117,28 +125,6 @@ in
     listview { lines: 10; }
   '';
 
-  # Wi-Fi menu: rofi, passwords prompted in rofi, status via swaync
-  xdg.configFile."networkmanager-dmenu/config.ini".text = ''
-    [dmenu]
-    dmenu_command = rofi -dmenu -i -theme menu
-    highlight = True
-    compact = True
-    wifi_chars = ▂▄▆█
-    format = {name}  {sec}  {bars}
-    list_saved = False
-    prompt = Wi-Fi
-
-    [dmenu_passphrase]
-    obscure = True
-
-    [editor]
-    gui_if_available = True
-    gui = nm-connection-editor
-
-    [nmdm]
-    rescan_delay = 5
-    show_notifications = True
-  '';
 
   programs.waybar = {
     enable = true;
@@ -307,7 +293,7 @@ in
         format-ethernet = "&#xf0200; {ipaddr}";
         format-disconnected = "&#xf05aa; offline";
         interval = 5;
-        on-click = "networkmanager_dmenu";
+        on-click = "network-menu";
         on-click-right = "nm-connection-editor";  # advanced settings
         tooltip = false;
       };

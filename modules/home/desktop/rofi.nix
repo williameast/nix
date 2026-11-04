@@ -5,6 +5,7 @@
   programs.rofi = {
     enable = true;
     package = pkgs.rofi;  # Wayland-native rofi (rofi-wayland merged upstream)
+    plugins = [ pkgs.rofi-calc ];  # Super+= calculator
 
     settings = {
       terminal = "${pkgs.alacritty}/bin/alacritty";

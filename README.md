@@ -8,7 +8,7 @@ Machine names from Catch-22: **orr** (workstation), **yossarian** (laptop), **mi
 
 | Machine | Type | OS | GPU | Description |
 |---------|------|-----|-----|-------------|
-| **orr** | Workstation | NixOS | AMD R9 290 | Hyprland desktop with games, 3D modelling, dev tools, mail |
+| **orr** | Workstation | NixOS | AMD Radeon RX 7600 | Hyprland desktop with games, 3D modelling, dev tools, mail |
 | **yossarian** | Laptop | Pop!_OS (NixOS config is a draft) | Intel CometLake | Portable desktop setup |
 | **milo** | Server | NixOS | None | Headless: Syncthing hub, Jellyfin, Navidrome, Immich, Paperless, Gitea, Büro |
 

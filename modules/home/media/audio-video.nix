@@ -27,5 +27,6 @@ in
     davinci-resolve
     kdePackages.kdenlive
     losslesscut-bin
+    feishin
   ];
 }

@@ -1,4 +1,4 @@
-# NixOS configuration for orr (desktop workstation with AMD R9 290)
+# NixOS configuration for orr (desktop workstation with AMD Radeon RX 7600)
 { config, pkgs, lib, inputs, ... }:
 
 {
@@ -23,6 +23,9 @@
 
     # Scanning (Brother DCP-L2520DW on LAN)
     ../../modules/nixos/services/scanning.nix
+
+    # Local LLMs on the GPU, served to milo (wakes via WoL)
+    ../../modules/nixos/services/ollama.nix
   ];
 
   # Affinity overlay (adds affinity-designer, affinity-photo, affinity-publisher to pkgs)
@@ -55,12 +58,16 @@
   hardware.bluetooth.enable = true;
   services.blueman.enable = true;  # GUI manager (blueman-manager / system tray)
 
-  # Graphics (AMD R9 290)
+  # Graphics (AMD Radeon RX 7600)
   hardware.graphics.enable = true;
   hardware.graphics.enable32Bit = true;  # Required for Steam 32-bit games
 
   # Steam (must be at NixOS level for proper runtime/OpenGL setup)
   programs.steam.enable = true;
+
+  # Feral GameMode: CPU governor/scheduler boost while a game runs
+  # (Steam launch option: gamemoderun %command%)
+  programs.gamemode.enable = true;
 
   # Printing (Brother DCP-L2520DW on LAN)
   services.printing = {
@@ -93,6 +100,18 @@
     device = "/swapfile";
     size = 32 * 1024;  # 32GB — matches RAM for hibernate support
   }];
+
+  # Hibernate: resume from the swapfile on the root partition.
+  # resume_offset is the swapfile's first physical block; if the swapfile is
+  # ever recreated, update it from: sudo filefrag -v /swapfile (first extent)
+  boot.resumeDevice = "/dev/disk/by-uuid/b8f6ece1-bf1f-4861-b2fc-508ce4a2d837";
+  boot.kernelParams = [ "resume_offset=82558976" ];
+
+  # Compressed RAM swap, used before the swapfile (higher priority)
+  zramSwap = {
+    enable = true;
+    memoryPercent = 25;
+  };
 
   # Enable OpenSSH daemon
   services.openssh.enable = true;

@@ -1,4 +1,4 @@
-# Configuration for orr (NixOS workstation with AMD R9 290)
+# Configuration for orr (NixOS workstation with AMD Radeon RX 7600)
 {
   config,
   pkgs,
@@ -29,7 +29,7 @@ in {
     ../../modules/home/machines/orr.nix
   ];
 
-  # AMD R9 290 specific settings
+  # AMD Radeon RX 7600 specific settings
   home.sessionVariables = {
     # VA-API driver for hardware video acceleration
     LIBVA_DRIVER_NAME = "radeonsi";
