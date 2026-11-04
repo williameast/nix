@@ -22,13 +22,24 @@
     ];
 
     environmentVariables = {
-      # Keep a model in VRAM between requests from milo (default 5m)
-      OLLAMA_KEEP_ALIVE = "30m";
+      # Unload 5 min after the last request: batches from milo send requests
+      # back to back, and the loaded model also holds several GB of system RAM
+      OLLAMA_KEEP_ALIVE = "5m";
       # Default is 4k; flash attention + q8 KV cache keep 16k affordable
       OLLAMA_CONTEXT_LENGTH = "16384";
       OLLAMA_FLASH_ATTENTION = "1";
       OLLAMA_KV_CACHE_TYPE = "q8_0";
     };
+  };
+
+  # With Vulkan, a loaded model keeps a copy of its weights in system RAM too
+  # (~8 GB for qwen3-vl:8b while reading receipts). Above MemoryHigh the
+  # kernel pushes Ollama's pages to swap instead of squeezing the desktop, and
+  # if RAM still runs out the OOM killer picks Ollama before desktop apps.
+  # No hard MemoryMax: hitting it would kill a run partway through.
+  systemd.services.ollama.serviceConfig = {
+    MemoryHigh = "8G";
+    OOMScoreAdjust = 500;
   };
 
   # Keep orr awake while Ollama has a model loaded (i.e. while serving milo and
