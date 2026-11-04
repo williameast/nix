@@ -90,10 +90,9 @@
     <a href="{{ url_with('bank_index', args, cat='ai', page=None) }}" class="btn btn-xs btn-outline">{{ ai_open }} Vorschläge ansehen</a>
     <button type="button" class="btn btn-xs btn-primary" onclick="acceptAI({min_conf: 80})">Alle ≥ 80 % übernehmen</button>
     {% endif %}
-    {% if has_key %}
-    <button type="button" class="btn btn-xs btn-outline" id="ai-run" onclick="runAI('{{ args.year }}')" {% if ai.running %}disabled{% endif %}>
+    <button type="button" class="btn btn-xs btn-outline" id="ai-run" onclick="runAI('{{ args.year }}')" {% if ai.running %}disabled{% endif %}
+            title="Lokal mit {{ ai_model }} auf orr – weckt orr bei Bedarf, das erste Ergebnis kann 1–2 Minuten dauern">
       Vorschläge holen ({{ 'alle Jahre' if args.year == 'all' else args.year }})</button>
-    {% endif %}
     <a href="{{ url_for('bank_ai_export', year=args.year) }}" class="btn btn-xs btn-outline" title="Prompt + Daten als Datei, z.B. für einen Chat oder Claude Code">Export für Chat ↓</a>
     <button type="button" class="btn btn-xs btn-outline" onclick="document.getElementById('ai-import').toggleAttribute('hidden')">Antwort einfügen</button>
   </div>
@@ -101,7 +100,6 @@
     <textarea name="reply" rows="6" placeholder='Die JSON-Antwort aus dem Chat hier einfügen: {"suggestions": [...]}'></textarea>
     <button type="submit" class="btn btn-primary btn-xs">Vorschläge einlesen</button>
   </form>
-  {% if not has_key %}<div class="field-hint">Für „Vorschläge holen“ in den <a href="{{ url_for('settings') }}">Einstellungen</a> einen Claude API-Key hinterlegen.</div>{% endif %}
 </div>
 
 <!-- ── Filters ── -->

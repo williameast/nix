@@ -3,21 +3,28 @@ LLM review of bank transactions: business or private, which project, which
 expense category, which invoice an incoming payment settles.
 
 Two ways to use it:
-  - run() calls the Claude API directly (needs an API key in settings or
-    ANTHROPIC_API_KEY), in batches, from a background thread;
+  - run() asks the local Ollama models on orr (through milo's wake-on-demand
+    proxy, so nothing leaves the house), in batches, from a background thread;
   - export_markdown() writes the same prompt + data as a file to paste into
     any chat (or hand to Claude Code); parse_reply() reads the JSON answer back.
 
-Only what is needed to judge a payment leaves the server: date, amount,
-counterparty, purpose text and the account's role. IBANs, card and account
-numbers are stripped.
+Only what is needed to judge a payment is sent: date, amount, counterparty,
+purpose text and the account's role. IBANs, card and account numbers are
+stripped.
 """
 
 import json
 import re
 
-MODEL = "claude-opus-5-5"
-BATCH = 120
+import requests
+
+URL = "http://localhost:11434"
+MODEL = "qwen3:14b"
+# Small batches: a 14B model on 16 GB VRAM has a modest context window, and
+# shorter answers keep its JSON reliable
+BATCH = 30
+NUM_CTX = 32768
+WAKE_TIMEOUT = 300   # orr may need to boot and load the model first
 
 SCHEMA = {
     "type": "object",
@@ -121,41 +128,46 @@ def _user_text(ctx):
             "review, as JSON:\n\n" + json.dumps(ctx, ensure_ascii=False, indent=1))
 
 
-def run(api_key, business, ctx, on_batch=None):
-    """Call Claude in batches. Returns a list of suggestion dicts.
+def run(business, ctx, url=URL, model=MODEL, on_batch=None):
+    """Ask the local model in batches. Returns a list of suggestion dicts.
     on_batch(done, total) reports progress. Raises RuntimeError with a readable message."""
-    import anthropic
-    client = anthropic.Anthropic(api_key=api_key) if api_key else anthropic.Anthropic()
     txs, out = ctx["transactions"], []
     total = len(txs)
+    system = _system(business)
     for i in range(0, total, BATCH):
         part = {**ctx, "transactions": txs[i:i + BATCH]}
+        user = _user_text(part)
+        # Ollama silently drops the start of an over-long prompt (the
+        # instructions), so refuse instead; ~2.5 chars per token for this JSON
+        if (len(system) + len(user)) / 2.5 > NUM_CTX - 4096:
+            raise RuntimeError("Zu viele Projekte/Beispiele für das lokale Modell – Kontext zu groß.")
         try:
-            with client.beta.messages.stream(
-                model=MODEL,
-                max_tokens=32000,
-                betas=["server-side-fallback-2026-07-01"],
-                fallbacks="default",
-                output_config={"effort": "medium",
-                               "format": {"type": "json_schema", "schema": SCHEMA}},
-                system=[{"type": "text", "text": _system(business), "cache_control": {"type": "ephemeral"}}],
-                messages=[{"role": "user", "content": _user_text(part)}],
-            ) as stream:
-                msg = stream.get_final_message()
-        except anthropic.AuthenticationError:
-            raise RuntimeError("API-Schlüssel ungültig – in den Einstellungen prüfen.")
-        except anthropic.RateLimitError:
-            raise RuntimeError("Rate-Limit erreicht – in ein paar Minuten erneut versuchen.")
-        except anthropic.APIStatusError as e:
-            raise RuntimeError(f"API-Fehler {e.status_code}: {e.message}")
-        except anthropic.APIConnectionError:
-            raise RuntimeError("Keine Verbindung zur Claude API.")
-        if msg.stop_reason == "refusal":
-            raise RuntimeError("Die Anfrage wurde abgelehnt (refusal).")
-        if msg.stop_reason == "max_tokens":
-            raise RuntimeError("Antwort abgeschnitten (max_tokens) – Stapel zu groß.")
-        text = next((b.text for b in msg.content if b.type == "text"), "")
-        out.extend(json.loads(text).get("suggestions", []))
+            r = requests.post(f"{url.rstrip('/')}/api/chat", timeout=WAKE_TIMEOUT + 600, json={
+                "model": model,
+                "stream": False,
+                "think": False,
+                "format": SCHEMA,
+                "options": {"num_ctx": NUM_CTX, "temperature": 0.2},
+                # Projects, invoices and examples come before the transactions,
+                # so Ollama reuses that prefix across batches
+                "messages": [{"role": "system", "content": system},
+                             {"role": "user", "content": user}],
+            })
+        except requests.ConnectionError:
+            raise RuntimeError("Lokales Modell nicht erreichbar – läuft der orr-llm-proxy auf milo?")
+        except requests.Timeout:
+            raise RuntimeError("Lokales Modell antwortet nicht – orr aufgewacht?")
+        if r.status_code == 503:
+            raise RuntimeError("orr ist nicht rechtzeitig aufgewacht – später erneut versuchen.")
+        if not r.ok:
+            raise RuntimeError(f"Ollama-Fehler {r.status_code}: {r.text[:200]}")
+        msg = r.json()
+        if msg.get("done_reason") == "length":
+            raise RuntimeError("Antwort abgeschnitten – Stapel zu groß.")
+        try:
+            out.extend(json.loads(msg["message"]["content"]).get("suggestions", []))
+        except (KeyError, ValueError):
+            raise RuntimeError("Das lokale Modell hat kein gültiges JSON geliefert.")
         if on_batch:
             on_batch(min(i + BATCH, total), total)
     return out

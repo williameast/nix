@@ -104,7 +104,9 @@ DEFAULTS = {
         "logo_path": "",
     },
     "ai": {
-        "api_key": "",           # Claude API key for the bank review; else ANTHROPIC_API_KEY
+        # Local Ollama for the bank review: milo's proxy wakes orr on demand
+        "url":   "http://localhost:11434",
+        "model": "qwen3:14b",
     },
     "forecast": {
         "other_income": 0,       # zvE from other sources (e.g. employment), per year
@@ -2456,7 +2458,7 @@ def bank_index():
         total_rows=len(rows), page=page, pages=max((len(rows) + per - 1) // per, 1),
         parties=parties, projects=projects, pnames=pnames, cat_labels=bank.CAT_LABELS,
         exp_cats=EXPENSE_CATS, stats=_bank_stats(txs, _year_arg(args.get("year"))),
-        rules=BANK.rules(), ai=AI_STATE, has_key=bool(cfg["ai"].get("api_key") or os.environ.get("ANTHROPIC_API_KEY")),
+        rules=BANK.rules(), ai=AI_STATE, ai_model=cfg["ai"]["model"],
         ai_open=sum(1 for t in txs.values() if t.get("ai") and not t.get("cat")),
     )
 
@@ -2764,9 +2766,9 @@ def _store_suggestions(items):
     return BANK.update(fn)
 
 
-def _ai_worker(api_key, business, ctx):
+def _ai_worker(ai, business, ctx):
     try:
-        items = bank_ai.run(api_key, business, ctx,
+        items = bank_ai.run(business, ctx, url=ai["url"], model=ai["model"],
                             on_batch=lambda done, total: AI_STATE.update(done=done, total=total))
         AI_STATE["count"] = _store_suggestions(items)
     except Exception as e:   # surfaced on the page; the thread must not die silently
@@ -2783,13 +2785,9 @@ def api_bank_ai_run():
     cfg, ctx = _ai_context((request.get_json(force=True) or {}).get("year", ""))
     if not ctx["transactions"]:
         return jsonify({**AI_STATE, "error": "Keine ungeprüften Umsätze."})
-    if not (cfg["ai"].get("api_key") or os.environ.get("ANTHROPIC_API_KEY")):
-        return jsonify({**AI_STATE, "error": "Kein Claude API-Key – in den Einstellungen hinterlegen "
-                                             "oder „Export für Chat“ benutzen."})
     AI_STATE.update(running=True, done=0, total=len(ctx["transactions"]), error="", count=0)
     threading.Thread(target=_ai_worker, daemon=True, args=(
-        cfg["ai"].get("api_key") or os.environ.get("ANTHROPIC_API_KEY", ""),
-        cfg["business"].get("legal_name") or cfg["business"].get("name", ""), ctx)).start()
+        cfg["ai"], cfg["business"].get("legal_name") or cfg["business"].get("name", ""), ctx)).start()
     return jsonify(AI_STATE)
 
 
@@ -3078,9 +3076,8 @@ def settings():
                 "logo_path":    cfg["design"].get("logo_path", ""),
             },
             "ai": {
-                # Password field: left empty means "keep the stored key"
-                "api_key": ("" if f.get("ai_clear") == "on"
-                            else f.get("ai_key", "").strip() or cfg["ai"].get("api_key", "")),
+                "url":   f.get("ai_url", "").strip() or cfg["ai"]["url"],
+                "model": f.get("ai_model", "").strip() or cfg["ai"]["model"],
             },
             "forecast": {
                 "other_income": _num(f.get("f_other_income")),

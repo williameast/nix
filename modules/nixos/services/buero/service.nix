@@ -13,7 +13,6 @@ let
     qrcode
     pillow
     pypdf
-    anthropic
   ]);
 
   buero = pkgs.stdenv.mkDerivation {
