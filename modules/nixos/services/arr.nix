@@ -143,15 +143,15 @@ in
   systemd.services.sonarr.serviceConfig.UMask = lib.mkForce "0002";
   systemd.services.radarr.serviceConfig.UMask = lib.mkForce "0002";
 
-  systemd.tmpfiles.rules = [
-    "d ${complete} 0775 ${user} ${group} -"
-  ];
-
   systemd.services.seedbox-handoff = {
     description = "Hand finished seedbox downloads to Sonarr/Radarr once fully synced";
     wantedBy = [ "multi-user.target" ];
     after = [ "syncthing.service" ];
     serviceConfig = {
+      # As root ("+"): the Syncthing activation script creates the parent
+      # /mnt/bulk/seedbox owned by root, and tmpfiles refuses to fix it up
+      # (weast-owned /mnt/bulk above it is an "unsafe path transition")
+      ExecStartPre = "+${pkgs.coreutils}/bin/install -d -o ${user} -g ${group} -m 0775 ${dirOf complete} ${complete}";
       ExecStart = "${handoff}";
       User = user;
       Group = group;
