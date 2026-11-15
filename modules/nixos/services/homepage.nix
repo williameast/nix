@@ -57,7 +57,9 @@ in
       { datetime = { locale = "en"; format = { dateStyle = "long"; timeStyle = "short"; }; }; }
       { resources = { cpu = true; memory = true; cputemp = true; uptime = true; label = "System"; }; }
       { resources = { disk = "/"; label = "Root"; }; }
-      { resources = { disk = "/mnt/vault-new"; label = "Vault"; }; }
+      # Same btrfs pool as /mnt/vault-new (mounted twice); homepage only lists
+      # each filesystem once, under /mnt/vault, so "/mnt/vault-new" errors
+      { resources = { disk = "/mnt/vault"; label = "Vault"; }; }
       { resources = { disk = "/mnt/bulk"; label = "Bulk"; }; }
       { search = { provider = "duckduckgo"; target = "_blank"; }; }
     ];
