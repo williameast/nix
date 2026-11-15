@@ -64,7 +64,7 @@ let
         out = set()
         for label in os.listdir(root) if os.path.isdir(root) else []:
             d = os.path.join(root, label)
-            if os.path.isdir(d):
+            if os.path.isdir(d) and not label.startswith("."):  # .stfolder etc.
                 out |= {(label, n) for n in os.listdir(d)
                         if not n.startswith((".syncthing.", ".handoff."))}
         return out
