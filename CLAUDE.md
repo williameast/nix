@@ -80,8 +80,7 @@ sudo nixos-rebuild switch --flake .#orr --show-trace
 | `music-production` | orr, yossarian, milo | ~40G, kept off the phone |
 | `torrent-metainfo` | orr, yossarian, milo, ultracc | `.torrent` files only; spokes → milo → ultracc |
 | `music-staging` | ultracc, milo | Incoming music; milo path: `/mnt/vault-new/staging/music` |
-| `tv-shows` | ultracc, milo | Incoming TV; milo path: `/mnt/bulk/tv-shows` |
-| `movies` | ultracc, milo | Incoming movies; milo path: `/mnt/bulk/movies` |
+| `arr-outbox` | ultracc, milo | Finished Sonarr/Radarr downloads (hardlinked by the seedbox copy job); milo path: `/mnt/bulk/seedbox/outbox`, handed to Sonarr/Radarr by `services/arr.nix` |
 | `program-staging` | ultracc, milo | Incoming software; milo path: `/mnt/vault-new/staging/programs` |
 | `misc` | ultracc, milo | Other files; milo path: `/mnt/vault-new/misc` |
 | `seedbox-status` | ultracc, milo | `status.json` from the seedbox copy job; milo path: `~/.local/state/seedbox-status`, read by `services/music-pipeline.nix` |
@@ -93,6 +92,10 @@ sudo nixos-rebuild switch --flake .#orr --show-trace
 3. Milo forwards to ultracc — torrent client picks it up
 4. Completed download syncs back: ultracc → milo (`/mnt/vault-new/` or `/mnt/bulk/`, receive-only on milo)
 5. Jellyfin / Navidrome serve the media from milo
+
+TV and films are driven by Sonarr/Radarr/Prowlarr on milo (`services/arr.nix`): they send torrents to
+rtorrent on ultracc, the seedbox only downloads and seeds, and finished releases come back through
+`arr-outbox`. The seedbox keeps no library; torrents are removed once they have seeded enough.
 
 ### How It Works
 
@@ -122,9 +125,8 @@ In the Syncthing web UI on ultracc, add milo as the only device, then:
 | Folder | Type | Path |
 |--------|------|------|
 | `torrent-metainfo` | Receive Only | torrent client watch folder |
-| `tv-shows` | Send Only | `~/media/TV Shows` |
-| `movies` | Send Only | `~/media/Movies` |
-| `music-staging` | Send Only | `~/media/Music` |
+| `arr-outbox` | Send Only | `~/arr-outbox` |
+| `music-staging` | Send Only | `~/music-staging` |
 | `program-staging` | Send Only | `~/media/Programs` |
 | `misc` | Send Only | `~/media/Misc` |
 | `seedbox-status` | Send Only | `~/pipeline-status` |

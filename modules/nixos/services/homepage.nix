@@ -27,6 +27,9 @@ in
     #   HOMEPAGE_VAR_GITEA_KEY=<your-gitea-api-token>
     #   HOMEPAGE_VAR_PAPERLESS_KEY=<your-paperless-api-token>
     #   HOMEPAGE_VAR_SYNCTHING_KEY=<syncthing-gui-api-key>
+    #   HOMEPAGE_VAR_SONARR_KEY=<sonarr-api-key>
+    #   HOMEPAGE_VAR_RADARR_KEY=<radarr-api-key>
+    #   HOMEPAGE_VAR_PROWLARR_KEY=<prowlarr-api-key>
     #
     # Generate keys:
     #   Jellyfin:  Admin Dashboard → API Keys → Add
@@ -35,6 +38,7 @@ in
     #   Gitea:     User Settings → Applications → Generate New Token
     #   Paperless: sudo paperless-manage drf_create_token weast
     #   Syncthing: <apikey> in ~/.config/syncthing/config.xml
+    #   Sonarr/Radarr/Prowlarr: Settings → General → API Key
     environmentFiles = [ "/etc/homepage-secrets.env" ];
 
     settings = {
@@ -108,6 +112,46 @@ in
                   { field = "last_arrival_at"; label = "Arrived"; format = "relativeDate"; }
                   { field = "seedbox_free"; label = "Seedbox free"; format = "bytes"; }
                 ];
+              };
+            };
+          }
+          {
+            # services/arr.nix; downloads happen on the seedbox
+            "Sonarr" = {
+              href = "http://milo:8989";
+              description = "TV";
+              icon = "sonarr";
+              siteMonitor = "http://localhost:8989";
+              widget = {
+                type = "sonarr";
+                url = "http://localhost:8989";
+                key = "{{HOMEPAGE_VAR_SONARR_KEY}}";
+              };
+            };
+          }
+          {
+            "Radarr" = {
+              href = "http://milo:7878";
+              description = "Films";
+              icon = "radarr";
+              siteMonitor = "http://localhost:7878";
+              widget = {
+                type = "radarr";
+                url = "http://localhost:7878";
+                key = "{{HOMEPAGE_VAR_RADARR_KEY}}";
+              };
+            };
+          }
+          {
+            "Prowlarr" = {
+              href = "http://milo:9696";
+              description = "Indexers";
+              icon = "prowlarr";
+              siteMonitor = "http://localhost:9696";
+              widget = {
+                type = "prowlarr";
+                url = "http://localhost:9696";
+                key = "{{HOMEPAGE_VAR_PROWLARR_KEY}}";
               };
             };
           }

@@ -82,19 +82,14 @@ let
       devices = [ "ultracc" "milo" ];
       pathOverrides.milo = "/mnt/vault-new/staging/music";
     };
-    tv-shows = {
-      type = "receiveonly";  # milo never pushes changes back to ultracc
-      path = "tv-shows";
+    # Finished Sonarr/Radarr downloads, hardlinked by red-staging.py on ultracc
+    # (~/arr-outbox/<label>/<release>). Sonarr/Radarr run on milo and import
+    # from here; see services/arr.nix. On ultracc: Send Only.
+    arr-outbox = {
+      type = "receiveonly";
+      path = "arr-outbox";
       devices = [ "ultracc" "milo" ];
-      pathOverrides.milo = "/mnt/bulk/tv-shows";
-      # On ultracc: path = ~/media/TV Shows
-    };
-    movies = {
-      type = "receiveonly";  # milo never pushes changes back to ultracc
-      path = "movies";
-      devices = [ "ultracc" "milo" ];
-      pathOverrides.milo = "/mnt/bulk/movies";
-      # On ultracc: path = ~/media/Movies
+      pathOverrides.milo = "/mnt/bulk/seedbox/outbox";
     };
     program-staging = {
       type = "receiveonly";  # milo never pushes changes back to ultracc

@@ -31,6 +31,7 @@
     ../../modules/nixos/services/scan-to-paperless.nix
     ../../modules/nixos/services/ntfy.nix
     ../../modules/nixos/services/music-pipeline.nix
+    ../../modules/nixos/services/arr.nix
     ../../modules/nixos/services/opencrate.nix
     ../../modules/nixos/services/filebrowser.nix
     ../../modules/nixos/services/atuin.nix
